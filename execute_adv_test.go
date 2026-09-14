@@ -186,8 +186,8 @@ func TestInsertBatch(t *testing.T) {
 		u2 := &orm.User{Name: new("name2")}
 		sqlDB, mock := orm.MockSqlDB(r)
 		db := orm.DbInstConfig{
-			SqlDB:      sqlDB,
-			GenKeyType: orm.GenKeyType_.FirstInsertId,
+			SqlDB:               sqlDB,
+			GetGeneratedKeyType: orm.GetGeneratedKeyType_.FirstInsertId,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
 				orm.NewColumnPolicyConfig("create_at").UseCreateTime(),
 			},
@@ -204,7 +204,7 @@ func TestInsertBatch(t *testing.T) {
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{SqlDB: sqlDB, GenKeyType: orm.GenKeyType_.LastInsertId}.Build()
+		db := orm.DbInstConfig{SqlDB: sqlDB, GetGeneratedKeyType: orm.GetGeneratedKeyType_.LastInsertId}.Build()
 		mock.ExpectPrepare("INSERT INTO user(name) VALUES (?), (?)").ExpectExec().WillReturnResult(sqlmock.NewResult(3, 2)).
 			WithArgs("name1", "name2")
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
@@ -216,7 +216,7 @@ func TestInsertBatch(t *testing.T) {
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{SqlDB: sqlDB, GenKeyType: orm.GenKeyType_.Returning}.Build()
+		db := orm.DbInstConfig{SqlDB: sqlDB, GetGeneratedKeyType: orm.GetGeneratedKeyType_.Returning}.Build()
 		mock.ExpectPrepare("INSERT INTO user(name) VALUES (?), (?) RETURNING id").ExpectQuery().
 			WithArgs("name1", "name2").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
@@ -228,7 +228,7 @@ func TestInsertBatch(t *testing.T) {
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{SqlDB: sqlDB, GenKeyType: orm.GenKeyType_.Output}.Build()
+		db := orm.DbInstConfig{SqlDB: sqlDB, GetGeneratedKeyType: orm.GetGeneratedKeyType_.Output}.Build()
 		mock.ExpectPrepare("INSERT INTO user(name) OUTPUT INSERTED.id VALUES (?), (?)").ExpectQuery().
 			WithArgs("name1", "name2").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()

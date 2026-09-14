@@ -51,35 +51,35 @@ func TestDB(t *testing.T) {
 		db := DbInstConfig{DbType: DbType_.MySQL}.Build()
 		r.Equal("", db.paramPrefix)
 		r.Equal(QuotedIdentifier_.Backtick.ID, db.quotedIdentifier.ID)
-		r.Equal(GenKeyType_.FirstInsertId.ID, db.genKeyType.ID)
+		r.Equal(GetGeneratedKeyType_.FirstInsertId.ID, db.getGeneratedKeyType.ID)
 		r.Equal(PageType_.LimitOffset.ID, db.pageType.ID)
 	}
 	{
 		db := DbInstConfig{DbType: DbType_.Oracle}.Build()
 		r.Equal(":", db.paramPrefix)
 		r.Equal(QuotedIdentifier_.DoubleQuotes.ID, db.quotedIdentifier.ID)
-		r.Equal(GenKeyType_.UNDEFINED.ID, db.genKeyType.ID)
+		r.Equal(GetGeneratedKeyType_.UNDEFINED.ID, db.getGeneratedKeyType.ID)
 		r.Equal(PageType_.FetchNext.ID, db.pageType.ID)
 	}
 	{
 		db := DbInstConfig{DbType: DbType_.Postgres}.Build()
 		r.Equal("$", db.paramPrefix)
 		r.Equal(QuotedIdentifier_.DoubleQuotes.ID, db.quotedIdentifier.ID)
-		r.Equal(GenKeyType_.Returning.ID, db.genKeyType.ID)
+		r.Equal(GetGeneratedKeyType_.Returning.ID, db.getGeneratedKeyType.ID)
 		r.Equal(PageType_.LimitOffset.ID, db.pageType.ID)
 	}
 	{
 		db := DbInstConfig{DbType: DbType_.SQLServer}.Build()
 		r.Equal(":", db.paramPrefix)
 		r.Equal(QuotedIdentifier_.Brackets.ID, db.quotedIdentifier.ID)
-		r.Equal(GenKeyType_.Output.ID, db.genKeyType.ID)
+		r.Equal(GetGeneratedKeyType_.Output.ID, db.getGeneratedKeyType.ID)
 		r.Equal(PageType_.FetchNext.ID, db.pageType.ID)
 	}
 	{
 		db := DbInstConfig{DbType: DbType_.SQLite}.Build()
 		r.Equal("", db.paramPrefix)
 		r.Equal(QuotedIdentifier_.Backtick.ID, db.quotedIdentifier.ID)
-		r.Equal(GenKeyType_.LastInsertId.ID, db.genKeyType.ID)
+		r.Equal(GetGeneratedKeyType_.LastInsertId.ID, db.getGeneratedKeyType.ID)
 		r.Equal(PageType_.LimitOffset.ID, db.pageType.ID)
 	}
 

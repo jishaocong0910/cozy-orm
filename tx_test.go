@@ -37,7 +37,7 @@ func TestTx(t *testing.T) {
 		mock.ExpectCommit()
 		ctx := context.Background()
 		var ctx2 context.Context
-		tx := db.Begin(ctx)
+		tx := db.Tx(ctx)
 		err := tx.TxOptions(nil).Do(func(ctx context.Context) error {
 			ctx2 = ctx
 			ti := orm.GetTxInfoInner(ctx)
@@ -62,7 +62,7 @@ func TestTx(t *testing.T) {
 		mock.ExpectPrepare("UPDATE user set status=1 WHERE id=?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectPrepare("UPDATE user set status=2 WHERE id=?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
-		err := db.Begin(nil).Do(func(ctx context.Context) error {
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SqlBuilder) {
 				b.Write("UPDATE user set status=1 WHERE id=?", 1)
 			}).Do()
@@ -70,7 +70,7 @@ func TestTx(t *testing.T) {
 				return err
 			}
 
-			err = db.Begin(ctx).Do(func(ctx context.Context) error {
+			err = db.Tx(ctx).Do(func(ctx context.Context) error {
 				_, err := db.Mutation(ctx).BuildSql(func(b *orm.SqlBuilder) {
 					b.Write("UPDATE user set status=2 WHERE id=?", 1)
 				}).Do()
@@ -91,7 +91,7 @@ func TestTx(t *testing.T) {
 		mock.ExpectPrepare("UPDATE user set status=1 WHERE id=?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectPrepare("UPDATE user set status=2 WHERE id=?").ExpectExec().WillReturnError(errors.New("test nested _rollback"))
 		mock.ExpectRollback()
-		err := db.Begin(nil).Do(func(ctx context.Context) error {
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SqlBuilder) {
 				b.Write("UPDATE user set status=1 WHERE id=?", 1)
 			}).Do()
@@ -99,7 +99,7 @@ func TestTx(t *testing.T) {
 				return err
 			}
 
-			err = db.Begin(ctx).Do(func(ctx context.Context) error {
+			err = db.Tx(ctx).Do(func(ctx context.Context) error {
 				_, err := db.Mutation(ctx).BuildSql(func(b *orm.SqlBuilder) {
 					b.Write("UPDATE user set status=2 WHERE id=?", 1)
 				}).Do()
@@ -123,7 +123,7 @@ func TestTx(t *testing.T) {
 		mock2.ExpectBegin()
 		mock2.ExpectPrepare("UPDATE user set status=2 WHERE id=?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
 		mock2.ExpectCommit()
-		err := db.Begin(nil).Do(func(ctx context.Context) error {
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SqlBuilder) {
 				b.Write("UPDATE user set status=1 WHERE id=?", 1)
 			}).Do()
@@ -131,7 +131,7 @@ func TestTx(t *testing.T) {
 				return err
 			}
 
-			err = db2.Begin(ctx).Do(func(ctx context.Context) error {
+			err = db2.Tx(ctx).Do(func(ctx context.Context) error {
 				_, err := db2.Mutation(ctx).BuildSql(func(b *orm.SqlBuilder) {
 					b.Write("UPDATE user set status=2 WHERE id=?", 1)
 				}).Do()
@@ -148,7 +148,7 @@ func TestTx(t *testing.T) {
 	}
 	{
 		db := orm.DbInstConfig{}.Build()
-		err := db.Begin(nil).Do(func(ctx context.Context) error {
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SqlBuilder) {}).Do()
 			return err
 		})
@@ -157,7 +157,7 @@ func TestTx(t *testing.T) {
 	{
 		db, mock := orm.MockDB(r)
 		mock.ExpectBegin()
-		err := db.Begin(nil).Do(func(ctx context.Context) error {
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			return errors.New("error")
 		})
 		r.EqualError(err, "error")
@@ -165,7 +165,7 @@ func TestTx(t *testing.T) {
 	{
 		db, mock := orm.MockDB(r)
 		mock.ExpectBegin().WillReturnError(errors.New("begin error"))
-		err := db.Begin(nil).Do(func(ctx context.Context) error {
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			return nil
 		})
 		r.EqualError(err, "begin error")
@@ -173,7 +173,7 @@ func TestTx(t *testing.T) {
 	{
 		db, mock := orm.MockDB(r)
 		mock.ExpectBegin()
-		err := db.Begin(nil).Do(func(ctx context.Context) error {
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			panic(errors.New("panic error"))
 		})
 		r.ErrorContains(err, "panic error")
@@ -181,7 +181,7 @@ func TestTx(t *testing.T) {
 	{
 		db, mock := orm.MockDB(r)
 		mock.ExpectBegin()
-		err := db.Begin(nil).Do(func(ctx context.Context) error {
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			panic(123)
 		})
 		r.ErrorContains(err, "123")
@@ -190,7 +190,7 @@ func TestTx(t *testing.T) {
 		db, mock := orm.MockDB(r)
 		mock.ExpectBegin()
 		r.Panics(func() {
-			db.Begin(nil).Must().Do(func(ctx context.Context) error {
+			db.Tx(nil).Must().Do(func(ctx context.Context) error {
 				panic(errors.New("test panic"))
 			})
 		})
@@ -213,7 +213,7 @@ func TestTxHook(t *testing.T) {
 		mock.ExpectPrepare("UPDATE user SET email = ? WHERE id = ?").ExpectExec().WithArgs("a1", 1).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectRollback()
-		err := db.Begin(nil).Do(func(ctx context.Context) error {
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			_, err := db.Update[orm.User](ctx).Set("email", "a1").Condition(orm.Cond().Eq("id", 1)).Do()
 			if err != nil {
 				return err
@@ -247,7 +247,7 @@ func TestTxHook(t *testing.T) {
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 		ctx := context.WithValue(context.Background(), "key", "value")
-		err := db.Begin(ctx).Do(func(ctx context.Context) error {
+		err := db.Tx(ctx).Do(func(ctx context.Context) error {
 			_, err := db.Update[orm.User](ctx).Set("email", "a1").Condition(orm.Cond().Eq("id", 1)).Do()
 			if err != nil {
 				return err
@@ -276,7 +276,7 @@ func TestTxHook(t *testing.T) {
 		log := orm.MockLogger(db)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		err := db.Begin(nil).Do(func(ctx context.Context) error {
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			b := orm.TxHook().AfterAsync(func(ctx context.Context, commit bool) {
 				panic("after-hook panic")
 			}).Bind(ctx)

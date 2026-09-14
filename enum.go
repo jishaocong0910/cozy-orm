@@ -74,28 +74,28 @@ var QuotedIdentifier_ = e.NewEnum(_QuotedIdentifier{
 	}},
 })
 
-type GenKeyType struct {
+type GetGeneratedKeyType struct {
 	e.EnumElem
 	writeSql func(b *SqlBuilder, autoColumn_ []string)
 }
 
-type _GenKeyType struct {
-	e.Enum[GenKeyType]
+type _GetGeneratedKeyType struct {
+	e.Enum[GetGeneratedKeyType]
 	FirstInsertId,
 	LastInsertId,
 	Returning,
-	Output GenKeyType
+	Output GetGeneratedKeyType
 }
 
-var GenKeyType_ = e.NewEnum(_GenKeyType{
-	Returning: GenKeyType{
+var GetGeneratedKeyType_ = e.NewEnum(_GetGeneratedKeyType{
+	Returning: GetGeneratedKeyType{
 		writeSql: func(b *SqlBuilder, autoColumn_ []string) {
 			b.ForEach(b.SepFixOpt(" RETURNING ", ", ", ""), autoColumn_, func(_ int, column string) {
 				b.WriteColumn(column)
 			})
 		},
 	},
-	Output: GenKeyType{
+	Output: GetGeneratedKeyType{
 		writeSql: func(b *SqlBuilder, autoColumn_ []string) {
 			b.ForEach(b.SepFixOpt(" OUTPUT ", ", ", ""), autoColumn_, func(_ int, column string) {
 				b.Write("INSERTED.").WriteColumn(column)

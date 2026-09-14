@@ -253,15 +253,15 @@ func (i *insert[E]) LastStr(lastStr string) *insert[E] {
 
 // Do execute SQL
 func (i *insert[E]) Do() (int64, error) {
-	switch i.executor.db.genKeyType.ID {
-	case GenKeyType_.Returning.ID, GenKeyType_.Output.ID:
+	switch i.executor.db.getGeneratedKeyType.ID {
+	case GetGeneratedKeyType_.Returning.ID, GetGeneratedKeyType_.Output.ID:
 		_, err := newQuery[E](i.executor).MapTarget(i.entity_...).BuildSql(func(b *SqlBuilder) {
 			i.buildSql(b)
 		}).Do()
 		return int64(len(i.entity_)), err
 	default:
 		m := newMutation(i.executor)
-		if i.executor.db.genKeyType.Is(GenKeyType_.FirstInsertId, GenKeyType_.LastInsertId) {
+		if i.executor.db.getGeneratedKeyType.Is(GetGeneratedKeyType_.FirstInsertId, GetGeneratedKeyType_.LastInsertId) {
 			m.MapTarget[E](i.entity_...)
 		}
 		return m.BuildSql(func(b *SqlBuilder) { i.buildSql(b) }).Do()
@@ -286,14 +286,14 @@ func (i *insert[E]) buildSql(b *SqlBuilder) {
 	b.ForEach(b.SepFix("(", ", ", ")"), insertedColumns, func(_ int, column string) {
 		b.WriteColumn(column)
 	})
-	if len(ei.autoColumn_) > 0 && i.executor.db.genKeyType.IsPresent() {
-		if GenKeyType_.Output.Is(i.executor.db.genKeyType) {
-			i.executor.db.genKeyType.writeSql(b, ei.autoColumn_)
+	if len(ei.autoColumn_) > 0 && i.executor.db.getGeneratedKeyType.IsPresent() {
+		if GetGeneratedKeyType_.Output.Is(i.executor.db.getGeneratedKeyType) {
+			i.executor.db.getGeneratedKeyType.writeSql(b, ei.autoColumn_)
 			i._writeValuesClause(b, ei, insertedColumns)
 		} else {
 			i._writeValuesClause(b, ei, insertedColumns)
-			if i.executor.db.genKeyType.writeSql != nil {
-				i.executor.db.genKeyType.writeSql(b, ei.autoColumn_)
+			if i.executor.db.getGeneratedKeyType.writeSql != nil {
+				i.executor.db.getGeneratedKeyType.writeSql(b, ei.autoColumn_)
 			}
 		}
 	} else {
