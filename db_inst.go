@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-type DB struct {
+type DbInst struct {
 	sqlDB               *sql.DB
 	logger              Logger
 	sqlLogLevel         Level
@@ -41,55 +41,55 @@ type DB struct {
 }
 
 // Raw returns the underlying *sql.DB
-func (d *DB) Raw() *sql.DB {
+func (d *DbInst) Raw() *sql.DB {
 	return d.sqlDB
 }
 
-func (d *DB) Query[E any](ctx context.Context) *query[E] {
+func (d *DbInst) Query[E any](ctx context.Context) *query[E] {
 	return newQuery[E](newExecutor(ctx, d))
 }
 
-func (d *DB) Mutation(ctx context.Context) *mutation {
+func (d *DbInst) Mutation(ctx context.Context) *mutation {
 	return newMutation(newExecutor(ctx, d))
 }
 
-func (d *DB) Find[E any](ctx context.Context) *find[E] {
+func (d *DbInst) Find[E any](ctx context.Context) *find[E] {
 	return &find[E]{query: d.Query[E](ctx)}
 }
 
-func (d *DB) FindOne[E any](ctx context.Context) *findOne[E] {
+func (d *DbInst) FindOne[E any](ctx context.Context) *findOne[E] {
 	return &findOne[E]{find: d.Find[E](ctx)}
 }
 
-func (d *DB) Insert[E any](ctx context.Context) *insert[E] {
+func (d *DbInst) Insert[E any](ctx context.Context) *insert[E] {
 	return &insert[E]{executor: newExecutor(ctx, d)}
 }
 
-func (d *DB) Update[E any](ctx context.Context) *update[E] {
+func (d *DbInst) Update[E any](ctx context.Context) *update[E] {
 	return &update[E]{mutation: d.Mutation(ctx)}
 }
 
-func (d *DB) UpdateBatch[E any](ctx context.Context) *updateBatch[E] {
-	return &updateBatch[E]{mutation: d.Mutation(ctx)}
+func (d *DbInst) UpdateRow[E any](ctx context.Context) *updateRows[E] {
+	return &updateRows[E]{update: d.Update[E](ctx)}
 }
 
-func (d *DB) Delete[E any](ctx context.Context) *delete[E] {
+func (d *DbInst) Delete[E any](ctx context.Context) *delete[E] {
 	return &delete[E]{mutation: d.Mutation(ctx)}
 }
 
-func (d *DB) DeleteSoftly[E any](ctx context.Context) *deleteSoftly[E] {
+func (d *DbInst) DeleteSoftly[E any](ctx context.Context) *deleteSoftly[E] {
 	return &deleteSoftly[E]{mutation: d.Mutation(ctx)}
 }
 
-func (d *DB) Count[E any](ctx context.Context) *count[E] {
+func (d *DbInst) Count[E any](ctx context.Context) *count[E] {
 	return &count[E]{query: d.Query[Tuple[int64]](ctx)}
 }
 
-func (d *DB) Begin(ctx context.Context) *tx {
+func (d *DbInst) Begin(ctx context.Context) *tx {
 	return newTx(ctx, d)
 }
 
-func (d *DB) getEntityInfo(t reflect.Type) (*entityInfo, error) {
+func (d *DbInst) getEntityInfo(t reflect.Type) (*entityInfo, error) {
 	if val, ok := d.entities.Load(t); ok {
 		return val.(*entityInfo), nil
 	}
@@ -108,7 +108,7 @@ func (d *DB) getEntityInfo(t reflect.Type) (*entityInfo, error) {
 	return ei, err
 }
 
-func (d *DB) getMapper(t reflect.Type) (mapper, error) {
+func (d *DbInst) getMapper(t reflect.Type) (mapper, error) {
 	if val, ok := d.mappers.Load(t); ok {
 		return val.(mapper), nil
 	}
@@ -128,7 +128,7 @@ func (d *DB) getMapper(t reflect.Type) (mapper, error) {
 	return m, err
 }
 
-type DbConfig struct {
+type DbInstConfig struct {
 	SqlDB       *sql.DB
 	Logger      Logger
 	SqlLogLevel Level
@@ -149,7 +149,7 @@ type DbConfig struct {
 	ColumnPolicyConfigs []*columnPolicyConfig
 }
 
-func (c DbConfig) Build() *DB {
+func (c DbInstConfig) Build() *DbInst {
 	switch c.DbType.ID {
 	case DbType_.MySQL.ID:
 		c.QuotedIdentifier = QuotedIdentifier_.Backtick
@@ -181,7 +181,7 @@ func (c DbConfig) Build() *DB {
 	if c.ColNameMapper == nil {
 		c.ColNameMapper = defaultNameMapper
 	}
-	return &DB{
+	return &DbInst{
 		sqlDB:               c.SqlDB,
 		logger:              c.Logger,
 		sqlLogLevel:         c.SqlLogLevel,

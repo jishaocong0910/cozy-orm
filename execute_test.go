@@ -30,7 +30,7 @@ import (
 func TestQuery(t *testing.T) {
 	r := require.New(t)
 	{
-		db := orm.DbConfig{}.Build()
+		db := orm.DbInstConfig{}.Build()
 		_, err := db.Query[orm.User](nil).BuildSql(func(b *orm.SqlBuilder) {}).Do()
 		r.EqualError(err, "no available *sql.DB")
 	}
@@ -167,7 +167,7 @@ func TestQuery(t *testing.T) {
 func TestMutation(t *testing.T) {
 	r := require.New(t)
 	{
-		db := orm.DbConfig{}.Build()
+		db := orm.DbInstConfig{}.Build()
 		_, err := db.Mutation(nil).BuildSql(func(b *orm.SqlBuilder) {}).Do()
 		r.EqualError(err, "no available *sql.DB")
 	}
@@ -236,7 +236,7 @@ func TestMutation(t *testing.T) {
 	{
 		users := []*orm.User{{}, {}}
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbConfig{SqlDB: sqlDB, GenKeyType: orm.GenKeyType_.FirstInsertId}.Build()
+		db := orm.DbInstConfig{SqlDB: sqlDB, GenKeyType: orm.GenKeyType_.FirstInsertId}.Build()
 		mock.ExpectPrepare("").ExpectExec().WillReturnResult(sqlmock.NewResult(1, 1))
 		affected, err := db.Mutation(nil).MapTarget(users...).BuildSql(func(b *orm.SqlBuilder) {
 		}).Do()
@@ -249,7 +249,7 @@ func TestMutation(t *testing.T) {
 	{
 		users := []*orm.User{{}, {}}
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbConfig{SqlDB: sqlDB, GenKeyType: orm.GenKeyType_.LastInsertId}.Build()
+		db := orm.DbInstConfig{SqlDB: sqlDB, GenKeyType: orm.GenKeyType_.LastInsertId}.Build()
 		mock.ExpectPrepare("").ExpectExec().WillReturnResult(sqlmock.NewResult(2, 1))
 		affected, err := db.Mutation(nil).MapTarget(users...).BuildSql(func(b *orm.SqlBuilder) {
 		}).Do()
@@ -261,7 +261,7 @@ func TestMutation(t *testing.T) {
 	}
 	{
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbConfig{SqlDB: sqlDB, GenKeyType: orm.GenKeyType_.FirstInsertId}.Build()
+		db := orm.DbInstConfig{SqlDB: sqlDB, GenKeyType: orm.GenKeyType_.FirstInsertId}.Build()
 		log := orm.MockLogger(db)
 		mock.ExpectPrepare("").ExpectExec().WillReturnResult(sqlmock.NewResult(2, 1))
 		affected, err := db.Mutation(nil).MapTarget(new(1), new(1)).BuildSql(func(b *orm.SqlBuilder) {
@@ -275,7 +275,7 @@ func TestMutation(t *testing.T) {
 	}
 	{
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbConfig{SqlDB: sqlDB, GenKeyType: orm.GenKeyType_.FirstInsertId}.Build()
+		db := orm.DbInstConfig{SqlDB: sqlDB, GenKeyType: orm.GenKeyType_.FirstInsertId}.Build()
 		log := orm.MockLogger(db)
 		mock.ExpectPrepare("").ExpectExec().WillReturnResult(orm.UnsupportedLastInsertIdResult{})
 		_, err := db.Mutation(nil).MapTarget(new(1), new(1)).BuildSql(func(b *orm.SqlBuilder) {
@@ -288,7 +288,7 @@ func TestMutation(t *testing.T) {
 	}
 	{
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbConfig{SqlDB: sqlDB, GenKeyType: orm.GenKeyType_.FirstInsertId}.Build()
+		db := orm.DbInstConfig{SqlDB: sqlDB, GenKeyType: orm.GenKeyType_.FirstInsertId}.Build()
 		log := orm.MockLogger(db)
 		mock.ExpectPrepare("").ExpectExec().WillReturnResult(sqlmock.NewResult(2, 1))
 		affected, err := db.Mutation(nil).MapTarget(&orm.DemoMulPk{}, &orm.DemoMulPk{}).BuildSql(func(b *orm.SqlBuilder) {

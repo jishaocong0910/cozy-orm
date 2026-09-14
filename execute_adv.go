@@ -411,15 +411,15 @@ func (u *update[E]) Do() (int64, error) {
 		}
 		entityValueMap := ei.getValueMap(u.entity, updatedColumn_, ei.pkColumn_)
 
-		condition := Cond()
+		c := Cond()
 		if len(ei.pkColumn_) > 0 && u.entity != nil {
 			for _, column := range ei.pkColumn_ {
 				if v, ok := entityValueMap[column]; ok {
-					condition.Eq(column, v)
+					c.Eq(column, v)
 				}
 			}
 		}
-		condition.Sub(u.condition)
+		c.Sub(u.condition)
 
 		am := newAssignedManager[E](ei.updatePolicy, []map[string]any{ei.getValueMap(u.entity, updatedColumn_)}, u.setColumns, "")
 		b.Write("UPDATE ").Write(ei.table).Write(" SET ")
@@ -427,7 +427,7 @@ func (u *update[E]) Do() (int64, error) {
 			b.Write(column).Write(" = ").Accept(am.getValueWriter(column, 0))
 		})
 		b.Accept(where{
-			condition:      condition,
+			condition:      c,
 			policy:         ei.deleteSoftlyPolicy,
 			includeDeleted: u.includeDeleted,
 			safety:         !u.skipSafety,
@@ -435,88 +435,82 @@ func (u *update[E]) Do() (int64, error) {
 	}).Do()
 }
 
-type updateBatch[E any] struct {
-	mutation       *mutation
-	entity_        []*E
-	onDemand       *OnDemand
-	setColumns     setColumns
-	nullableSet    set[string]
-	condition      *Condition
-	includeDeleted bool
-	skipSafety     bool
+type updateRows[E any] struct {
+	update  *update[E]
+	entity_ []*E
 }
 
 // Must if true, panic when error occurs, otherwise, return error.
-func (u *updateBatch[E]) Must() *updateBatch[E] {
-	u.mutation.Must()
+func (u *updateRows[E]) Must() *updateRows[E] {
+	u.update.Must()
 	return u
 }
 
 // Describe the SQL in the log.
-func (u *updateBatch[E]) Describe(desc string) *updateBatch[E] {
-	u.mutation.Describe(desc)
+func (u *updateRows[E]) Describe(desc string) *updateRows[E] {
+	u.update.Describe(desc)
 	return u
 }
 
 // SqlLogLevel specifies the SQL log level, default use the global config.
-func (u *updateBatch[E]) SqlLogLevel(level Level) *updateBatch[E] {
-	u.mutation.SqlLogLevel(level)
+func (u *updateRows[E]) SqlLogLevel(level Level) *updateRows[E] {
+	u.update.SqlLogLevel(level)
 	return u
 }
 
-func (u *updateBatch[E]) OnDemand(onDemand *OnDemand) *updateBatch[E] {
-	u.onDemand = onDemand
+func (u *updateRows[E]) OnDemand(onDemand *OnDemand) *updateRows[E] {
+	u.update.OnDemand(onDemand)
 	return u
 }
 
-func (u *updateBatch[E]) Set(column string, value any) *updateBatch[E] {
-	u.setColumns.add(column, assignedValue{value: value})
+func (u *updateRows[E]) Set(column string, value any) *updateRows[E] {
+	u.update.Set(column, value)
 	return u
 }
 
-func (u *updateBatch[E]) SetRaw(column string, sql string) *updateBatch[E] {
-	u.setColumns.add(column, assignedRawSql{rawSql: sql})
+func (u *updateRows[E]) SetRaw(column string, sql string) *updateRows[E] {
+	u.update.SetRaw(column, sql)
 	return u
 }
 
 // Nullable specifies the columns that the mapped field is nil in the entity set to null, work only All is false.
-func (u *updateBatch[E]) Nullable(column_ ...string) *updateBatch[E] {
-	u.nullableSet = newSet(column_...)
+func (u *updateRows[E]) Nullable(column_ ...string) *updateRows[E] {
+	u.update.Nullable(column_...)
 	return u
 }
 
 // Condition is the condition of WHERE clause, create by function Cond.
-func (u *updateBatch[E]) Condition(cond *Condition) *updateBatch[E] {
-	u.condition = cond
+func (u *updateRows[E]) Condition(cond *Condition) *updateRows[E] {
+	u.update.Condition(cond)
 	return u
 }
 
 // IncludeDeleted indicates the conditions do not automatically filter out logical deleted rows.
-func (u *updateBatch[E]) IncludeDeleted() *updateBatch[E] {
-	u.includeDeleted = true
+func (u *updateRows[E]) IncludeDeleted() *updateRows[E] {
+	u.update.IncludeDeleted()
 	return u
 }
 
-func (u *updateBatch[E]) SkipSafety() *updateBatch[E] {
-	u.skipSafety = true
+func (u *updateRows[E]) SkipSafety() *updateRows[E] {
+	u.update.SkipSafety()
 	return u
 }
 
 // Entities is the data will be saved, only the non-nil fields will be saved (except those which have the "auto" tag).
 //
 // Please note: the non-nil fields will be taken from the first entity.
-func (u *updateBatch[E]) Entities(entity_ ...*E) *updateBatch[E] {
+func (u *updateRows[E]) Entities(entity_ ...*E) *updateRows[E] {
 	u.entity_ = entity_
 	return u
 }
 
 // Do execute SQL
-func (u *updateBatch[E]) Do() (int64, error) {
+func (u *updateRows[E]) Do() (int64, error) {
 	if len(u.entity_) == 0 {
 		return 0, nil
 	}
-	return u.mutation.BuildSql(func(b *SqlBuilder) {
-		ei, err := u.mutation.db.getEntityInfo(reflect.TypeFor[E]())
+	return u.update.mutation.BuildSql(func(b *SqlBuilder) {
+		ei, err := u.update.mutation.db.getEntityInfo(reflect.TypeFor[E]())
 		if err != nil {
 			b.Error(err)
 			return
@@ -527,8 +521,8 @@ func (u *updateBatch[E]) Do() (int64, error) {
 		}
 		pkColumn := ei.pkColumn_[0]
 
-		updatedColumns := ei.getColumns(u.entity_[0], u.onDemand,
-			u.nullableSet.concat(u.setColumns.columnSet, ei.updatePolicy.forceColumnSet, ei.updatePolicy.defaultColumnSet),
+		updatedColumns := ei.getColumns(u.entity_[0], u.update.onDemand,
+			u.update.nullableSet.concat(u.update.setColumns.columnSet, ei.updatePolicy.forceColumnSet, ei.updatePolicy.defaultColumnSet),
 			ei.updatePolicy.ignoredColumnSet)
 		if len(updatedColumns) == 0 {
 			b.Cancel()
@@ -548,15 +542,21 @@ func (u *updateBatch[E]) Do() (int64, error) {
 			entityValueMap_ = append(entityValueMap_, entityValueMap)
 		}
 
-		am := newAssignedManager[E](ei.updatePolicy, entityValueMap_, u.setColumns, pkColumn)
+		am := newAssignedManager[E](ei.updatePolicy, entityValueMap_, u.update.setColumns, pkColumn)
 		b.Write("UPDATE ").Write(ei.table).Write(" SET ")
 		b.ForEach(b.Sep(", "), updatedColumns, func(i int, column string) {
 			b.Write(column).Write(" = ").Accept(am.getValueWriter(column, -1))
 		})
+		var c *Condition
+		if len(u.entity_) == 1 {
+			c = Cond().Eq(pkColumn, pkValues[0]).Sub(u.update.condition)
+		} else {
+			c = Cond().In(pkColumn, pkValues).Sub(u.update.condition)
+		}
 		b.Accept(where{
-			condition:      Cond().In(pkColumn, pkValues).Sub(u.condition),
+			condition:      c,
 			policy:         ei.deleteSoftlyPolicy,
-			includeDeleted: u.includeDeleted,
+			includeDeleted: u.update.includeDeleted,
 			safety:         true,
 		})
 	}).Do()
@@ -756,22 +756,26 @@ func (a *assignedManager[E]) getValueWriter(column string, entityIndex int) SqlW
 		return vw
 	}
 	if entityIndex == -1 {
-		allNil := true
-		caseItems := make([]assignedCaseItem, 0, len(a.entitiesValue_))
-		for _, entityValueMap := range a.entitiesValue_ {
-			value := entityValueMap[column]
-			caseItems = append(caseItems, assignedCaseItem{
-				caseValue: entityValueMap[a.pkColumn],
-				thenValue: assignedValue{value: value},
-			})
-			if value != nil {
-				allNil = false
+		if len(a.entitiesValue_) == 1 {
+			entityIndex = 0
+		} else {
+			allNil := true
+			caseItems := make([]assignedCaseItem, 0, len(a.entitiesValue_))
+			for _, entityValueMap := range a.entitiesValue_ {
+				value := entityValueMap[column]
+				caseItems = append(caseItems, assignedCaseItem{
+					caseValue: entityValueMap[a.pkColumn],
+					thenValue: assignedValue{value: value},
+				})
+				if value != nil {
+					allNil = false
+				}
 			}
+			if allNil {
+				return assignedValue{value: nil}
+			}
+			return assignedCases{pkColumn: a.pkColumn, caseItem_: caseItems}
 		}
-		if allNil {
-			return assignedValue{value: nil}
-		}
-		return assignedCases{pkColumn: a.pkColumn, caseItem_: caseItems}
 	}
 	if value, ok := a.entitiesValue_[entityIndex][column]; ok {
 		return assignedValue{value: value}

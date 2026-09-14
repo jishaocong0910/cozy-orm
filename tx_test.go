@@ -147,7 +147,7 @@ func TestTx(t *testing.T) {
 		r.NoError(mock.ExpectationsWereMet())
 	}
 	{
-		db := orm.DbConfig{}.Build()
+		db := orm.DbInstConfig{}.Build()
 		err := db.Begin(nil).Do(func(ctx context.Context) error {
 			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SqlBuilder) {}).Do()
 			return err

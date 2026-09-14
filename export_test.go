@@ -30,10 +30,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func MockDB(r *require.Assertions) (db *DB, mock sqlmock.Sqlmock) {
+func MockDB(r *require.Assertions) (db *DbInst, mock sqlmock.Sqlmock) {
 	d, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	r.NoError(err)
-	return DbConfig{SqlDB: d}.Build(), mock
+	return DbInstConfig{SqlDB: d}.Build(), mock
 }
 
 func MockSqlDB(r *require.Assertions) (d *sql.DB, mock sqlmock.Sqlmock) {
@@ -42,7 +42,7 @@ func MockSqlDB(r *require.Assertions) (d *sql.DB, mock sqlmock.Sqlmock) {
 	return
 }
 
-func MockLogger(db *DB) *mockLogger {
+func MockLogger(db *DbInst) *mockLogger {
 	log := &mockLogger{}
 	if db != nil {
 		db.logger = log
