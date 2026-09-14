@@ -74,28 +74,28 @@ var QuotedIdentifier_ = e.NewEnum(_QuotedIdentifier{
 	}},
 })
 
-type GetGeneratedKeyType struct {
+type GetGeneratedKeyMode struct {
 	e.EnumElem
 	writeSql func(b *SqlBuilder, autoColumn_ []string)
 }
 
-type _GetGeneratedKeyType struct {
-	e.Enum[GetGeneratedKeyType]
+type _GetGeneratedKeyMode struct {
+	e.Enum[GetGeneratedKeyMode]
 	FirstInsertId,
 	LastInsertId,
 	Returning,
-	Output GetGeneratedKeyType
+	Output GetGeneratedKeyMode
 }
 
-var GetGeneratedKeyType_ = e.NewEnum(_GetGeneratedKeyType{
-	Returning: GetGeneratedKeyType{
+var GetGeneratedKeyMode_ = e.NewEnum(_GetGeneratedKeyMode{
+	Returning: GetGeneratedKeyMode{
 		writeSql: func(b *SqlBuilder, autoColumn_ []string) {
 			b.ForEach(b.SepFixOpt(" RETURNING ", ", ", ""), autoColumn_, func(_ int, column string) {
 				b.WriteColumn(column)
 			})
 		},
 	},
-	Output: GetGeneratedKeyType{
+	Output: GetGeneratedKeyMode{
 		writeSql: func(b *SqlBuilder, autoColumn_ []string) {
 			b.ForEach(b.SepFixOpt(" OUTPUT ", ", ", ""), autoColumn_, func(_ int, column string) {
 				b.Write("INSERTED.").WriteColumn(column)
@@ -104,19 +104,19 @@ var GetGeneratedKeyType_ = e.NewEnum(_GetGeneratedKeyType{
 	},
 })
 
-type PageType struct {
+type PageMode struct {
 	e.EnumElem
 	writeSql func(b *SqlBuilder, offset, count int)
 }
 
-type _PageType struct {
-	e.Enum[PageType]
+type _PageMode struct {
+	e.Enum[PageMode]
 	LimitOffset,
-	FetchNext PageType
+	FetchNext PageMode
 }
 
-var PageType_ = e.NewEnum(_PageType{
-	LimitOffset: PageType{
+var PageMode_ = e.NewEnum(_PageMode{
+	LimitOffset: PageMode{
 		writeSql: func(b *SqlBuilder, offset, count int) {
 			b.Write(" LIMIT ").Write(strconv.FormatInt(int64(count), 10))
 			if offset > 0 {
@@ -124,7 +124,7 @@ var PageType_ = e.NewEnum(_PageType{
 			}
 		},
 	},
-	FetchNext: PageType{
+	FetchNext: PageMode{
 		writeSql: func(b *SqlBuilder, offset, count int) {
 			b.Write(" OFFSET ").Write(strconv.FormatInt(int64(offset), 10)).Write(" ROWS")
 			b.Write(" FETCH NEXT ").Write(strconv.FormatInt(int64(count), 10)).Write(" ROWS ONLY")

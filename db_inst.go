@@ -29,8 +29,8 @@ type DbInst struct {
 	tabNameMapper       *NameMapper
 	colNameMapper       *NameMapper
 	paramPrefix         string
-	getGeneratedKeyType GetGeneratedKeyType
-	pageType            PageType
+	GetGeneratedKeyMode GetGeneratedKeyMode
+	pageMode            PageMode
 	quotedIdentifier    QuotedIdentifier
 	columnPolicyConfig_ []*columnPolicyConfig
 
@@ -142,9 +142,9 @@ type DbInstConfig struct {
 	// in method SqlBuilder.WritePh()
 	ParamPrefix string
 	// indicates how to get id when executing INSERT SQL
-	GetGeneratedKeyType GetGeneratedKeyType
+	GetGeneratedKeyMode GetGeneratedKeyMode
 	// indicates the paging clause
-	PageType            PageType
+	PageMode            PageMode
 	QuotedIdentifier    QuotedIdentifier
 	ColumnPolicyConfigs ColumnPolicyConfigs
 }
@@ -153,27 +153,27 @@ func (c DbInstConfig) Build() *DbInst {
 	switch c.DbType.ID {
 	case DbType_.MySQL.ID:
 		c.QuotedIdentifier = QuotedIdentifier_.Backtick
-		c.GetGeneratedKeyType = GetGeneratedKeyType_.FirstInsertId
-		c.PageType = PageType_.LimitOffset
+		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.FirstInsertId
+		c.PageMode = PageMode_.LimitOffset
 	case DbType_.Oracle.ID:
 		c.ParamPrefix = ":"
 		c.QuotedIdentifier = QuotedIdentifier_.DoubleQuotes
-		c.GetGeneratedKeyType = GetGeneratedKeyType_.UNDEFINED
-		c.PageType = PageType_.FetchNext
+		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.UNDEFINED
+		c.PageMode = PageMode_.FetchNext
 	case DbType_.Postgres.ID:
 		c.ParamPrefix = "$"
 		c.QuotedIdentifier = QuotedIdentifier_.DoubleQuotes
-		c.GetGeneratedKeyType = GetGeneratedKeyType_.Returning
-		c.PageType = PageType_.LimitOffset
+		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.Returning
+		c.PageMode = PageMode_.LimitOffset
 	case DbType_.SQLServer.ID:
 		c.QuotedIdentifier = QuotedIdentifier_.Brackets
 		c.ParamPrefix = ":"
-		c.GetGeneratedKeyType = GetGeneratedKeyType_.Output
-		c.PageType = PageType_.FetchNext
+		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.Output
+		c.PageMode = PageMode_.FetchNext
 	case DbType_.SQLite.ID:
 		c.QuotedIdentifier = QuotedIdentifier_.Backtick
-		c.GetGeneratedKeyType = GetGeneratedKeyType_.LastInsertId
-		c.PageType = PageType_.LimitOffset
+		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.LastInsertId
+		c.PageMode = PageMode_.LimitOffset
 	}
 	if c.TabNameMapper == nil {
 		c.TabNameMapper = defaultNameMapper
@@ -188,8 +188,8 @@ func (c DbInstConfig) Build() *DbInst {
 		tabNameMapper:       c.TabNameMapper,
 		colNameMapper:       c.ColNameMapper,
 		paramPrefix:         c.ParamPrefix,
-		getGeneratedKeyType: c.GetGeneratedKeyType,
-		pageType:            c.PageType,
+		GetGeneratedKeyMode: c.GetGeneratedKeyMode,
+		pageMode:            c.PageMode,
 		quotedIdentifier:    c.QuotedIdentifier,
 		columnPolicyConfig_: c.ColumnPolicyConfigs,
 	}

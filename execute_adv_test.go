@@ -35,7 +35,7 @@ func TestFind(t *testing.T) {
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{SqlDB: sqlDB, PageType: orm.PageType_.LimitOffset}.Build()
+		db := orm.DbInstConfig{SqlDB: sqlDB, PageMode: orm.PageMode_.LimitOffset}.Build()
 		log := orm.MockLogger(db)
 		mock.ExpectPrepare("SELECT id, name, phone, email, level, version FROM user WHERE level = ? ORDER BY id DESC, name ASC LIMIT 1 OFFSET 10 FOR UPDATE").ExpectQuery().WithArgs(1).
 			WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(9, "abc").AddRow(10, "efg"))
@@ -57,7 +57,7 @@ func TestFind(t *testing.T) {
 		sqlDB, mock := orm.MockSqlDB(r)
 		db := orm.DbInstConfig{
 			SqlDB:    sqlDB,
-			PageType: orm.PageType_.FetchNext,
+			PageMode: orm.PageMode_.FetchNext,
 		}.Build()
 		mock.ExpectPrepare("SELECT id, name FROM user OFFSET 10 ROWS FETCH NEXT 1 ROWS ONLY").
 			ExpectQuery().WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(9, "abc"))
@@ -107,7 +107,7 @@ func TestFindOne(t *testing.T) {
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{SqlDB: sqlDB, PageType: orm.PageType_.LimitOffset}.Build()
+		db := orm.DbInstConfig{SqlDB: sqlDB, PageMode: orm.PageMode_.LimitOffset}.Build()
 		log := orm.MockLogger(db)
 		mock.ExpectPrepare("SELECT id, name, phone, email, level, version FROM user " +
 			"WHERE level = ? ORDER BY id DESC, name ASC LIMIT 1 OFFSET 10 FOR UPDATE").ExpectQuery().WithArgs(1).
@@ -187,7 +187,7 @@ func TestInsertBatch(t *testing.T) {
 		sqlDB, mock := orm.MockSqlDB(r)
 		db := orm.DbInstConfig{
 			SqlDB:               sqlDB,
-			GetGeneratedKeyType: orm.GetGeneratedKeyType_.FirstInsertId,
+			GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
 				orm.NewColumnPolicyConfig("create_at").UseCreateTime(),
 			},
@@ -204,7 +204,7 @@ func TestInsertBatch(t *testing.T) {
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{SqlDB: sqlDB, GetGeneratedKeyType: orm.GetGeneratedKeyType_.LastInsertId}.Build()
+		db := orm.DbInstConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.LastInsertId}.Build()
 		mock.ExpectPrepare("INSERT INTO user(name) VALUES (?), (?)").ExpectExec().WillReturnResult(sqlmock.NewResult(3, 2)).
 			WithArgs("name1", "name2")
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
@@ -216,7 +216,7 @@ func TestInsertBatch(t *testing.T) {
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{SqlDB: sqlDB, GetGeneratedKeyType: orm.GetGeneratedKeyType_.Returning}.Build()
+		db := orm.DbInstConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.Returning}.Build()
 		mock.ExpectPrepare("INSERT INTO user(name) VALUES (?), (?) RETURNING id").ExpectQuery().
 			WithArgs("name1", "name2").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
@@ -228,7 +228,7 @@ func TestInsertBatch(t *testing.T) {
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{SqlDB: sqlDB, GetGeneratedKeyType: orm.GetGeneratedKeyType_.Output}.Build()
+		db := orm.DbInstConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.Output}.Build()
 		mock.ExpectPrepare("INSERT INTO user(name) OUTPUT INSERTED.id VALUES (?), (?)").ExpectQuery().
 			WithArgs("name1", "name2").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
@@ -410,7 +410,7 @@ func TestUpdateRows(t *testing.T) {
 			"WHERE id = ? AND level = ?").ExpectExec().
 			WithArgs("a", 2, 1, 5).WillReturnResult(sqlmock.NewResult(1, 1))
 		affected, err := db.UpdateRow[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Describe("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
-			Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, ).Nullable("properties").
+			Entities(&orm.User{Id: new(int64(1)), Name: new("a")}).Nullable("properties").
 			Set("status", orm.UserStatus(2)).Set("tags", nil).SetRaw("level", "'2'").
 			Condition(orm.Cond().Eq("level", 5)).Do()
 		r.NoError(err)

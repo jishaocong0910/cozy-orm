@@ -113,7 +113,7 @@ func (f *find[E]) Do() ([]*E, error) {
 			includeDeleted: f.includeDeleted,
 		}).Accept(f.orderBy)
 		if f.page != nil {
-			f.page.pageType = f.query.db.pageType
+			f.page.pageMode = f.query.db.pageMode
 			b.Accept(f.page)
 		}
 		if f.lastStr != "" {
@@ -253,15 +253,15 @@ func (i *insert[E]) LastStr(lastStr string) *insert[E] {
 
 // Do execute SQL
 func (i *insert[E]) Do() (int64, error) {
-	switch i.executor.db.getGeneratedKeyType.ID {
-	case GetGeneratedKeyType_.Returning.ID, GetGeneratedKeyType_.Output.ID:
+	switch i.executor.db.GetGeneratedKeyMode.ID {
+	case GetGeneratedKeyMode_.Returning.ID, GetGeneratedKeyMode_.Output.ID:
 		_, err := newQuery[E](i.executor).MapTarget(i.entity_...).BuildSql(func(b *SqlBuilder) {
 			i.buildSql(b)
 		}).Do()
 		return int64(len(i.entity_)), err
 	default:
 		m := newMutation(i.executor)
-		if i.executor.db.getGeneratedKeyType.Is(GetGeneratedKeyType_.FirstInsertId, GetGeneratedKeyType_.LastInsertId) {
+		if i.executor.db.GetGeneratedKeyMode.Is(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) {
 			m.MapTarget[E](i.entity_...)
 		}
 		return m.BuildSql(func(b *SqlBuilder) { i.buildSql(b) }).Do()
@@ -286,14 +286,14 @@ func (i *insert[E]) buildSql(b *SqlBuilder) {
 	b.ForEach(b.SepFix("(", ", ", ")"), insertedColumns, func(_ int, column string) {
 		b.WriteColumn(column)
 	})
-	if len(ei.autoColumn_) > 0 && i.executor.db.getGeneratedKeyType.IsPresent() {
-		if GetGeneratedKeyType_.Output.Is(i.executor.db.getGeneratedKeyType) {
-			i.executor.db.getGeneratedKeyType.writeSql(b, ei.autoColumn_)
+	if len(ei.autoColumn_) > 0 && i.executor.db.GetGeneratedKeyMode.IsPresent() {
+		if GetGeneratedKeyMode_.Output.Is(i.executor.db.GetGeneratedKeyMode) {
+			i.executor.db.GetGeneratedKeyMode.writeSql(b, ei.autoColumn_)
 			i._writeValuesClause(b, ei, insertedColumns)
 		} else {
 			i._writeValuesClause(b, ei, insertedColumns)
-			if i.executor.db.getGeneratedKeyType.writeSql != nil {
-				i.executor.db.getGeneratedKeyType.writeSql(b, ei.autoColumn_)
+			if i.executor.db.GetGeneratedKeyMode.writeSql != nil {
+				i.executor.db.GetGeneratedKeyMode.writeSql(b, ei.autoColumn_)
 			}
 		}
 	} else {
@@ -924,13 +924,13 @@ func (o orderByItem) WriteSQL(b *SqlBuilder) {
 }
 
 type page struct {
-	pageType         PageType
+	pageMode         PageMode
 	offset, pageSize int
 }
 
 func (p *page) WriteSQL(b *SqlBuilder) {
-	if p != nil && p.pageType.IsPresent() {
-		p.pageType.writeSql(b, p.offset, p.pageSize)
+	if p != nil && p.pageMode.IsPresent() {
+		p.pageMode.writeSql(b, p.offset, p.pageSize)
 	}
 }
 
