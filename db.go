@@ -62,15 +62,19 @@ func (d *DB) FindOne[E any](ctx context.Context) *findOne[E] {
 }
 
 func (d *DB) Insert[E any](ctx context.Context) *insert[E] {
-	return &insert[E]{executor: newExecutor(ctx, d)}
+	return &insert[E]{ib: d.InsertBatch[E](ctx)}
+}
+
+func (d *DB) InsertBatch[E any](ctx context.Context) *insertBatch[E] {
+	return &insertBatch[E]{executor: newExecutor(ctx, d)}
 }
 
 func (d *DB) Update[E any](ctx context.Context) *update[E] {
 	return &update[E]{mutation: d.Mutation(ctx)}
 }
 
-func (d *DB) UpdateRow[E any](ctx context.Context) *updateRows[E] {
-	return &updateRows[E]{update: d.Update[E](ctx)}
+func (d *DB) UpdateBatch[E any](ctx context.Context) *updateBatch[E] {
+	return &updateBatch[E]{mutation: d.Mutation(ctx)}
 }
 
 func (d *DB) Delete[E any](ctx context.Context) *delete[E] {
@@ -168,7 +172,7 @@ func (c DbConfig) Build() *DB {
 	case DbType_.SQLServer.ID:
 		c.QuotedIdentifier = QuotedIdentifier_.Brackets
 		c.ParamPrefix = ":"
-		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.Output
+		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.SqlServer
 		c.PageMode = PageMode_.FetchNext
 	case DbType_.SQLite.ID:
 		c.QuotedIdentifier = QuotedIdentifier_.Backtick

@@ -72,7 +72,7 @@ func TestDB(t *testing.T) {
 		db := DbConfig{DbType: DbType_.SQLServer}.Build()
 		r.Equal(":", db.paramPrefix)
 		r.Equal(QuotedIdentifier_.Brackets.ID, db.quotedIdentifier.ID)
-		r.Equal(GetGeneratedKeyMode_.Output.ID, db.GetGeneratedKeyMode.ID)
+		r.Equal(GetGeneratedKeyMode_.SqlServer.ID, db.GetGeneratedKeyMode.ID)
 		r.Equal(PageMode_.FetchNext.ID, db.pageMode.ID)
 	}
 	{

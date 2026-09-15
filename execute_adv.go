@@ -207,6 +207,52 @@ func (f *findOne[E]) Do() (*E, error) {
 }
 
 type insert[E any] struct {
+	ib *insertBatch[E]
+}
+
+// Must if true, panic when error occurs, otherwise, return error.
+func (i *insert[E]) Must() *insert[E] {
+	i.ib.Must()
+	return i
+}
+
+// Describe the SQL in the log.
+func (i *insert[E]) Describe(desc string) *insert[E] {
+	i.ib.Describe(desc)
+	return i
+}
+
+// SqlLogLevel specifies the SQL log level, default use the global config.
+func (i *insert[E]) SqlLogLevel(level Level) *insert[E] {
+	i.ib.SqlLogLevel(level)
+	return i
+}
+
+// Entities is the data will be saved, only the non-nil fields will be saved (except those which have the "auto" tag).
+//
+// Please note: the non-nil fields will be taken from the first entity.
+func (i *insert[E]) Entity(entity *E) *insert[E] {
+	i.ib.Entities(entity)
+	return i
+}
+
+// Nullable specifies the columns that the mapped field is nil in the entity set to null, work only All is false.
+func (i *insert[E]) Nullable(column_ ...string) *insert[E] {
+	i.ib.Nullable(column_...)
+	return i
+}
+
+// LastStr is the last string of the SQL.
+func (i *insert[E]) LastStr(lastStr string) *insert[E] {
+	i.ib.lastStr = lastStr
+	return i
+}
+
+func (i *insert[E]) Do() (int64, error) {
+	return i.ib.Do()
+}
+
+type insertBatch[E any] struct {
 	executor    *executor
 	entity_     []*E
 	nullableSet set[string]
@@ -214,19 +260,19 @@ type insert[E any] struct {
 }
 
 // Must if true, panic when error occurs, otherwise, return error.
-func (i *insert[E]) Must() *insert[E] {
+func (i *insertBatch[E]) Must() *insertBatch[E] {
 	i.executor.setMust()
 	return i
 }
 
 // Describe the SQL in the log.
-func (i *insert[E]) Describe(desc string) *insert[E] {
+func (i *insertBatch[E]) Describe(desc string) *insertBatch[E] {
 	i.executor.setDescribe(desc)
 	return i
 }
 
 // SqlLogLevel specifies the SQL log level, default use the global config.
-func (i *insert[E]) SqlLogLevel(level Level) *insert[E] {
+func (i *insertBatch[E]) SqlLogLevel(level Level) *insertBatch[E] {
 	i.executor.setSqlLogLevel(level)
 	return i
 }
@@ -234,27 +280,21 @@ func (i *insert[E]) SqlLogLevel(level Level) *insert[E] {
 // Entities is the data will be saved, only the non-nil fields will be saved (except those which have the "auto" tag).
 //
 // Please note: the non-nil fields will be taken from the first entity.
-func (i *insert[E]) Entities(entity_ ...*E) *insert[E] {
+func (i *insertBatch[E]) Entities(entity_ ...*E) *insertBatch[E] {
 	i.entity_ = entity_
 	return i
 }
 
 // Nullable specifies the columns that the mapped field is nil in the entity set to null, work only All is false.
-func (i *insert[E]) Nullable(column_ ...string) *insert[E] {
+func (i *insertBatch[E]) Nullable(column_ ...string) *insertBatch[E] {
 	i.nullableSet = newSet(column_...)
 	return i
 }
 
-// LastStr is the last string of the SQL.
-func (i *insert[E]) LastStr(lastStr string) *insert[E] {
-	i.lastStr = lastStr
-	return i
-}
-
 // Do execute SQL
-func (i *insert[E]) Do() (int64, error) {
+func (i *insertBatch[E]) Do() (int64, error) {
 	switch i.executor.db.GetGeneratedKeyMode.ID {
-	case GetGeneratedKeyMode_.Returning.ID, GetGeneratedKeyMode_.Output.ID:
+	case GetGeneratedKeyMode_.Returning.ID, GetGeneratedKeyMode_.SqlServer.ID:
 		_, err := newQuery[E](i.executor).MapTarget(i.entity_...).BuildSql(func(b *SqlBuilder) {
 			i.buildSql(b)
 		}).Do()
@@ -268,7 +308,7 @@ func (i *insert[E]) Do() (int64, error) {
 	}
 }
 
-func (i *insert[E]) buildSql(b *SqlBuilder) {
+func (i *insertBatch[E]) buildSql(b *SqlBuilder) {
 	if len(i.entity_) == 0 {
 		b.Cancel()
 		return
@@ -287,7 +327,7 @@ func (i *insert[E]) buildSql(b *SqlBuilder) {
 		b.WriteColumn(column)
 	})
 	if len(ei.autoColumn_) > 0 && i.executor.db.GetGeneratedKeyMode.IsPresent() {
-		if GetGeneratedKeyMode_.Output.Is(i.executor.db.GetGeneratedKeyMode) {
+		if GetGeneratedKeyMode_.SqlServer.Is(i.executor.db.GetGeneratedKeyMode) {
 			i.executor.db.GetGeneratedKeyMode.writeSql(b, ei.autoColumn_)
 			i._writeValuesClause(b, ei, insertedColumns)
 		} else {
@@ -304,7 +344,7 @@ func (i *insert[E]) buildSql(b *SqlBuilder) {
 	}
 }
 
-func (i *insert[E]) _writeValuesClause(b *SqlBuilder, ei *entityInfo, insertedColumn_ []string) {
+func (i *insertBatch[E]) _writeValuesClause(b *SqlBuilder, ei *entityInfo, insertedColumn_ []string) {
 	entityValueMap_ := make([]map[string]any, 0, len(i.entity_))
 	for _, entity := range i.entity_ {
 		entityValueMap_ = append(entityValueMap_, ei.getValueMap(entity, insertedColumn_))
@@ -435,82 +475,83 @@ func (u *update[E]) Do() (int64, error) {
 	}).Do()
 }
 
-type updateRows[E any] struct {
-	update  *update[E]
-	entity_ []*E
+type updateBatch[E any] struct {
+	mutation       *mutation
+	entity_        []*E
+	onDemand       *OnDemand
+	setColumns     setColumns
+	nullableSet    set[string]
+	condition      *Condition
+	includeDeleted bool
+	skipSafety     bool
 }
 
 // Must if true, panic when error occurs, otherwise, return error.
-func (u *updateRows[E]) Must() *updateRows[E] {
-	u.update.Must()
+func (u *updateBatch[E]) Must() *updateBatch[E] {
+	u.mutation.Must()
 	return u
 }
 
 // Describe the SQL in the log.
-func (u *updateRows[E]) Describe(desc string) *updateRows[E] {
-	u.update.Describe(desc)
+func (u *updateBatch[E]) Describe(desc string) *updateBatch[E] {
+	u.mutation.Describe(desc)
 	return u
 }
 
 // SqlLogLevel specifies the SQL log level, default use the global config.
-func (u *updateRows[E]) SqlLogLevel(level Level) *updateRows[E] {
-	u.update.SqlLogLevel(level)
+func (u *updateBatch[E]) SqlLogLevel(level Level) *updateBatch[E] {
+	u.mutation.SqlLogLevel(level)
 	return u
 }
 
-func (u *updateRows[E]) OnDemand(onDemand *OnDemand) *updateRows[E] {
-	u.update.OnDemand(onDemand)
+func (u *updateBatch[E]) OnDemand(onDemand *OnDemand) *updateBatch[E] {
+	u.onDemand = onDemand
 	return u
 }
 
-func (u *updateRows[E]) Set(column string, value any) *updateRows[E] {
-	u.update.Set(column, value)
+func (u *updateBatch[E]) Set(column string, value any) *updateBatch[E] {
+	u.setColumns.add(column, assignedValue{value: value})
 	return u
 }
 
-func (u *updateRows[E]) SetRaw(column string, sql string) *updateRows[E] {
-	u.update.SetRaw(column, sql)
+func (u *updateBatch[E]) SetRaw(column string, sql string) *updateBatch[E] {
+	u.setColumns.add(column, assignedRawSql{rawSql: sql})
 	return u
 }
 
 // Nullable specifies the columns that the mapped field is nil in the entity set to null, work only All is false.
-func (u *updateRows[E]) Nullable(column_ ...string) *updateRows[E] {
-	u.update.Nullable(column_...)
+func (u *updateBatch[E]) Nullable(column_ ...string) *updateBatch[E] {
+	u.nullableSet = newSet(column_...)
 	return u
 }
 
 // Condition is the condition of WHERE clause, create by function Cond.
-func (u *updateRows[E]) Condition(cond *Condition) *updateRows[E] {
-	u.update.Condition(cond)
+func (u *updateBatch[E]) Condition(cond *Condition) *updateBatch[E] {
+	u.condition = cond
 	return u
 }
 
 // IncludeDeleted indicates the conditions do not automatically filter out logical deleted rows.
-func (u *updateRows[E]) IncludeDeleted() *updateRows[E] {
-	u.update.IncludeDeleted()
-	return u
-}
-
-func (u *updateRows[E]) SkipSafety() *updateRows[E] {
-	u.update.SkipSafety()
+func (u *updateBatch[E]) IncludeDeleted() *updateBatch[E] {
+	u.includeDeleted = true
 	return u
 }
 
 // Entities is the data will be saved, only the non-nil fields will be saved (except those which have the "auto" tag).
 //
 // Please note: the non-nil fields will be taken from the first entity.
-func (u *updateRows[E]) Entities(entity_ ...*E) *updateRows[E] {
+func (u *updateBatch[E]) Entities(entity_ ...*E) *updateBatch[E] {
 	u.entity_ = entity_
 	return u
 }
 
 // Do execute SQL
-func (u *updateRows[E]) Do() (int64, error) {
+func (u *updateBatch[E]) Do() (int64, error) {
 	if len(u.entity_) == 0 {
 		return 0, nil
 	}
-	return u.update.mutation.BuildSql(func(b *SqlBuilder) {
-		ei, err := u.update.mutation.db.getEntityInfo(reflect.TypeFor[E]())
+	return u.mutation.BuildSql(func(b *SqlBuilder) {
+		ei, err := u.mutation.db.getEntityInfo(reflect.TypeFor[E]())
 		if err != nil {
 			b.Error(err)
 			return
@@ -521,8 +562,8 @@ func (u *updateRows[E]) Do() (int64, error) {
 		}
 		pkColumn := ei.pkColumn_[0]
 
-		updatedColumns := ei.getColumns(u.entity_[0], u.update.onDemand,
-			u.update.nullableSet.concat(u.update.setColumns.columnSet, ei.updatePolicy.forceColumnSet, ei.updatePolicy.defaultColumnSet),
+		updatedColumns := ei.getColumns(u.entity_[0], u.onDemand,
+			u.nullableSet.concat(u.setColumns.columnSet, ei.updatePolicy.forceColumnSet, ei.updatePolicy.defaultColumnSet),
 			ei.updatePolicy.ignoredColumnSet)
 		if len(updatedColumns) == 0 {
 			b.Cancel()
@@ -542,21 +583,21 @@ func (u *updateRows[E]) Do() (int64, error) {
 			entityValueMap_ = append(entityValueMap_, entityValueMap)
 		}
 
-		am := newAssignedManager[E](ei.updatePolicy, entityValueMap_, u.update.setColumns, pkColumn)
+		am := newAssignedManager[E](ei.updatePolicy, entityValueMap_, u.setColumns, pkColumn)
 		b.Write("UPDATE ").Write(ei.table).Write(" SET ")
 		b.ForEach(b.Sep(", "), updatedColumns, func(i int, column string) {
 			b.Write(column).Write(" = ").Accept(am.getValueWriter(column, -1))
 		})
 		var c *Condition
 		if len(u.entity_) == 1 {
-			c = Cond().Eq(pkColumn, pkValues[0]).Sub(u.update.condition)
+			c = Cond().Eq(pkColumn, pkValues[0]).Sub(u.condition)
 		} else {
-			c = Cond().In(pkColumn, pkValues).Sub(u.update.condition)
+			c = Cond().In(pkColumn, pkValues).Sub(u.condition)
 		}
 		b.Accept(where{
 			condition:      c,
 			policy:         ei.deleteSoftlyPolicy,
-			includeDeleted: u.update.includeDeleted,
+			includeDeleted: u.includeDeleted,
 			safety:         true,
 		})
 	}).Do()

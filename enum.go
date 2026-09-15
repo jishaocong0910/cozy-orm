@@ -84,7 +84,8 @@ type _GetGeneratedKeyMode struct {
 	FirstInsertId,
 	LastInsertId,
 	Returning,
-	Output GetGeneratedKeyMode
+	SqlServer,
+	Oracle GetGeneratedKeyMode
 }
 
 var GetGeneratedKeyMode_ = e.NewEnum(_GetGeneratedKeyMode{
@@ -95,7 +96,7 @@ var GetGeneratedKeyMode_ = e.NewEnum(_GetGeneratedKeyMode{
 			})
 		},
 	},
-	Output: GetGeneratedKeyMode{
+	SqlServer: GetGeneratedKeyMode{
 		writeSql: func(b *SqlBuilder, autoColumn_ []string) {
 			b.ForEach(b.SepFixOpt(" OUTPUT ", ", ", ""), autoColumn_, func(_ int, column string) {
 				b.Write("INSERTED.").WriteColumn(column)
