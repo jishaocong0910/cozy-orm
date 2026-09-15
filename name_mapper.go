@@ -36,26 +36,6 @@ func NewNameMapper() *NameMapper {
 
 type nameMapping func(str string) string
 
-func (n *NameMapper) SubPrefix(prefix string) *NameMapper {
-	n.mapping_ = append(n.mapping_, subPrefix(prefix))
-	return n
-}
-
-func (n *NameMapper) SubSuffix(suffix string) *NameMapper {
-	n.mapping_ = append(n.mapping_, subSuffix(suffix))
-	return n
-}
-
-func (n *NameMapper) AddPrefix(prefix string) *NameMapper {
-	n.mapping_ = append(n.mapping_, addPrefix(prefix))
-	return n
-}
-
-func (n *NameMapper) AddSuffix(suffix string) *NameMapper {
-	n.mapping_ = append(n.mapping_, addSuffix(suffix))
-	return n
-}
-
 func (n *NameMapper) LowerCamelCase() *NameMapper {
 	n.hasCamelCase = true
 	n.mapping_ = append(n.mapping_, lowerCamelCase)
@@ -94,40 +74,24 @@ func (n *NameMapper) UpperFirstLiteral() *NameMapper {
 	return n
 }
 
-var subPrefix = func(prefix string) nameMapping {
-	return func(str string) string {
-		if str == "" {
-			return str
-		}
-		return strings.TrimPrefix(str, prefix)
-	}
+func (n *NameMapper) AddPrefix(prefix string) *NameMapper {
+	n.mapping_ = append(n.mapping_, addPrefix(prefix))
+	return n
 }
 
-var subSuffix = func(suffix string) nameMapping {
-	return func(str string) string {
-		if str == "" {
-			return str
-		}
-		return strings.TrimSuffix(str, suffix)
-	}
+func (n *NameMapper) AddSuffix(suffix string) *NameMapper {
+	n.mapping_ = append(n.mapping_, addSuffix(suffix))
+	return n
 }
 
-var addPrefix = func(prefix string) nameMapping {
-	return func(str string) string {
-		if str == "" {
-			return str
-		}
-		return prefix + str
-	}
+func (n *NameMapper) SubPrefix(prefix string) *NameMapper {
+	n.mapping_ = append(n.mapping_, subPrefix(prefix))
+	return n
 }
 
-var addSuffix = func(suffix string) nameMapping {
-	return func(str string) string {
-		if str == "" {
-			return str
-		}
-		return str + suffix
-	}
+func (n *NameMapper) SubSuffix(suffix string) *NameMapper {
+	n.mapping_ = append(n.mapping_, subSuffix(suffix))
+	return n
 }
 
 var lowerCamelCase = func(str string) string {
@@ -238,4 +202,40 @@ var upperFirstLiteral = func(str string) string {
 	}
 	rune_ := []rune(str)
 	return strings.ToUpper(string(rune_[:1])) + string(rune_[1:])
+}
+
+var addPrefix = func(prefix string) nameMapping {
+	return func(str string) string {
+		if str == "" {
+			return str
+		}
+		return prefix + str
+	}
+}
+
+var addSuffix = func(suffix string) nameMapping {
+	return func(str string) string {
+		if str == "" {
+			return str
+		}
+		return str + suffix
+	}
+}
+
+var subPrefix = func(prefix string) nameMapping {
+	return func(str string) string {
+		if str == "" {
+			return str
+		}
+		return strings.TrimPrefix(str, prefix)
+	}
+}
+
+var subSuffix = func(suffix string) nameMapping {
+	return func(str string) string {
+		if str == "" {
+			return str
+		}
+		return strings.TrimSuffix(str, suffix)
+	}
 }
