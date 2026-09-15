@@ -35,7 +35,7 @@ func TestFind(t *testing.T) {
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{SqlDB: sqlDB, PageMode: orm.PageMode_.LimitOffset}.Build()
+		db := orm.DbConfig{SqlDB: sqlDB, PageMode: orm.PageMode_.LimitOffset}.Build()
 		log := orm.MockLogger(db)
 		mock.ExpectPrepare("SELECT id, name, phone, email, level, version FROM user WHERE level = ? ORDER BY id DESC, name ASC LIMIT 1 OFFSET 10 FOR UPDATE").ExpectQuery().WithArgs(1).
 			WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(9, "abc").AddRow(10, "efg"))
@@ -55,7 +55,7 @@ func TestFind(t *testing.T) {
 	}
 	{
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{
+		db := orm.DbConfig{
 			SqlDB:    sqlDB,
 			PageMode: orm.PageMode_.FetchNext,
 		}.Build()
@@ -67,7 +67,7 @@ func TestFind(t *testing.T) {
 	}
 	{
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{
+		db := orm.DbConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
 				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0),
@@ -107,7 +107,7 @@ func TestFindOne(t *testing.T) {
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{SqlDB: sqlDB, PageMode: orm.PageMode_.LimitOffset}.Build()
+		db := orm.DbConfig{SqlDB: sqlDB, PageMode: orm.PageMode_.LimitOffset}.Build()
 		log := orm.MockLogger(db)
 		mock.ExpectPrepare("SELECT id, name, phone, email, level, version FROM user " +
 			"WHERE level = ? ORDER BY id DESC, name ASC LIMIT 1 OFFSET 10 FOR UPDATE").ExpectQuery().WithArgs(1).
@@ -126,7 +126,7 @@ func TestFindOne(t *testing.T) {
 	}
 	{
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{
+		db := orm.DbConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
 				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0),
@@ -185,7 +185,7 @@ func TestInsertBatch(t *testing.T) {
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{
+		db := orm.DbConfig{
 			SqlDB:               sqlDB,
 			GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
@@ -204,7 +204,7 @@ func TestInsertBatch(t *testing.T) {
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.LastInsertId}.Build()
+		db := orm.DbConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.LastInsertId}.Build()
 		mock.ExpectPrepare("INSERT INTO user(name) VALUES (?), (?)").ExpectExec().WillReturnResult(sqlmock.NewResult(3, 2)).
 			WithArgs("name1", "name2")
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
@@ -216,7 +216,7 @@ func TestInsertBatch(t *testing.T) {
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.Returning}.Build()
+		db := orm.DbConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.Returning}.Build()
 		mock.ExpectPrepare("INSERT INTO user(name) VALUES (?), (?) RETURNING id").ExpectQuery().
 			WithArgs("name1", "name2").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
@@ -228,7 +228,7 @@ func TestInsertBatch(t *testing.T) {
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.Output}.Build()
+		db := orm.DbConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.Output}.Build()
 		mock.ExpectPrepare("INSERT INTO user(name) OUTPUT INSERTED.id VALUES (?), (?)").ExpectQuery().
 			WithArgs("name1", "name2").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
@@ -299,7 +299,7 @@ func TestUpdate(t *testing.T) {
 	}
 	{
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{
+		db := orm.DbConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
 				orm.NewColumnPolicyConfig("create_at").UseCreateTime(),
@@ -378,7 +378,7 @@ func TestUpdateRows(t *testing.T) {
 	}
 	{
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{
+		db := orm.DbConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
 				orm.NewColumnPolicyConfig("create_at").UseCreateTime(),
@@ -468,7 +468,7 @@ func TestDeleteSoftly(t *testing.T) {
 	}
 	{
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{
+		db := orm.DbConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
 				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0),
@@ -485,7 +485,7 @@ func TestDeleteSoftly(t *testing.T) {
 	}
 	{
 		sqlDB, _ := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{
+		db := orm.DbConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
 				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0),
@@ -497,7 +497,7 @@ func TestDeleteSoftly(t *testing.T) {
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{
+		db := orm.DbConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
 				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0),
@@ -515,7 +515,7 @@ func TestDeleteSoftly(t *testing.T) {
 	}
 	{
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{
+		db := orm.DbConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
 				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0),
@@ -529,7 +529,7 @@ func TestDeleteSoftly(t *testing.T) {
 	}
 	{
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{
+		db := orm.DbConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
 				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().NullMode(0),
@@ -567,7 +567,7 @@ func TestCount(t *testing.T) {
 	}
 	{
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DbInstConfig{
+		db := orm.DbConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
 				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0),
@@ -578,7 +578,7 @@ func TestCount(t *testing.T) {
 		_, err := db.Count[orm.User](nil).SqlLogLevel(orm.Level_.Info).Describe("test desc").Condition(orm.Cond().Eq("level", 2)).Do()
 		r.NoError(err)
 
-		db = orm.DbInstConfig{
+		db = orm.DbConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
 				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0),

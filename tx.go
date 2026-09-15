@@ -23,7 +23,7 @@ import (
 
 type tx struct {
 	ctx       context.Context
-	db        *DbInst
+	db        *DB
 	must      bool
 	txOptions *sql.TxOptions
 	ti        *txInfo
@@ -154,7 +154,7 @@ func (t *txInfo) isValid() bool {
 	return t != nil && t.txInfoInner != nil
 }
 
-func (t *txInfo) matchingDb(db *DbInst) bool {
+func (t *txInfo) matchingDb(db *DB) bool {
 	return t.isValid() && t.creator.db == db
 }
 
@@ -187,7 +187,7 @@ func TxHook() *txHook {
 	return &txHook{}
 }
 
-func newTx(ctx context.Context, db *DbInst) *tx {
+func newTx(ctx context.Context, db *DB) *tx {
 	if ctx == nil {
 		ctx = context.Background()
 	}

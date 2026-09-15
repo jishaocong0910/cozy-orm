@@ -228,7 +228,7 @@ func newMutation(e *executor) *mutation {
 
 type executor struct {
 	ctx         context.Context
-	db          *DbInst
+	db          *DB
 	must        bool
 	desc        string
 	sqlLogLevel Level
@@ -350,7 +350,7 @@ func (e *executor) _prepare(sqlStr string) (*sql.Stmt, error) {
 	return e.db.sqlDB.PrepareContext(e.ctx, sqlStr)
 }
 
-func newExecutor(ctx context.Context, db *DbInst) *executor {
+func newExecutor(ctx context.Context, db *DB) *executor {
 	if ctx == nil {
 		ctx = context.Background()
 	}

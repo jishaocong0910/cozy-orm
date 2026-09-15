@@ -25,7 +25,7 @@ func TestDB(t *testing.T) {
 	{
 		log := &mockLogger{}
 		sqlDB, mock := MockSqlDB(r)
-		db := DbInstConfig{SqlDB: sqlDB, Logger: log}.Build()
+		db := DbConfig{SqlDB: sqlDB, Logger: log}.Build()
 		mock.ExpectPrepare("test").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}))
 		_, err := db.Query[User](nil).SqlLogLevel(Level_.Info).BuildSql(func(b *SqlBuilder) {
 			b.Write("test")
@@ -39,7 +39,7 @@ func TestDB(t *testing.T) {
 	}
 	{
 		sqlDB, mock := MockSqlDB(r)
-		db := DbInstConfig{SqlDB: sqlDB, ParamPrefix: ":"}.Build()
+		db := DbConfig{SqlDB: sqlDB, ParamPrefix: ":"}.Build()
 		mock.ExpectPrepare(":1:2:3").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}))
 		_, err := db.Query[User](nil).BuildSql(func(b *SqlBuilder) {
 			b.WritePh().WritePh().WritePh()
@@ -48,35 +48,35 @@ func TestDB(t *testing.T) {
 		r.NoError(mock.ExpectationsWereMet())
 	}
 	{
-		db := DbInstConfig{DbType: DbType_.MySQL}.Build()
+		db := DbConfig{DbType: DbType_.MySQL}.Build()
 		r.Equal("", db.paramPrefix)
 		r.Equal(QuotedIdentifier_.Backtick.ID, db.quotedIdentifier.ID)
 		r.Equal(GetGeneratedKeyMode_.FirstInsertId.ID, db.GetGeneratedKeyMode.ID)
 		r.Equal(PageMode_.LimitOffset.ID, db.pageMode.ID)
 	}
 	{
-		db := DbInstConfig{DbType: DbType_.Oracle}.Build()
+		db := DbConfig{DbType: DbType_.Oracle}.Build()
 		r.Equal(":", db.paramPrefix)
 		r.Equal(QuotedIdentifier_.DoubleQuotes.ID, db.quotedIdentifier.ID)
 		r.Equal(GetGeneratedKeyMode_.UNDEFINED.ID, db.GetGeneratedKeyMode.ID)
 		r.Equal(PageMode_.FetchNext.ID, db.pageMode.ID)
 	}
 	{
-		db := DbInstConfig{DbType: DbType_.Postgres}.Build()
+		db := DbConfig{DbType: DbType_.Postgres}.Build()
 		r.Equal("$", db.paramPrefix)
 		r.Equal(QuotedIdentifier_.DoubleQuotes.ID, db.quotedIdentifier.ID)
 		r.Equal(GetGeneratedKeyMode_.Returning.ID, db.GetGeneratedKeyMode.ID)
 		r.Equal(PageMode_.LimitOffset.ID, db.pageMode.ID)
 	}
 	{
-		db := DbInstConfig{DbType: DbType_.SQLServer}.Build()
+		db := DbConfig{DbType: DbType_.SQLServer}.Build()
 		r.Equal(":", db.paramPrefix)
 		r.Equal(QuotedIdentifier_.Brackets.ID, db.quotedIdentifier.ID)
 		r.Equal(GetGeneratedKeyMode_.Output.ID, db.GetGeneratedKeyMode.ID)
 		r.Equal(PageMode_.FetchNext.ID, db.pageMode.ID)
 	}
 	{
-		db := DbInstConfig{DbType: DbType_.SQLite}.Build()
+		db := DbConfig{DbType: DbType_.SQLite}.Build()
 		r.Equal("", db.paramPrefix)
 		r.Equal(QuotedIdentifier_.Backtick.ID, db.quotedIdentifier.ID)
 		r.Equal(GetGeneratedKeyMode_.LastInsertId.ID, db.GetGeneratedKeyMode.ID)
