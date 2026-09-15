@@ -57,7 +57,7 @@ func TestFind(t *testing.T) {
 		sqlDB, mock := orm.MockSqlDB(r)
 		db := orm.DBConfig{
 			SqlDB:    sqlDB,
-			PageMode: orm.PageMode_.FetchNext,
+			PageMode: orm.PageMode_.OffsetFetch,
 		}.Build()
 		mock.ExpectPrepare("SELECT id, name FROM user OFFSET 10 ROWS FETCH NEXT 1 ROWS ONLY").
 			ExpectQuery().WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(9, "abc"))
@@ -209,7 +209,7 @@ func TestInsertBatch(t *testing.T) {
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
 		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DBConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.Returning}.Build()
+		db := orm.DBConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.InsertReturning}.Build()
 		mock.ExpectPrepare("INSERT INTO user(name) VALUES (?), (?) RETURNING id").ExpectQuery().
 			WithArgs("name1", "name2").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
@@ -317,36 +317,36 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
-func TestUpdateBatch(t *testing.T) {
+func TestUpdateRow(t *testing.T) {
 	r := require.New(t)
 	{
 		db, _ := orm.MockDB(r)
 		r.PanicsWithError("not a valid entity type", func() {
-			db.UpdateBatch[int](nil).Must().Entities(new(1)).Do()
+			db.UpdateRow[int](nil).Must().Entities(new(1)).Do()
 		})
 	}
 	{
 		db, _ := orm.MockDB(r)
-		affected, err := db.UpdateBatch[orm.DemoMulPk](nil).Entities(&orm.DemoMulPk{}, &orm.DemoMulPk{}).Do()
+		affected, err := db.UpdateRow[orm.DemoMulPk](nil).Entities(&orm.DemoMulPk{}, &orm.DemoMulPk{}).Do()
 		r.Equal(int64(0), affected)
 		r.EqualError(err, "orm.DemoMulPk\" must have exactly one field with the \"pk\" tag")
 	}
 	{
 		db, mock := orm.MockDB(r)
 		mock.ExpectPrepare("")
-		affected, err := db.UpdateBatch[orm.User](nil).Entities(&orm.User{Name: new("abc")}).Do()
+		affected, err := db.UpdateRow[orm.User](nil).Entities(&orm.User{Name: new("abc")}).Do()
 		r.Equal(int64(0), affected)
 		r.EqualError(err, "field 'Id' is nil at index 0 of entities")
 	}
 	{
 		db, _ := orm.MockDB(r)
-		affected, err := db.UpdateBatch[orm.User](nil).Do()
+		affected, err := db.UpdateRow[orm.User](nil).Do()
 		r.Equal(int64(0), affected)
 		r.NoError(err)
 	}
 	{
 		db, _ := orm.MockDB(r)
-		affected, err := db.UpdateBatch[orm.User](nil).Entities(&orm.User{Id: new(int64(1))}, &orm.User{Id: new(int64(2))}).Do()
+		affected, err := db.UpdateRow[orm.User](nil).Entities(&orm.User{Id: new(int64(1))}, &orm.User{Id: new(int64(2))}).Do()
 		r.Equal(int64(0), affected)
 		r.NoError(err)
 	}
@@ -358,7 +358,7 @@ func TestUpdateBatch(t *testing.T) {
 			"email = CASE id WHEN ? THEN NULL WHEN ? THEN ? END, status = ?, level = '2', properties = NULL, tags = NULL "+
 			"WHERE id IN(?, ?) AND level = ?").ExpectExec().
 			WithArgs(1, "a", 2, "b", 1, 2, "email", 2, 1, 2, 5).WillReturnResult(sqlmock.NewResult(1, 1))
-		affected, err := db.UpdateBatch[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Describe("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
+		affected, err := db.UpdateRow[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Describe("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
 			Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b"), Email: new("email")}).
 			Nullable("properties").Set("status", orm.UserStatus(2)).Set("tags", nil).SetRaw("level", "'2'").
 			Condition(orm.Cond().Eq("level", 5)).Do()
@@ -383,7 +383,7 @@ func TestUpdateBatch(t *testing.T) {
 		mock.ExpectPrepare("UPDATE user SET name = CASE id WHEN ? THEN ? WHEN ? THEN ? END, update_at = ?, version = version + 1 WHERE id IN(?, ?) AND level = ? AND deleted = ?").ExpectExec().
 			WithArgs(1, "a", 2, "b", orm.AnyTime{}, 1, 2, 5, 0).
 			WillReturnResult(sqlmock.NewResult(1, 1))
-		affected, err := db.UpdateBatch[orm.User](nil).Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b")}).
+		affected, err := db.UpdateRow[orm.User](nil).Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b")}).
 			Condition(orm.Cond().Eq("level", 5)).Do()
 		r.NoError(err)
 		r.Equal(int64(1), affected)
@@ -391,7 +391,7 @@ func TestUpdateBatch(t *testing.T) {
 		mock.ExpectPrepare("UPDATE user SET name = CASE id WHEN ? THEN ? WHEN ? THEN ? END, update_at = ?, version = version + 1 WHERE id IN(?, ?)").ExpectExec().
 			WithArgs(1, "a", 2, "b", orm.AnyTime{}, 1, 2).
 			WillReturnResult(sqlmock.NewResult(1, 1))
-		affected, err = db.UpdateBatch[orm.User](nil).Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b"), Version: new(int64(5))}).
+		affected, err = db.UpdateRow[orm.User](nil).Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b"), Version: new(int64(5))}).
 			Nullable("update_at", "version").IncludeDeleted().Do()
 		r.NoError(err)
 		r.Equal(int64(1), affected)
@@ -402,7 +402,7 @@ func TestUpdateBatch(t *testing.T) {
 		mock.ExpectPrepare("UPDATE user SET name = ?, phone = NULL, email = NULL, status = ?, level = '2', properties = NULL, tags = NULL "+
 			"WHERE id = ? AND level = ?").ExpectExec().
 			WithArgs("a", 2, 1, 5).WillReturnResult(sqlmock.NewResult(1, 1))
-		affected, err := db.UpdateBatch[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Describe("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
+		affected, err := db.UpdateRow[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Describe("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
 			Entities(&orm.User{Id: new(int64(1)), Name: new("a")}).Nullable("properties").
 			Set("status", orm.UserStatus(2)).Set("tags", nil).SetRaw("level", "'2'").
 			Condition(orm.Cond().Eq("level", 5)).Do()

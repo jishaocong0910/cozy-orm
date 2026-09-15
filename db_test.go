@@ -48,35 +48,35 @@ func TestDB(t *testing.T) {
 		r.NoError(mock.ExpectationsWereMet())
 	}
 	{
-		db := DBConfig{DbType: DbType_.MySQL}.Build()
+		db := DBConfig{DBType: DBType_.MySQL}.Build()
 		r.Equal("", db.paramPrefix)
 		r.Equal(QuotedIdentifier_.Backtick.ID, db.quotedIdentifier.ID)
 		r.Equal(GetGeneratedKeyMode_.FirstInsertId.ID, db.GetGeneratedKeyMode.ID)
 		r.Equal(PageMode_.LimitOffset.ID, db.pageMode.ID)
 	}
 	{
-		db := DBConfig{DbType: DbType_.Oracle}.Build()
+		db := DBConfig{DBType: DBType_.Oracle}.Build()
 		r.Equal(":", db.paramPrefix)
-		r.Equal(QuotedIdentifier_.DoubleQuotes.ID, db.quotedIdentifier.ID)
+		r.Equal(QuotedIdentifier_.DoubleQuote.ID, db.quotedIdentifier.ID)
 		r.Equal(GetGeneratedKeyMode_.UNDEFINED.ID, db.GetGeneratedKeyMode.ID)
-		r.Equal(PageMode_.FetchNext.ID, db.pageMode.ID)
+		r.Equal(PageMode_.OffsetFetch.ID, db.pageMode.ID)
 	}
 	{
-		db := DBConfig{DbType: DbType_.Postgres}.Build()
+		db := DBConfig{DBType: DBType_.Postgres}.Build()
 		r.Equal("$", db.paramPrefix)
-		r.Equal(QuotedIdentifier_.DoubleQuotes.ID, db.quotedIdentifier.ID)
-		r.Equal(GetGeneratedKeyMode_.Returning.ID, db.GetGeneratedKeyMode.ID)
+		r.Equal(QuotedIdentifier_.DoubleQuote.ID, db.quotedIdentifier.ID)
+		r.Equal(GetGeneratedKeyMode_.InsertReturning.ID, db.GetGeneratedKeyMode.ID)
 		r.Equal(PageMode_.LimitOffset.ID, db.pageMode.ID)
 	}
 	{
-		db := DBConfig{DbType: DbType_.SQLServer}.Build()
+		db := DBConfig{DBType: DBType_.SQLServer}.Build()
 		r.Equal(":", db.paramPrefix)
-		r.Equal(QuotedIdentifier_.Brackets.ID, db.quotedIdentifier.ID)
+		r.Equal(QuotedIdentifier_.Bracket.ID, db.quotedIdentifier.ID)
 		r.Equal(GetGeneratedKeyMode_.SQLServer.ID, db.GetGeneratedKeyMode.ID)
-		r.Equal(PageMode_.FetchNext.ID, db.pageMode.ID)
+		r.Equal(PageMode_.OffsetFetch.ID, db.pageMode.ID)
 	}
 	{
-		db := DBConfig{DbType: DbType_.SQLite}.Build()
+		db := DBConfig{DBType: DBType_.SQLite}.Build()
 		r.Equal("", db.paramPrefix)
 		r.Equal(QuotedIdentifier_.Backtick.ID, db.quotedIdentifier.ID)
 		r.Equal(GetGeneratedKeyMode_.LastInsertId.ID, db.GetGeneratedKeyMode.ID)

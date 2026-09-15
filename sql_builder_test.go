@@ -59,12 +59,12 @@ func TestSqlBuilder_Write(t *testing.T) {
 		r.Equal("`col`", b.b.String())
 	}
 	{
-		b := newSqlBuilder("", QuotedIdentifier_.DoubleQuotes)
+		b := newSqlBuilder("", QuotedIdentifier_.DoubleQuote)
 		b.WriteColumn("col")
 		r.Equal("\"col\"", b.b.String())
 	}
 	{
-		b := newSqlBuilder("", QuotedIdentifier_.Brackets)
+		b := newSqlBuilder("", QuotedIdentifier_.Bracket)
 		b.WriteColumn("col")
 		r.Equal("[col]", b.b.String())
 	}

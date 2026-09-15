@@ -169,12 +169,6 @@ func (f *findOne[E]) OrderBy(orderBy *orderBy) *findOne[E] {
 	return f
 }
 
-// Page is the Paging clause, create by function Page.
-func (f *findOne[E]) Page(page *page) *findOne[E] {
-	f.find.Page(page)
-	return f
-}
-
 // IncludeDeleted indicates the conditions do not automatically filter out logical deleted rows.
 func (f *findOne[E]) IncludeDeleted() *findOne[E] {
 	f.find.IncludeDeleted()
@@ -254,7 +248,7 @@ func (i *insert[E]) LastStr(lastStr string) *insert[E] {
 // Do execute SQL
 func (i *insert[E]) Do() (int64, error) {
 	switch i.executor.db.GetGeneratedKeyMode.ID {
-	case GetGeneratedKeyMode_.Returning.ID, GetGeneratedKeyMode_.SQLServer.ID:
+	case GetGeneratedKeyMode_.InsertReturning.ID, GetGeneratedKeyMode_.SQLServer.ID:
 		_, err := newQuery[E](i.executor).MapTarget(i.entity_...).BuildSql(func(b *SqlBuilder) {
 			i.buildSql(b)
 		}).Do()
@@ -435,7 +429,7 @@ func (u *update[E]) Do() (int64, error) {
 	}).Do()
 }
 
-type updateBatch[E any] struct {
+type updateRow[E any] struct {
 	mutation       *mutation
 	entity_        []*E
 	onDemand       *OnDemand
@@ -447,52 +441,52 @@ type updateBatch[E any] struct {
 }
 
 // Must if true, panic when error occurs, otherwise, return error.
-func (u *updateBatch[E]) Must() *updateBatch[E] {
+func (u *updateRow[E]) Must() *updateRow[E] {
 	u.mutation.Must()
 	return u
 }
 
 // Describe the SQL in the log.
-func (u *updateBatch[E]) Describe(desc string) *updateBatch[E] {
+func (u *updateRow[E]) Describe(desc string) *updateRow[E] {
 	u.mutation.Describe(desc)
 	return u
 }
 
 // SqlLogLevel specifies the SQL log level, default use the global config.
-func (u *updateBatch[E]) SqlLogLevel(level Level) *updateBatch[E] {
+func (u *updateRow[E]) SqlLogLevel(level Level) *updateRow[E] {
 	u.mutation.SqlLogLevel(level)
 	return u
 }
 
-func (u *updateBatch[E]) OnDemand(onDemand *OnDemand) *updateBatch[E] {
+func (u *updateRow[E]) OnDemand(onDemand *OnDemand) *updateRow[E] {
 	u.onDemand = onDemand
 	return u
 }
 
-func (u *updateBatch[E]) Set(column string, value any) *updateBatch[E] {
+func (u *updateRow[E]) Set(column string, value any) *updateRow[E] {
 	u.setColumns.add(column, assignedValue{value: value})
 	return u
 }
 
-func (u *updateBatch[E]) SetRaw(column string, sql string) *updateBatch[E] {
+func (u *updateRow[E]) SetRaw(column string, sql string) *updateRow[E] {
 	u.setColumns.add(column, assignedRawSql{rawSql: sql})
 	return u
 }
 
 // Nullable specifies the columns that the mapped field is nil in the entity set to null, work only All is false.
-func (u *updateBatch[E]) Nullable(column_ ...string) *updateBatch[E] {
+func (u *updateRow[E]) Nullable(column_ ...string) *updateRow[E] {
 	u.nullableSet = newSet(column_...)
 	return u
 }
 
 // Condition is the condition of WHERE clause, create by function Cond.
-func (u *updateBatch[E]) Condition(cond *Condition) *updateBatch[E] {
+func (u *updateRow[E]) Condition(cond *Condition) *updateRow[E] {
 	u.condition = cond
 	return u
 }
 
 // IncludeDeleted indicates the conditions do not automatically filter out logical deleted rows.
-func (u *updateBatch[E]) IncludeDeleted() *updateBatch[E] {
+func (u *updateRow[E]) IncludeDeleted() *updateRow[E] {
 	u.includeDeleted = true
 	return u
 }
@@ -500,13 +494,13 @@ func (u *updateBatch[E]) IncludeDeleted() *updateBatch[E] {
 // Entities is the data will be saved, only the non-nil fields will be saved (except those which have the "auto" tag).
 //
 // Please note: the non-nil fields will be taken from the first entity.
-func (u *updateBatch[E]) Entities(entity_ ...*E) *updateBatch[E] {
+func (u *updateRow[E]) Entities(entity_ ...*E) *updateRow[E] {
 	u.entity_ = entity_
 	return u
 }
 
 // Do execute SQL
-func (u *updateBatch[E]) Do() (int64, error) {
+func (u *updateRow[E]) Do() (int64, error) {
 	if len(u.entity_) == 0 {
 		return 0, nil
 	}

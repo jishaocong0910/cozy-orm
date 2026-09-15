@@ -69,8 +69,8 @@ func (d *DB) Update[E any](ctx context.Context) *update[E] {
 	return &update[E]{mutation: d.Mutation(ctx)}
 }
 
-func (d *DB) UpdateBatch[E any](ctx context.Context) *updateBatch[E] {
-	return &updateBatch[E]{mutation: d.Mutation(ctx)}
+func (d *DB) UpdateRow[E any](ctx context.Context) *updateRow[E] {
+	return &updateRow[E]{mutation: d.Mutation(ctx)}
 }
 
 func (d *DB) Delete[E any](ctx context.Context) *delete[E] {
@@ -136,7 +136,7 @@ type DBConfig struct {
 	TabNameMapper *NameMapper
 	// setting field name mapping from entity to table
 	ColNameMapper *NameMapper
-	DbType        DbType
+	DBType        DBType
 	// setting the SQL parameter placeholder prefix; if empty, parameter placeholder uses the default "?",
 	// otherwise, use the specified prefix appended to the auto increment number started at 1. This effect is manifested
 	// in method SqlBuilder.WritePh()
@@ -150,27 +150,27 @@ type DBConfig struct {
 }
 
 func (c DBConfig) Build() *DB {
-	switch c.DbType.ID {
-	case DbType_.MySQL.ID:
+	switch c.DBType.ID {
+	case DBType_.MySQL.ID:
 		c.QuotedIdentifier = QuotedIdentifier_.Backtick
 		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.FirstInsertId
 		c.PageMode = PageMode_.LimitOffset
-	case DbType_.Oracle.ID:
+	case DBType_.Oracle.ID:
 		c.ParamPrefix = ":"
-		c.QuotedIdentifier = QuotedIdentifier_.DoubleQuotes
-		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.UNDEFINED
-		c.PageMode = PageMode_.FetchNext
-	case DbType_.Postgres.ID:
+		c.QuotedIdentifier = QuotedIdentifier_.DoubleQuote
+		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.Oracle
+		c.PageMode = PageMode_.OffsetFetch
+	case DBType_.Postgres.ID:
 		c.ParamPrefix = "$"
-		c.QuotedIdentifier = QuotedIdentifier_.DoubleQuotes
-		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.Returning
+		c.QuotedIdentifier = QuotedIdentifier_.DoubleQuote
+		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.InsertReturning
 		c.PageMode = PageMode_.LimitOffset
-	case DbType_.SQLServer.ID:
-		c.QuotedIdentifier = QuotedIdentifier_.Brackets
+	case DBType_.SQLServer.ID:
+		c.QuotedIdentifier = QuotedIdentifier_.Bracket
 		c.ParamPrefix = ":"
 		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.SQLServer
-		c.PageMode = PageMode_.FetchNext
-	case DbType_.SQLite.ID:
+		c.PageMode = PageMode_.OffsetFetch
+	case DBType_.SQLite.ID:
 		c.QuotedIdentifier = QuotedIdentifier_.Backtick
 		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.LastInsertId
 		c.PageMode = PageMode_.LimitOffset

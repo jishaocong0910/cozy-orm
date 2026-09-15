@@ -20,20 +20,20 @@ import (
 	e "github.com/jishaocong0910/enum"
 )
 
-type DbType struct {
+type DBType struct {
 	e.EnumElem
 }
 
-type _DbType struct {
-	e.Enum[DbType]
+type _DBType struct {
+	e.Enum[DBType]
 	MySQL,
 	Oracle,
 	Postgres,
 	SQLServer,
-	SQLite DbType
+	SQLite DBType
 }
 
-var DbType_ = e.NewEnum(_DbType{})
+var DBType_ = e.NewEnum(_DBType{})
 
 type Level struct {
 	e.EnumElem
@@ -58,18 +58,18 @@ type QuotedIdentifier struct {
 type _QuotedIdentifier struct {
 	e.Enum[QuotedIdentifier]
 	Backtick,
-	DoubleQuotes,
-	Brackets QuotedIdentifier
+	DoubleQuote,
+	Bracket QuotedIdentifier
 }
 
 var QuotedIdentifier_ = e.NewEnum(_QuotedIdentifier{
 	Backtick: QuotedIdentifier{addQuotes: func(s string) string {
 		return "`" + s + "`"
 	}},
-	DoubleQuotes: QuotedIdentifier{addQuotes: func(s string) string {
+	DoubleQuote: QuotedIdentifier{addQuotes: func(s string) string {
 		return "\"" + s + "\""
 	}},
-	Brackets: QuotedIdentifier{addQuotes: func(s string) string {
+	Bracket: QuotedIdentifier{addQuotes: func(s string) string {
 		return "[" + s + "]"
 	}},
 })
@@ -83,13 +83,13 @@ type _GetGeneratedKeyMode struct {
 	e.Enum[GetGeneratedKeyMode]
 	FirstInsertId,
 	LastInsertId,
-	Returning,
+	InsertReturning,
 	SQLServer,
 	Oracle GetGeneratedKeyMode
 }
 
 var GetGeneratedKeyMode_ = e.NewEnum(_GetGeneratedKeyMode{
-	Returning: GetGeneratedKeyMode{
+	InsertReturning: GetGeneratedKeyMode{
 		writeSql: func(b *SqlBuilder, autoColumn_ []string) {
 			b.ForEach(b.SepFixOpt(" RETURNING ", ", ", ""), autoColumn_, func(_ int, column string) {
 				b.WriteColumn(column)
@@ -113,7 +113,7 @@ type PageMode struct {
 type _PageMode struct {
 	e.Enum[PageMode]
 	LimitOffset,
-	FetchNext PageMode
+	OffsetFetch PageMode
 }
 
 var PageMode_ = e.NewEnum(_PageMode{
@@ -125,7 +125,7 @@ var PageMode_ = e.NewEnum(_PageMode{
 			}
 		},
 	},
-	FetchNext: PageMode{
+	OffsetFetch: PageMode{
 		writeSql: func(b *SqlBuilder, offset, count int) {
 			b.Write(" OFFSET ").Write(strconv.FormatInt(int64(offset), 10)).Write(" ROWS")
 			b.Write(" FETCH NEXT ").Write(strconv.FormatInt(int64(count), 10)).Write(" ROWS ONLY")
