@@ -294,7 +294,7 @@ func (i *insertBatch[E]) Nullable(column_ ...string) *insertBatch[E] {
 // Do execute SQL
 func (i *insertBatch[E]) Do() (int64, error) {
 	switch i.executor.db.GetGeneratedKeyMode.ID {
-	case GetGeneratedKeyMode_.Returning.ID, GetGeneratedKeyMode_.SqlServer.ID:
+	case GetGeneratedKeyMode_.Returning.ID, GetGeneratedKeyMode_.SQLServer.ID:
 		_, err := newQuery[E](i.executor).MapTarget(i.entity_...).BuildSql(func(b *SqlBuilder) {
 			i.buildSql(b)
 		}).Do()
@@ -327,7 +327,7 @@ func (i *insertBatch[E]) buildSql(b *SqlBuilder) {
 		b.WriteColumn(column)
 	})
 	if len(ei.autoColumn_) > 0 && i.executor.db.GetGeneratedKeyMode.IsPresent() {
-		if GetGeneratedKeyMode_.SqlServer.Is(i.executor.db.GetGeneratedKeyMode) {
+		if GetGeneratedKeyMode_.SQLServer.Is(i.executor.db.GetGeneratedKeyMode) {
 			i.executor.db.GetGeneratedKeyMode.writeSql(b, ei.autoColumn_)
 			i._writeValuesClause(b, ei, insertedColumns)
 		} else {

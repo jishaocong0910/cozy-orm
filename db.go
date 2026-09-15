@@ -132,7 +132,7 @@ func (d *DB) getMapper(t reflect.Type) (mapper, error) {
 	return m, err
 }
 
-type DbConfig struct {
+type DBConfig struct {
 	SqlDB       *sql.DB
 	Logger      Logger
 	SqlLogLevel Level
@@ -153,7 +153,7 @@ type DbConfig struct {
 	ColumnPolicyConfigs ColumnPolicyConfigs
 }
 
-func (c DbConfig) Build() *DB {
+func (c DBConfig) Build() *DB {
 	switch c.DbType.ID {
 	case DbType_.MySQL.ID:
 		c.QuotedIdentifier = QuotedIdentifier_.Backtick
@@ -172,7 +172,7 @@ func (c DbConfig) Build() *DB {
 	case DbType_.SQLServer.ID:
 		c.QuotedIdentifier = QuotedIdentifier_.Brackets
 		c.ParamPrefix = ":"
-		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.SqlServer
+		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.SQLServer
 		c.PageMode = PageMode_.FetchNext
 	case DbType_.SQLite.ID:
 		c.QuotedIdentifier = QuotedIdentifier_.Backtick
