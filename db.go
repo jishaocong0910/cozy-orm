@@ -62,11 +62,7 @@ func (d *DB) FindOne[E any](ctx context.Context) *findOne[E] {
 }
 
 func (d *DB) Insert[E any](ctx context.Context) *insert[E] {
-	return &insert[E]{ib: d.InsertBatch[E](ctx)}
-}
-
-func (d *DB) InsertBatch[E any](ctx context.Context) *insertBatch[E] {
-	return &insertBatch[E]{executor: newExecutor(ctx, d)}
+	return &insert[E]{executor: newExecutor(ctx, d)}
 }
 
 func (d *DB) Update[E any](ctx context.Context) *update[E] {

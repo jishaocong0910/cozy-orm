@@ -146,18 +146,17 @@ func TestFindOne(t *testing.T) {
 	}
 }
 
-
-func TestInsert(t *testing.T) {
+func TestInsertBatch(t *testing.T) {
 	r := require.New(t)
 	{
 		db, _ := orm.MockDB(r)
 		r.PanicsWithError("not a valid entity type", func() {
-			db.Insert[int](nil).Must().Entity(new(1)).Do()
+			db.Insert[int](nil).Must().Entities(new(1)).Do()
 		})
 	}
 	{
 		db, _ := orm.MockDB(r)
-		affected, err := db.InsertBatch[orm.User](nil).Do()
+		affected, err := db.Insert[orm.User](nil).Do()
 		r.Equal(int64(0), affected)
 		r.NoError(err)
 	}
@@ -166,7 +165,7 @@ func TestInsert(t *testing.T) {
 		db, mock := orm.MockDB(r)
 		log := orm.MockLogger(db)
 		mock.ExpectPrepare("INSERT INTO user(name, status) VALUES (?, NULL) ON DUPLICATE KEY UPDATE id = id").ExpectExec().WithArgs("abc").WillReturnResult(sqlmock.NewResult(1, 1))
-		affected, err := db.Insert[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Describe("test desc").Entity(&orm.User{Name: new("abc")}).Nullable("status").
+		affected, err := db.Insert[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Describe("test desc").Entities(&orm.User{Name: new("abc")}).Nullable("status").
 			LastStr("ON DUPLICATE KEY UPDATE id = id").Do()
 		r.NoError(err)
 		r.Equal(int64(1), affected)
@@ -174,22 +173,6 @@ func TestInsert(t *testing.T) {
 		r.Equal(ctx, lm.Ctx)
 		r.Equal(orm.Level_.Info, lm.Level)
 		r.Contains(lm.Msg, "desc: test desc")
-	}
-}
-
-func TestInsertBatch(t *testing.T) {
-	r := require.New(t)
-	{
-		db, _ := orm.MockDB(r)
-		r.PanicsWithError("not a valid entity type", func() {
-			db.InsertBatch[int](nil).Must().Entities(new(1)).Do()
-		})
-	}
-	{
-		db, _ := orm.MockDB(r)
-		affected, err := db.InsertBatch[orm.User](nil).Do()
-		r.Equal(int64(0), affected)
-		r.NoError(err)
 	}
 	{
 		u1 := &orm.User{Name: new("name1")}
@@ -205,7 +188,7 @@ func TestInsertBatch(t *testing.T) {
 		mock.ExpectPrepare("INSERT INTO user(name, create_at) VALUES (?, ?), (?, ?)").ExpectExec().
 			WillReturnResult(sqlmock.NewResult(1, 2)).
 			WithArgs("name1", orm.AnyTime{}, "name2", orm.AnyTime{})
-		_, err := db.InsertBatch[orm.User](nil).Entities(u1, u2).Do()
+		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
 		r.NoError(err)
 		r.Equal(int64(1), *u1.Id)
 		r.Equal(int64(2), *u2.Id)
@@ -217,7 +200,7 @@ func TestInsertBatch(t *testing.T) {
 		db := orm.DBConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.LastInsertId}.Build()
 		mock.ExpectPrepare("INSERT INTO user(name) VALUES (?), (?)").ExpectExec().WillReturnResult(sqlmock.NewResult(3, 2)).
 			WithArgs("name1", "name2")
-		_, err := db.InsertBatch[orm.User](nil).Entities(u1, u2).Do()
+		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
 		r.NoError(err)
 		r.Equal(int64(2), *u1.Id)
 		r.Equal(int64(3), *u2.Id)
@@ -229,7 +212,7 @@ func TestInsertBatch(t *testing.T) {
 		db := orm.DBConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.Returning}.Build()
 		mock.ExpectPrepare("INSERT INTO user(name) VALUES (?), (?) RETURNING id").ExpectQuery().
 			WithArgs("name1", "name2").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
-		_, err := db.InsertBatch[orm.User](nil).Entities(u1, u2).Do()
+		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
 		r.NoError(err)
 		r.Equal(int64(1), *u1.Id)
 		r.Equal(int64(2), *u2.Id)
@@ -241,7 +224,7 @@ func TestInsertBatch(t *testing.T) {
 		db := orm.DBConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.SQLServer}.Build()
 		mock.ExpectPrepare("INSERT INTO user(name) OUTPUT INSERTED.id VALUES (?), (?)").ExpectQuery().
 			WithArgs("name1", "name2").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
-		_, err := db.InsertBatch[orm.User](nil).Entities(u1, u2).Do()
+		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
 		r.NoError(err)
 		r.Equal(int64(1), *u1.Id)
 		r.Equal(int64(2), *u2.Id)

@@ -207,52 +207,6 @@ func (f *findOne[E]) Do() (*E, error) {
 }
 
 type insert[E any] struct {
-	ib *insertBatch[E]
-}
-
-// Must if true, panic when error occurs, otherwise, return error.
-func (i *insert[E]) Must() *insert[E] {
-	i.ib.Must()
-	return i
-}
-
-// Describe the SQL in the log.
-func (i *insert[E]) Describe(desc string) *insert[E] {
-	i.ib.Describe(desc)
-	return i
-}
-
-// SqlLogLevel specifies the SQL log level, default use the global config.
-func (i *insert[E]) SqlLogLevel(level Level) *insert[E] {
-	i.ib.SqlLogLevel(level)
-	return i
-}
-
-// Entities is the data will be saved, only the non-nil fields will be saved (except those which have the "auto" tag).
-//
-// Please note: the non-nil fields will be taken from the first entity.
-func (i *insert[E]) Entity(entity *E) *insert[E] {
-	i.ib.Entities(entity)
-	return i
-}
-
-// Nullable specifies the columns that the mapped field is nil in the entity set to null, work only All is false.
-func (i *insert[E]) Nullable(column_ ...string) *insert[E] {
-	i.ib.Nullable(column_...)
-	return i
-}
-
-// LastStr is the last string of the SQL.
-func (i *insert[E]) LastStr(lastStr string) *insert[E] {
-	i.ib.lastStr = lastStr
-	return i
-}
-
-func (i *insert[E]) Do() (int64, error) {
-	return i.ib.Do()
-}
-
-type insertBatch[E any] struct {
 	executor    *executor
 	entity_     []*E
 	nullableSet set[string]
@@ -260,19 +214,19 @@ type insertBatch[E any] struct {
 }
 
 // Must if true, panic when error occurs, otherwise, return error.
-func (i *insertBatch[E]) Must() *insertBatch[E] {
+func (i *insert[E]) Must() *insert[E] {
 	i.executor.setMust()
 	return i
 }
 
 // Describe the SQL in the log.
-func (i *insertBatch[E]) Describe(desc string) *insertBatch[E] {
+func (i *insert[E]) Describe(desc string) *insert[E] {
 	i.executor.setDescribe(desc)
 	return i
 }
 
 // SqlLogLevel specifies the SQL log level, default use the global config.
-func (i *insertBatch[E]) SqlLogLevel(level Level) *insertBatch[E] {
+func (i *insert[E]) SqlLogLevel(level Level) *insert[E] {
 	i.executor.setSqlLogLevel(level)
 	return i
 }
@@ -280,19 +234,25 @@ func (i *insertBatch[E]) SqlLogLevel(level Level) *insertBatch[E] {
 // Entities is the data will be saved, only the non-nil fields will be saved (except those which have the "auto" tag).
 //
 // Please note: the non-nil fields will be taken from the first entity.
-func (i *insertBatch[E]) Entities(entity_ ...*E) *insertBatch[E] {
+func (i *insert[E]) Entities(entity_ ...*E) *insert[E] {
 	i.entity_ = entity_
 	return i
 }
 
 // Nullable specifies the columns that the mapped field is nil in the entity set to null, work only All is false.
-func (i *insertBatch[E]) Nullable(column_ ...string) *insertBatch[E] {
+func (i *insert[E]) Nullable(column_ ...string) *insert[E] {
 	i.nullableSet = newSet(column_...)
 	return i
 }
 
+// LastStr is the last string of the SQL.
+func (i *insert[E]) LastStr(lastStr string) *insert[E] {
+	i.lastStr = lastStr
+	return i
+}
+
 // Do execute SQL
-func (i *insertBatch[E]) Do() (int64, error) {
+func (i *insert[E]) Do() (int64, error) {
 	switch i.executor.db.GetGeneratedKeyMode.ID {
 	case GetGeneratedKeyMode_.Returning.ID, GetGeneratedKeyMode_.SQLServer.ID:
 		_, err := newQuery[E](i.executor).MapTarget(i.entity_...).BuildSql(func(b *SqlBuilder) {
@@ -308,7 +268,7 @@ func (i *insertBatch[E]) Do() (int64, error) {
 	}
 }
 
-func (i *insertBatch[E]) buildSql(b *SqlBuilder) {
+func (i *insert[E]) buildSql(b *SqlBuilder) {
 	if len(i.entity_) == 0 {
 		b.Cancel()
 		return
@@ -344,7 +304,7 @@ func (i *insertBatch[E]) buildSql(b *SqlBuilder) {
 	}
 }
 
-func (i *insertBatch[E]) _writeValuesClause(b *SqlBuilder, ei *entityInfo, insertedColumn_ []string) {
+func (i *insert[E]) _writeValuesClause(b *SqlBuilder, ei *entityInfo, insertedColumn_ []string) {
 	entityValueMap_ := make([]map[string]any, 0, len(i.entity_))
 	for _, entity := range i.entity_ {
 		entityValueMap_ = append(entityValueMap_, ei.getValueMap(entity, insertedColumn_))
