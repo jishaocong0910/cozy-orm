@@ -254,7 +254,7 @@ func (c *columnPolicyConfig) isDefault() bool {
 type assignedPolicyConfig struct {
 	parent               *columnPolicyConfig
 	force                bool
-	reuseInBatch         bool
+	batchReuse           bool
 	never                bool
 	trueRawSqlFalseValue bool
 	value                func() any
@@ -266,16 +266,16 @@ func (c *assignedPolicyConfig) Never() *columnPolicyConfig {
 	return c.parent
 }
 
-func (c *assignedPolicyConfig) Value(force bool, reuseInBatch bool, value func() any) *columnPolicyConfig {
+func (c *assignedPolicyConfig) Value(force bool, batchReuse bool, value func() any) *columnPolicyConfig {
 	c.force = force
-	c.reuseInBatch = reuseInBatch
+	c.batchReuse = batchReuse
 	c.value = value
 	return c.parent
 }
 
-func (c *assignedPolicyConfig) RawSql(force bool, reuseInBatch bool, rawSql func() string) *columnPolicyConfig {
+func (c *assignedPolicyConfig) RawSql(force bool, batchReuse bool, rawSql func() string) *columnPolicyConfig {
 	c.force = force
-	c.reuseInBatch = reuseInBatch
+	c.batchReuse = batchReuse
 	c.trueRawSqlFalseValue = true
 	c.rawSql = rawSql
 	return c.parent

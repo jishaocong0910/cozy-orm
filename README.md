@@ -13,7 +13,7 @@ A lightweight Go ORM featuring method chaining, with a minimalist API and multi-
 - **Method Chaining**: Adopting Go 1.27's revolutionary generic method feature.
 - **Minimalist API**: Provides only two core execution methods, along with some methods for CRUD.
 - **Dynamic SQL**: Supports dynamic SQL construction, compatible with all SQL dialects and driver placeholders.
-- **Last Insert ID**: Provides strategies for getting the last inserted ID.
+- **Getting Generated Keys**: Provides various strategies for getting generated keys after inserting.
 - **Custom Mapping**: Provides enhanced custom type mapping.
 - **Transaction Propagation**: Propagates transactions via Context, making database operations reusable.
 - **Predefined Entity**: For dynamic mapping when selecting only a few fields.
@@ -44,7 +44,7 @@ Please refer to the [Documentation]() for the full guide.
 - **链式调用**：依托Go 1.27泛型方法的革命性特性，实现流畅的链式调用。
 - **轻量API**：核心仅2个基础执行方法，同时封装CRUD等常用方法。
 - **SQL构建**：支持动态SQL构建，兼容各种SQL方言与参数占位符。
-- **获取插入ID**：兼容各主流数据库获取自增/插入ID的不同机制。
+- **获取生成Key**：兼容各主流数据库插入记录后获取自动生成Key的不同机制。
 - **自定义映射**：提供更友好的自定义类型映射功能。
 - **事务传播**：基于Context实现事务传播，实现数据库操作代码的复用。
 - **预定义实体**：用于查询少量字段场景下进行动态映射。

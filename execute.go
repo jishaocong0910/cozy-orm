@@ -188,11 +188,11 @@ func (m *mutation) Do() (affected int64, err error) {
 	affected, warn := result.RowsAffected()
 	printWarn(m.ctx, m.db.logger, warn)
 	m.printSqlAffected(affected, cost)
-	m._getGeneratedKey(result)
+	m._getGenKey(result)
 	return
 }
 
-func (m *mutation) _getGeneratedKey(result sql.Result) {
+func (m *mutation) _getGenKey(result sql.Result) {
 	if m.executor.db.GetGeneratedKeyMode.Is(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) && len(m.mapTarget_) > 0 {
 		id, warn := result.LastInsertId()
 		if warn != nil {

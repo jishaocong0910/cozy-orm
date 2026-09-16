@@ -62,13 +62,14 @@ func (m tupleMapper) mapping(column_ []string, target any) (dest_ []any, after f
 	for i := range column_ {
 		if v.NumField() > i {
 			field := v.Field(i)
-			if c := getFieldConverter(field.Type()); c != nil {
+			fieldType := field.Type()
+			if c := getFieldConverter(fieldType); c != nil {
 				sd := c.newScanDest()
 				dest_ = append(dest_, sd.dest())
 				toFields = append(toFields, func() { c.toField(field, sd.value()) })
 				continue
 			}
-			if isValidFieldType(field.Type()) {
+			if isValidFieldType(fieldType) || isImplementScannerValuer(fieldType) {
 				dest_ = append(dest_, field.Addr().Interface())
 				continue
 			}

@@ -58,7 +58,7 @@ func TestDB(t *testing.T) {
 		db := DBConfig{DBType: DBType_.Oracle}.Build()
 		r.Equal(":", db.paramPrefix)
 		r.Equal(QuotedIdentifier_.DoubleQuote.ID, db.quotedIdentifier.ID)
-		r.Equal(GetGeneratedKeyMode_.UNDEFINED.ID, db.GetGeneratedKeyMode.ID)
+		r.Equal(GetGeneratedKeyMode_.Oracle.ID, db.GetGeneratedKeyMode.ID)
 		r.Equal(PageMode_.OffsetFetch.ID, db.pageMode.ID)
 	}
 	{

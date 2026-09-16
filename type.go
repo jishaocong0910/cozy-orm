@@ -165,10 +165,13 @@ func isImplementConverter(t reflect.Type) bool {
 }
 
 var isImplementScannerValuer = func() func(t reflect.Type) bool {
-	scannerType := reflect.TypeFor[sql.Scanner]()
 	valuerType := reflect.TypeFor[driver.Valuer]()
+	scannerType := reflect.TypeFor[sql.Scanner]()
 	return func(t reflect.Type) bool {
-		return t.Implements(scannerType) && t.Implements(valuerType)
+		if t.Kind() != reflect.Pointer {
+			t = reflect.PointerTo(t)
+		}
+		return t.Implements(valuerType) && t.Implements(scannerType)
 	}
 }()
 

@@ -269,7 +269,7 @@ func (p *assignedPolicy) loadConfig(columnOnInsertMap map[string]*assignedPolicy
 			ignoredColumnSet.add(column)
 			continue
 		}
-		if config.reuseInBatch {
+		if config.batchReuse {
 			reusedColumnSet.add(column)
 		}
 		if config.force {

@@ -193,7 +193,10 @@ func (c UserCategory) Value() (driver.Value, error) {
 }
 
 func (c *UserCategory) Scan(src any) error {
-	json.Unmarshal([]byte(src.(string)), &c)
+	//json.Unmarshal([]byte(src.(string)), &c)
+	if 1 == 1 {
+		panic("fwefw")
+	}
 	return nil
 }
 

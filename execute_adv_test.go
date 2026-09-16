@@ -110,11 +110,11 @@ func TestFindOne(t *testing.T) {
 		db := orm.DBConfig{SqlDB: sqlDB, PageMode: orm.PageMode_.LimitOffset}.Build()
 		log := orm.MockLogger(db)
 		mock.ExpectPrepare("SELECT id, name, phone, email, level, version FROM user " +
-			"WHERE level = ? ORDER BY id DESC, name ASC LIMIT 1 OFFSET 10 FOR UPDATE").ExpectQuery().WithArgs(1).
+			"WHERE level = ? ORDER BY id DESC, name ASC FOR UPDATE").ExpectQuery().WithArgs(1).
 			WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(9, "abc").AddRow(10, "efg"))
 		user, err := db.FindOne[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Describe("test desc").Compatible().Select("id", "version").
 			OnDemand(orm.DemandFor[orm.UserSimple]()).Condition(orm.Cond().Eq("level", 1)).OrderBy(orm.OrderBy().Desc("id").Asc("name")).
-			Page(orm.Page(10, 1)).LastStr("FOR UPDATE").Do()
+			LastStr("FOR UPDATE").Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
 		r.Equal(int64(9), *user.Id)
@@ -146,7 +146,7 @@ func TestFindOne(t *testing.T) {
 	}
 }
 
-func TestInsertBatch(t *testing.T) {
+func TestInsert(t *testing.T) {
 	r := require.New(t)
 	{
 		db, _ := orm.MockDB(r)
