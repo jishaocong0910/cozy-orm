@@ -165,10 +165,7 @@ func (s UserTags) ToValue() string {
 }
 
 func (s *UserTags) ToField(value string) {
-	arr := strings.Split(value, ",")
-	for _, a := range arr {
-		*s = append(*s, a)
-	}
+	*s = strings.Split(value, ",")
 }
 
 type UserAttributes map[string]string

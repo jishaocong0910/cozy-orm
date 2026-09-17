@@ -91,14 +91,12 @@ func (q *query[E]) _mapTargetEntities(rows *sql.Rows, column_ []string, mp mappe
 	for rows.Next() {
 		if len(q.mapTargets) > rowCount {
 			e := q.mapTargets[rowCount]
-			dests, after := mp.mapping(column_, e)
-			err = rows.Scan(dests...)
+			dest_, afterScan := mp.mapping(column_, e)
+			err = rows.Scan(dest_...)
 			if err != nil {
 				return 0, checkMust(q.must, err)
 			}
-			if after != nil {
-				after()
-			}
+			afterScan()
 		}
 		rowCount++
 	}
@@ -112,14 +110,12 @@ func (q *query[E]) _mapTargetEntities(rows *sql.Rows, column_ []string, mp mappe
 func (q *query[E]) _mapNewEntities(rows *sql.Rows, column_ []string, mp mapper) (rowCount int, entity_ []*E, err error) {
 	for rows.Next() {
 		e := new(E)
-		dests, after := mp.mapping(column_, e)
-		err = rows.Scan(dests...)
+		dest_, afterScan := mp.mapping(column_, e)
+		err = rows.Scan(dest_...)
 		if err != nil {
 			return 0, []*E{}, checkMust(q.must, err)
 		}
-		if after != nil {
-			after()
-		}
+		afterScan()
 		entity_ = append(entity_, e)
 		rowCount++
 	}
@@ -254,17 +250,17 @@ func (e *executor) setBuildSql(buildSql func(b *SqlBuilder)) {
 
 func (e *executor) printSqlRowCount(rowCount int64, cost time.Duration) {
 	s, a := e.builder.sqlAndArgs()
-	printSql(e.ctx, e.db.logger, e.sqlLogLevel, e.inTx(), e.desc, s, a, rowCount, -1, cost, nil)
+	printSql(e.ctx, e.db.logger, e.sqlLogLevel, e._inTx(), e.desc, s, a, rowCount, -1, cost, nil)
 }
 
 func (e *executor) printSqlAffected(affected int64, cost time.Duration) {
 	s, a := e.builder.sqlAndArgs()
-	printSql(e.ctx, e.db.logger, e.sqlLogLevel, e.inTx(), e.desc, s, a, -1, affected, cost, nil)
+	printSql(e.ctx, e.db.logger, e.sqlLogLevel, e._inTx(), e.desc, s, a, -1, affected, cost, nil)
 }
 
 func (e *executor) printSqlError(err error) {
 	s, a := e.builder.sqlAndArgs()
-	printSql(e.ctx, e.db.logger, e.sqlLogLevel, e.inTx(), e.desc, s, a, -1, -1, -1, err)
+	printSql(e.ctx, e.db.logger, e.sqlLogLevel, e._inTx(), e.desc, s, a, -1, -1, -1, err)
 }
 
 func (e *executor) doQuery() (*sql.Rows, []string, time.Duration, bool, error) {
@@ -336,7 +332,7 @@ func (e *executor) doExec() (sql.Result, time.Duration, bool, error) {
 	return result, cost, false, nil
 }
 
-func (e *executor) inTx() bool {
+func (e *executor) _inTx() bool {
 	return cvTx.get(e.ctx).matchingDb(e.db)
 }
 

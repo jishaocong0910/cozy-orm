@@ -20,14 +20,14 @@ import (
 )
 
 type mapper interface {
-	mapping(column_ []string, target any) (dest_ []any, after func())
+	mapping(column_ []string, target any) (dest_ []any, afterScan func())
 }
 
 type entityMapper struct {
 	ei *entityInfo
 }
 
-func (m entityMapper) mapping(columns []string, target any) (dest_ []any, after func()) {
+func (m entityMapper) mapping(columns []string, target any) (dest_ []any, afterScan func()) {
 	v := reflect.ValueOf(target).Elem()
 	dest_ = make([]any, 0, len(columns))
 	toFields := make([]func(), 0, len(columns))
@@ -45,7 +45,7 @@ func (m entityMapper) mapping(columns []string, target any) (dest_ []any, after 
 		}
 		dest_ = append(dest_, new(any))
 	}
-	after = func() {
+	afterScan = func() {
 		for _, f := range toFields {
 			f()
 		}
@@ -55,7 +55,7 @@ func (m entityMapper) mapping(columns []string, target any) (dest_ []any, after 
 
 type tupleMapper struct{}
 
-func (m tupleMapper) mapping(column_ []string, target any) (dest_ []any, after func()) {
+func (m tupleMapper) mapping(column_ []string, target any) (dest_ []any, afterScan func()) {
 	v := reflect.ValueOf(target).Elem()
 	dest_ = make([]any, 0, len(column_))
 	toFields := make([]func(), 0, len(column_))
@@ -76,7 +76,7 @@ func (m tupleMapper) mapping(column_ []string, target any) (dest_ []any, after f
 		}
 		dest_ = append(dest_, new(any))
 	}
-	after = func() {
+	afterScan = func() {
 		for _, f := range toFields {
 			f()
 		}
