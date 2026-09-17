@@ -155,7 +155,7 @@ func (p *UserProperties) ToValue() string {
 }
 
 func (p *UserProperties) ToField(value string) {
-	json.Unmarshal([]byte(value), &p)
+	json.Unmarshal([]byte(value), p)
 }
 
 type UserTags []string
@@ -176,7 +176,7 @@ func (a UserAttributes) ToValue() string {
 }
 
 func (a *UserAttributes) ToField(value string) {
-	json.Unmarshal([]byte(value), &a)
+	json.Unmarshal([]byte(value), a)
 }
 
 type UserCategory struct {
