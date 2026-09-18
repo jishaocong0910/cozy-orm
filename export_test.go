@@ -110,9 +110,9 @@ type UserSimple struct {
 }
 
 type User struct {
-	Id         *int64  `orm:"column=id,pk,auto"`
+	Id         *int64  `orm:"column=id;pk;auto"`
 	Name       *string `orm:"column=name"`
-	Password   *string `orm:"column=password,ignore"`
+	Password   *string `orm:"column=password;ignore"`
 	Address    *string `orm:"ignore"`
 	Phone      *string `orm:"column=phone"`
 	Email      *string
@@ -203,7 +203,7 @@ type DemoEntityTag struct {
 }
 
 type DemoIgnoreField struct {
-	Id *string `orm:"column=id,auto=2"`
+	Id *string `orm:"column=id;auto=2"`
 
 	DemoIgnoreField2                                // ignore
 	ignoreUnexported              *string           `orm:"column=ignore1"`
@@ -218,8 +218,8 @@ type DemoIgnoreField2 struct {
 }
 
 type DemoMulPk struct {
-	Id1 *string `orm:"pk,auto"`
-	Id2 *string `orm:"pk,auto"`
+	Id1 *string `orm:"pk;auto"`
+	Id2 *string `orm:"pk;auto"`
 }
 
 type DemoDemand struct {

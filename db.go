@@ -197,8 +197,8 @@ func (c DBConfig) Build() *DB {
 
 type ColumnPolicyConfigs []*columnPolicyConfig
 
-func NewColumnPolicyConfig(column string, table_ ...string) *columnPolicyConfig {
-	return &columnPolicyConfig{column: column, tableSet: newSet(table_...)}
+func NewColumnPolicyConfig(column string, tables ...string) *columnPolicyConfig {
+	return &columnPolicyConfig{column: column, tableSet: newSet(tables...)}
 }
 
 type columnPolicyConfig struct {

@@ -123,6 +123,33 @@ func (e *entityInfo) getColumns(entity any, onDemand *OnDemand, requiredSet set[
 	return column_
 }
 
+func (e *entityInfo) getValueMap(entity any, column__ ...[]string) map[string]any {
+	var v reflect.Value
+	if entity != nil {
+		v = reflect.ValueOf(entity).Elem()
+	}
+	if !v.IsValid() {
+		return nil
+	}
+	var valueMap map[string]any
+	size := 0
+	for _, column_ := range column__ {
+		size += len(column_)
+	}
+	valueMap = make(map[string]any, size)
+	for _, column_ := range column__ {
+		for _, column := range column_ {
+			if i, ok := e.columnToFieldIndexMap[column]; ok {
+				vf := v.Field(i)
+				if !vf.IsNil() {
+					valueMap[column] = vf.Interface()
+				}
+			}
+		}
+	}
+	return valueMap
+}
+
 func (e *entityInfo) _getOnDemandColumnSet(onDemand *OnDemand) set[string] {
 	if onDemand == nil || onDemand.t == nil {
 		return nil
@@ -158,33 +185,6 @@ func (e *entityInfo) _getOnDemandColumnSet(onDemand *OnDemand) set[string] {
 	columnSet := newSet(columns...)
 	e.onDemandColumns.Store(onDemand.t, columnSet)
 	return columnSet
-}
-
-func (e *entityInfo) getValueMap(entity any, column__ ...[]string) map[string]any {
-	var v reflect.Value
-	if entity != nil {
-		v = reflect.ValueOf(entity).Elem()
-	}
-	if !v.IsValid() {
-		return nil
-	}
-	var valueMap map[string]any
-	size := 0
-	for _, column_ := range column__ {
-		size += len(column_)
-	}
-	valueMap = make(map[string]any, size)
-	for _, column_ := range column__ {
-		for _, column := range column_ {
-			if i, ok := e.columnToFieldIndexMap[column]; ok {
-				vf := v.Field(i)
-				if !vf.IsNil() {
-					valueMap[column] = vf.Interface()
-				}
-			}
-		}
-	}
-	return valueMap
 }
 
 func (e *entityInfo) _registerField(tf reflect.StructField, tag fieldTag, columnNameMapper *NameMapper) {
