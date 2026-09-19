@@ -61,7 +61,12 @@ func checkMapKeys[K comparable, V any](r *require.Assertions, keys []K, actual m
 	}
 }
 
-func equalFunc(r *require.Assertions, f1, f2 any) {
+func checkNotContainKey[K comparable, V any](r *require.Assertions, key K, actual map[K]V) {
+	_, ok := actual[key]
+	r.False(ok)
+}
+
+func checkEqualFunc(r *require.Assertions, f1, f2 any) {
 	r.Equal(reflect.ValueOf(f1).Pointer(), reflect.ValueOf(f2).Pointer())
 }
 

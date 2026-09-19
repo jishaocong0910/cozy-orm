@@ -114,35 +114,40 @@ func TestGetEntity(t *testing.T) {
 		r.Nil(ei.lastInsertIdConversion)
 	}
 	{
-		c1 := NewColumnPolicyConfig("name", "product").OnInsert().Value(false, false, func(context.Context) any { return nil })
+		c1 := NewColumnPolicyConfig("name").ForTables("product").OnInsert().Value(false, false, func(context.Context) any { return nil })
 		c2 := NewColumnPolicyConfig("field").OnInsert().Value(false, false, func(context.Context) any { return nil })
-		c3 := NewColumnPolicyConfig("name", "user").OnInsert().Value(false, false, func(context.Context) any { return nil }).
+		c3 := NewColumnPolicyConfig("name").ForTables("user").OnInsert().Value(false, false, func(context.Context) any { return nil }).
 			OnUpdate().Value(false, false, func(context.Context) any { return nil })
 		c4 := NewColumnPolicyConfig("name").OnInsert().Value(false, false, func(context.Context) any { return nil }).
 			OnUpdate().Value(false, false, func(context.Context) any { return nil })
-		c5 := NewColumnPolicyConfig("level", "user").OnInsert().Value(false, false, func(context.Context) any { return nil }).
+		c5 := NewColumnPolicyConfig("level").ForTables("user").OnInsert().Value(false, false, func(context.Context) any { return nil }).
 			OnUpdate().Value(false, false, func(context.Context) any { return nil })
-		c6 := NewColumnPolicyConfig("level", "user").OnInsert().Value(false, false, func(context.Context) any { return nil }).
+		c6 := NewColumnPolicyConfig("level").ForTables("user").OnInsert().Value(false, false, func(context.Context) any { return nil }).
 			OnUpdate().Value(false, false, func(context.Context) any { return nil })
-		c7 := NewColumnPolicyConfig("deleted", "user").OnDeleteSoftly().AssignedNullMode(0)
-		c8 := NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0)
+		c7 := NewColumnPolicyConfig("create_at").OnInsert().Value(false, false, func(context.Context) any { return nil }).
+			OnUpdate().Value(false, false, func(context.Context) any { return nil })
+		c8 := NewColumnPolicyConfig("update_at").IgnoreTables("user").OnInsert().Value(false, false, func(context.Context) any { return nil }).
+			OnUpdate().Value(false, false, func(context.Context) any { return nil })
 		ei, err := newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, ColumnPolicyConfigs{c1, c2, c3, c4, c5, c6, c7, c8})
 		r.NoError(err)
-		equalFunc(r, c3.onInsert.value, ei.insertPolicy.assignedValueMap["name"].value)
-		equalFunc(r, c3.onUpdate.value, ei.updatePolicy.assignedValueMap["name"].value)
-		equalFunc(r, c6.onInsert.value, ei.insertPolicy.assignedValueMap["level"].value)
-		equalFunc(r, c6.onUpdate.value, ei.updatePolicy.assignedValueMap["level"].value)
-		equalFunc(r, c6.onUpdate.value, ei.updatePolicy.assignedValueMap["level"].value)
+		checkEqualFunc(r, c3.onInsert.value, ei.insertPolicy.assignedValueMap["name"].value)
+		checkEqualFunc(r, c3.onUpdate.value, ei.updatePolicy.assignedValueMap["name"].value)
+		checkEqualFunc(r, c6.onInsert.value, ei.insertPolicy.assignedValueMap["level"].value)
+		checkEqualFunc(r, c6.onUpdate.value, ei.updatePolicy.assignedValueMap["level"].value)
+		checkEqualFunc(r, c7.onInsert.value, ei.insertPolicy.assignedValueMap["create_at"].value)
+		checkEqualFunc(r, c7.onUpdate.value, ei.updatePolicy.assignedValueMap["create_at"].value)
+		checkNotContainKey(r, "update_at", ei.insertPolicy.assignedValueMap)
+		checkNotContainKey(r, "update_at", ei.updatePolicy.assignedValueMap)
 	}
 	{
-		c1 := NewColumnPolicyConfig("deleted", "user").OnDeleteSoftly().AssignedNullMode(0)
+		c1 := NewColumnPolicyConfig("deleted").ForTables("user").OnDeleteSoftly().AssignedNullMode(0)
 		c2 := NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0)
 		ei, err := newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, ColumnPolicyConfigs{c1, c2})
 		r.NoError(err)
 		r.Equal(deleteSoftlyMode_.assignedNull, ei.deleteSoftlyPolicy.mode)
 
-		c1 = NewColumnPolicyConfig("deleted", "user").OnDeleteSoftly().AssignedNullMode(0)
-		c2 = NewColumnPolicyConfig("deleted", "user").OnDeleteSoftly().AssignedPkMode(0)
+		c1 = NewColumnPolicyConfig("deleted").ForTables("user").OnDeleteSoftly().AssignedNullMode(0)
+		c2 = NewColumnPolicyConfig("deleted").ForTables("user").OnDeleteSoftly().AssignedPkMode(0)
 		ei, err = newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, ColumnPolicyConfigs{c1, c2})
 		r.NoError(err)
 		r.Equal(deleteSoftlyMode_.assignedPk, ei.deleteSoftlyPolicy.mode)

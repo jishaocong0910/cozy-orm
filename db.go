@@ -197,16 +197,27 @@ func (c DBConfig) Build() *DB {
 
 type ColumnPolicyConfigs []*columnPolicyConfig
 
-func NewColumnPolicyConfig(column string, tables ...string) *columnPolicyConfig {
-	return &columnPolicyConfig{column: column, tableSet: newSet(tables...)}
+func NewColumnPolicyConfig(column string) *columnPolicyConfig {
+	return &columnPolicyConfig{column: column}
 }
 
 type columnPolicyConfig struct {
 	column         string
 	tableSet       set[string]
+	ignoreTableSet set[string]
 	onInsert       *assignedPolicyConfig
 	onUpdate       *assignedPolicyConfig
 	onDeleteSoftly *deleteSoftlyPolicyConfig
+}
+
+func (c *columnPolicyConfig) ForTables(tables ...string) *columnPolicyConfig {
+	c.tableSet = newSet(tables...)
+	return c
+}
+
+func (c *columnPolicyConfig) IgnoreTables(tables ...string) *columnPolicyConfig {
+	c.ignoreTableSet = newSet(tables...)
+	return c
 }
 
 func (c *columnPolicyConfig) OnInsert() *assignedPolicyConfig {
