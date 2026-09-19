@@ -15,6 +15,7 @@
 package orm
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -303,7 +304,7 @@ func (i *insert[E]) _writeValuesClause(b *SqlBuilder, ei *entityInfo, insertedCo
 	for _, entity := range i.entity_ {
 		entityValueMap_ = append(entityValueMap_, ei.getValueMap(entity, insertedColumn_))
 	}
-	am := newAssignedManager[E](ei.insertPolicy, entityValueMap_, setColumns{}, "")
+	am := newAssignedManager[E](i.executor.ctx, ei.insertPolicy, entityValueMap_, setColumns{}, "")
 	b.Write(" VALUES ").ForEach(b.Sep(", "), i.entity_, func(i int, entity *E) {
 		b.ForEach(b.SepFix("(", ", ", ")"), insertedColumn_, func(_ int, column string) {
 			b.Accept(am.getValueWriter(column, i))
@@ -415,7 +416,7 @@ func (u *update[E]) Do() (int64, error) {
 		}
 		c.Sub(u.condition)
 
-		am := newAssignedManager[E](ei.updatePolicy, []map[string]any{ei.getValueMap(u.entity, updatedColumn_)}, u.setColumns, "")
+		am := newAssignedManager[E](u.mutation.ctx, ei.updatePolicy, []map[string]any{ei.getValueMap(u.entity, updatedColumn_)}, u.setColumns, "")
 		b.Write("UPDATE ").Write(ei.table).Write(" SET ")
 		b.ForEach(b.Sep(", "), updatedColumn_, func(_ int, column string) {
 			b.Write(column).Write(" = ").Accept(am.getValueWriter(column, 0))
@@ -537,7 +538,7 @@ func (u *updateRow[E]) Do() (int64, error) {
 			entityValueMap_ = append(entityValueMap_, entityValueMap)
 		}
 
-		am := newAssignedManager[E](ei.updatePolicy, entityValueMap_, u.setColumns, pkColumn)
+		am := newAssignedManager[E](u.mutation.ctx, ei.updatePolicy, entityValueMap_, u.setColumns, pkColumn)
 		b.Write("UPDATE ").Write(ei.table).Write(" SET ")
 		b.ForEach(b.Sep(", "), updatedColumns, func(i int, column string) {
 			b.Write(column).Write(" = ").Accept(am.getValueWriter(column, -1))
@@ -652,10 +653,10 @@ func (d *deleteSoftly[E]) Do() (int64, error) {
 			return
 		}
 		b.Write("UPDATE ").Write(ei.table).Write(" SET ").Write(ei.deleteSoftlyPolicy.deletedColumn).Write(" = ")
-		switch ei.deleteSoftlyPolicy.mod.ID {
-		case deleteSoftlyMode_.pk.ID:
+		switch ei.deleteSoftlyPolicy.mode.ID {
+		case deleteSoftlyMode_.assignedPk.ID:
 			b.Write(ei.deleteSoftlyPolicy.pkColumn)
-		case deleteSoftlyMode_.null.ID:
+		case deleteSoftlyMode_.assignedNull.ID:
 			b.Write("NULL")
 		default:
 			b.Error(errors.New("feature is not supported"))
@@ -725,8 +726,9 @@ func (c *count[E]) Do() (i int64, err error) {
 	return
 }
 
-func newAssignedManager[E any](policy assignedPolicy, entitiesValue_ []map[string]any, setColumns setColumns, pk string) *assignedManager[E] {
+func newAssignedManager[E any](ctx context.Context, policy assignedPolicy, entitiesValue_ []map[string]any, setColumns setColumns, pk string) *assignedManager[E] {
 	return &assignedManager[E]{
+		ctx:                    ctx,
 		policy:                 policy,
 		entitiesValue_:         entitiesValue_,
 		setColumns:             setColumns,
@@ -736,6 +738,7 @@ func newAssignedManager[E any](policy assignedPolicy, entitiesValue_ []map[strin
 }
 
 type assignedManager[E any] struct {
+	ctx                    context.Context
 	policy                 assignedPolicy
 	entitiesValue_         []map[string]any
 	setColumns             setColumns
@@ -788,9 +791,9 @@ func (a *assignedManager[E]) _getPolicyValueWriter(column string) SqlWriter {
 	var vm SqlWriter
 	p := a.policy.assignedValueMap[column]
 	if p.trueRawSqlFalseValue {
-		vm = assignedRawSql{rawSql: p.rawSql()}
+		vm = assignedRawSql{rawSql: p.rawSql(a.ctx)}
 	} else {
-		vm = assignedValue{value: p.value()}
+		vm = assignedValue{value: p.value(a.ctx)}
 	}
 	if a.policy.reusedColumnSet.contain(column) {
 		a.reusePolicyValueWriter[column] = vm
@@ -873,7 +876,7 @@ func (w where) WriteSQL(b *SqlBuilder) {
 		}
 		return
 	}
-	if w.policy.mod.IsPresent() && !w.includeDeleted {
+	if w.policy.mode.IsPresent() && !w.includeDeleted {
 		c = Cond().Sub(w.condition).Eq(w.policy.deletedColumn, w.policy.normalValue)
 	}
 	b.Write(" WHERE ").Accept(c)

@@ -139,7 +139,7 @@ type deleteSoftlyMode struct {
 
 type _deleteSoftlyMode struct {
 	e.Enum[deleteSoftlyMode]
-	pk, null deleteSoftlyMode
+	assignedPk, assignedNull deleteSoftlyMode
 }
 
 var deleteSoftlyMode_ = e.NewEnum(_deleteSoftlyMode{})

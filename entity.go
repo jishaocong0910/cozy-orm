@@ -15,6 +15,7 @@
 package orm
 
 import (
+	"context"
 	"errors"
 	"maps"
 	"reflect"
@@ -307,22 +308,22 @@ func (p *assignedPolicy) loadConfig(columnOnInsertMap map[string]*assignedPolicy
 
 type assignedValuePolicy struct {
 	trueRawSqlFalseValue bool
-	value                func() any
-	rawSql               func() string
+	value                func(ctx context.Context) any
+	rawSql               func(ctx context.Context) string
 }
 
 type deleteSoftlyPolicy struct {
-	mod           deleteSoftlyMode
+	mode          deleteSoftlyMode
 	deletedColumn string
 	pkColumn      string
 	normalValue   any
 }
 
 func (p *deleteSoftlyPolicy) loadConfig(config *deleteSoftlyPolicyConfig, pkColumn_ []string) {
-	if config == nil || config.mode.IsUndefined() || config.normalValue == nil || config.mode.Is(deleteSoftlyMode_.pk) && len(pkColumn_) != 1 {
+	if config == nil || config.mode.IsUndefined() || config.normalValue == nil || config.mode.Is(deleteSoftlyMode_.assignedPk) && len(pkColumn_) != 1 {
 		return
 	}
-	p.mod = config.mode
+	p.mode = config.mode
 	p.deletedColumn = config.parent.column
 	p.pkColumn = pkColumn_[0]
 	p.normalValue = config.normalValue

@@ -225,23 +225,25 @@ func (c *columnPolicyConfig) OnDeleteSoftly() *deleteSoftlyPolicyConfig {
 }
 
 func (c *columnPolicyConfig) UseCreateTime() *columnPolicyConfig {
-	c.OnInsert().Value(false, true, func() any {
+	c.OnInsert().Value(false, true, func(context.Context) any {
 		return time.Now()
 	}).OnUpdate().Never()
 	return c
 }
 
 func (c *columnPolicyConfig) UseUpdateTime() *columnPolicyConfig {
-	c.OnInsert().Value(false, true, func() any {
+	c.OnInsert().Value(false, true, func(context.Context) any {
 		return time.Now()
-	}).OnUpdate().Value(true, true, func() any {
+	}).OnUpdate().Value(true, true, func(ctx context.Context) any {
 		return time.Now()
 	})
 	return c
 }
 
 func (c *columnPolicyConfig) UseRowVersion() *columnPolicyConfig {
-	c.OnUpdate().RawSql(true, true, func() string {
+	c.OnInsert().Value(false, true, func(ctx context.Context) any {
+		return 1
+	}).OnUpdate().RawSql(true, true, func(ctx context.Context) string {
 		return c.column + " + 1"
 	})
 	return c
@@ -257,8 +259,8 @@ type assignedPolicyConfig struct {
 	batchReuse           bool
 	never                bool
 	trueRawSqlFalseValue bool
-	value                func() any
-	rawSql               func() string
+	value                func(ctx context.Context) any
+	rawSql               func(ctx context.Context) string
 }
 
 func (c *assignedPolicyConfig) Never() *columnPolicyConfig {
@@ -266,14 +268,14 @@ func (c *assignedPolicyConfig) Never() *columnPolicyConfig {
 	return c.parent
 }
 
-func (c *assignedPolicyConfig) Value(force bool, batchReuse bool, value func() any) *columnPolicyConfig {
+func (c *assignedPolicyConfig) Value(force bool, batchReuse bool, value func(ctx context.Context) any) *columnPolicyConfig {
 	c.force = force
 	c.batchReuse = batchReuse
 	c.value = value
 	return c.parent
 }
 
-func (c *assignedPolicyConfig) RawSql(force bool, batchReuse bool, rawSql func() string) *columnPolicyConfig {
+func (c *assignedPolicyConfig) RawSql(force bool, batchReuse bool, rawSql func(ctx context.Context) string) *columnPolicyConfig {
 	c.force = force
 	c.batchReuse = batchReuse
 	c.trueRawSqlFalseValue = true
@@ -287,15 +289,15 @@ type deleteSoftlyPolicyConfig struct {
 	normalValue any
 }
 
-func (c *deleteSoftlyPolicyConfig) PkMode[T string | int](normalValue T) *columnPolicyConfig {
+func (c *deleteSoftlyPolicyConfig) AssignedPkMode[T string | int](normalValue T) *columnPolicyConfig {
 	c.normalValue = normalValue
-	c.mode = deleteSoftlyMode_.pk
+	c.mode = deleteSoftlyMode_.assignedPk
 	return c.parent
 }
 
-func (c *deleteSoftlyPolicyConfig) NullMode[T string | int](normalValue T) *columnPolicyConfig {
+func (c *deleteSoftlyPolicyConfig) AssignedNullMode[T string | int](normalValue T) *columnPolicyConfig {
 	c.normalValue = normalValue
-	c.mode = deleteSoftlyMode_.null
+	c.mode = deleteSoftlyMode_.assignedNull
 	return c.parent
 }
 

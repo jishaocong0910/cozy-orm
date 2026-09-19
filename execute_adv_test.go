@@ -70,7 +70,7 @@ func TestFind(t *testing.T) {
 		db := orm.DBConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
-				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0),
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
 			},
 		}.Build()
 		mock.ExpectPrepare("SELECT id, name FROM user WHERE level = ? AND deleted = ?").ExpectQuery().WithArgs(1, 0).
@@ -129,7 +129,7 @@ func TestFindOne(t *testing.T) {
 		db := orm.DBConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
-				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0),
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
 			},
 		}.Build()
 		mock.ExpectPrepare("SELECT id, name FROM user WHERE level = ? AND deleted = ?").ExpectQuery().WithArgs(1, 0).
@@ -183,15 +183,70 @@ func TestInsert(t *testing.T) {
 			GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
 				orm.NewColumnPolicyConfig("create_at").UseCreateTime(),
+				orm.NewColumnPolicyConfig("update_at").UseUpdateTime(),
+				orm.NewColumnPolicyConfig("version").UseRowVersion(),
 			},
 		}.Build()
-		mock.ExpectPrepare("INSERT INTO user(name, create_at) VALUES (?, ?), (?, ?)").ExpectExec().
+		mock.ExpectPrepare("INSERT INTO user(name, create_at, update_at, version) VALUES (?, ?, ?, ?), (?, ?, ?, ?)").ExpectExec().
 			WillReturnResult(sqlmock.NewResult(1, 2)).
-			WithArgs("name1", orm.AnyTime{}, "name2", orm.AnyTime{})
+			WithArgs("name1", orm.AnyTime{}, orm.AnyTime{}, 1, "name2", orm.AnyTime{}, orm.AnyTime{}, 1)
+
+		context.WithValue(context.Background(), "test", "test")
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
 		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
 		r.Equal(int64(1), *u1.Id)
 		r.Equal(int64(2), *u2.Id)
+	}
+	{
+		u1 := &orm.User{Name: new("name1"), Status: new(orm.UserStatus(2))}
+		u2 := &orm.User{Name: new("name2")}
+		sqlDB, mock := orm.MockSqlDB(r)
+		db := orm.DBConfig{
+			SqlDB:               sqlDB,
+			GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId,
+			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
+				orm.NewColumnPolicyConfig("status").OnInsert().Value(false, true, func(ctx context.Context) any {
+					if s, ok := ctx.Value("status").(int); ok {
+						return s
+					}
+					return 1
+				}),
+			},
+		}.Build()
+
+		mock.ExpectPrepare("INSERT INTO user(name, status) VALUES (?, ?), (?, ?)").ExpectExec().
+			WillReturnResult(sqlmock.NewResult(1, 2)).
+			WithArgs("name1", 2, "name2", 1)
+
+		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+	}
+	{
+		u1 := &orm.User{Name: new("name1"), Status: new(orm.UserStatus(2))}
+		u2 := &orm.User{Name: new("name2")}
+		sqlDB, mock := orm.MockSqlDB(r)
+		db := orm.DBConfig{
+			SqlDB:               sqlDB,
+			GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId,
+			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
+				orm.NewColumnPolicyConfig("status").OnInsert().Value(false, true, func(ctx context.Context) any {
+					if s, ok := ctx.Value("status").(int); ok {
+						return s
+					}
+					return 1
+				}),
+			},
+		}.Build()
+
+		mock.ExpectPrepare("INSERT INTO user(name, status) VALUES (?, ?), (?, ?)").ExpectExec().
+			WillReturnResult(sqlmock.NewResult(1, 2)).
+			WithArgs("name1", 2, "name2", 4)
+
+		_, err := db.Insert[orm.User](context.WithValue(context.Background(), "status", 4)).Entities(u1, u2).Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
 	}
 	{
 		u1 := &orm.User{Name: new("name1")}
@@ -298,7 +353,7 @@ func TestUpdate(t *testing.T) {
 				orm.NewColumnPolicyConfig("create_at").UseCreateTime(),
 				orm.NewColumnPolicyConfig("update_at").UseUpdateTime(),
 				orm.NewColumnPolicyConfig("version").UseRowVersion(),
-				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0),
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
 			},
 		}.Build()
 
@@ -377,7 +432,7 @@ func TestUpdateRow(t *testing.T) {
 				orm.NewColumnPolicyConfig("create_at").UseCreateTime(),
 				orm.NewColumnPolicyConfig("update_at").UseUpdateTime(),
 				orm.NewColumnPolicyConfig("version").UseRowVersion(),
-				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0),
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
 			},
 		}.Build()
 		mock.ExpectPrepare("UPDATE user SET name = CASE id WHEN ? THEN ? WHEN ? THEN ? END, update_at = ?, version = version + 1 WHERE id IN(?, ?) AND level = ? AND deleted = ?").ExpectExec().
@@ -464,7 +519,7 @@ func TestDeleteSoftly(t *testing.T) {
 		db := orm.DBConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
-				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0),
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
 			},
 		}.Build()
 		affected, err := db.DeleteSoftly[orm.User](nil).Do()
@@ -481,7 +536,7 @@ func TestDeleteSoftly(t *testing.T) {
 		db := orm.DBConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
-				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0),
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
 			},
 		}.Build()
 		_, err := db.DeleteSoftly[int](nil).Do()
@@ -493,7 +548,7 @@ func TestDeleteSoftly(t *testing.T) {
 		db := orm.DBConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
-				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0),
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
 			},
 		}.Build()
 		log := orm.MockLogger(db)
@@ -511,7 +566,7 @@ func TestDeleteSoftly(t *testing.T) {
 		db := orm.DBConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
-				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0),
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
 			},
 		}.Build()
 		mock.ExpectPrepare("UPDATE user SET deleted = id WHERE id = ? AND deleted = ?").ExpectExec().WithArgs(1, 0).
@@ -525,7 +580,7 @@ func TestDeleteSoftly(t *testing.T) {
 		db := orm.DBConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
-				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().NullMode(0),
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedNullMode(0),
 			},
 		}.Build()
 		mock.ExpectPrepare("UPDATE user SET deleted = NULL WHERE id = ? AND deleted = ?").ExpectExec().WithArgs(1, 0).
@@ -563,7 +618,7 @@ func TestCount(t *testing.T) {
 		db := orm.DBConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
-				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0),
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
 			},
 		}.Build()
 		mock.ExpectPrepare("SELECT COUNT(*) FROM user WHERE level = ? AND deleted = ?").ExpectQuery().WithArgs(2, 0).
@@ -574,7 +629,7 @@ func TestCount(t *testing.T) {
 		db = orm.DBConfig{
 			SqlDB: sqlDB,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
-				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0),
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
 			},
 		}.Build()
 		mock.ExpectPrepare("SELECT COUNT(*) FROM user WHERE level = ?").ExpectQuery().WithArgs(2).

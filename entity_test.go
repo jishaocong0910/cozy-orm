@@ -15,6 +15,7 @@
 package orm
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -33,7 +34,7 @@ func TestGetEntity(t *testing.T) {
 			NewColumnPolicyConfig("create_at").UseCreateTime(),
 			NewColumnPolicyConfig("update_at").UseUpdateTime(),
 			NewColumnPolicyConfig("version").UseRowVersion(),
-			NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0),
+			NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
 		})
 		r.NoError(err)
 		r.Equal("user", ei.table)
@@ -54,10 +55,10 @@ func TestGetEntity(t *testing.T) {
 		r.NotNil(ei.lastInsertIdConversion)
 
 		r.Nil(ei.insertPolicy.ignoredColumnSet)
-		r.Equal(newSet[string]("create_at", "update_at"), ei.insertPolicy.reusedColumnSet)
+		r.Equal(newSet[string]("create_at", "update_at", "version"), ei.insertPolicy.reusedColumnSet)
 		r.Nil(ei.insertPolicy.forceColumnSet)
-		r.Equal(newSet[string]("create_at", "update_at"), ei.insertPolicy.defaultColumnSet)
-		checkMapKeys(r, []string{"create_at", "update_at"}, ei.insertPolicy.assignedValueMap)
+		r.Equal(newSet[string]("create_at", "update_at", "version"), ei.insertPolicy.defaultColumnSet)
+		checkMapKeys(r, []string{"create_at", "update_at", "version"}, ei.insertPolicy.assignedValueMap)
 		r.False(ei.insertPolicy.assignedValueMap["create_at"].trueRawSqlFalseValue)
 		r.NotNil(ei.insertPolicy.assignedValueMap["create_at"].value)
 		r.Nil(ei.insertPolicy.assignedValueMap["create_at"].rawSql)
@@ -77,7 +78,7 @@ func TestGetEntity(t *testing.T) {
 		r.Nil(ei.updatePolicy.assignedValueMap["version"].value)
 		r.NotNil(ei.updatePolicy.assignedValueMap["version"].rawSql)
 
-		r.Equal(deleteSoftlyMode_.pk, ei.deleteSoftlyPolicy.mod)
+		r.Equal(deleteSoftlyMode_.assignedPk, ei.deleteSoftlyPolicy.mode)
 		r.Equal("deleted", ei.deleteSoftlyPolicy.deletedColumn)
 		r.Equal("id", ei.deleteSoftlyPolicy.pkColumn)
 		r.Equal(0, ei.deleteSoftlyPolicy.normalValue)
@@ -113,18 +114,18 @@ func TestGetEntity(t *testing.T) {
 		r.Nil(ei.lastInsertIdConversion)
 	}
 	{
-		c1 := NewColumnPolicyConfig("name", "product").OnInsert().Value(false, false, func() any { return nil })
-		c2 := NewColumnPolicyConfig("field").OnInsert().Value(false, false, func() any { return nil })
-		c3 := NewColumnPolicyConfig("name", "user").OnInsert().Value(false, false, func() any { return nil }).
-			OnUpdate().Value(false, false, func() any { return nil })
-		c4 := NewColumnPolicyConfig("name").OnInsert().Value(false, false, func() any { return nil }).
-			OnUpdate().Value(false, false, func() any { return nil })
-		c5 := NewColumnPolicyConfig("level", "user").OnInsert().Value(false, false, func() any { return nil }).
-			OnUpdate().Value(false, false, func() any { return nil })
-		c6 := NewColumnPolicyConfig("level", "user").OnInsert().Value(false, false, func() any { return nil }).
-			OnUpdate().Value(false, false, func() any { return nil })
-		c7 := NewColumnPolicyConfig("deleted", "user").OnDeleteSoftly().NullMode(0)
-		c8 := NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0)
+		c1 := NewColumnPolicyConfig("name", "product").OnInsert().Value(false, false, func(context.Context) any { return nil })
+		c2 := NewColumnPolicyConfig("field").OnInsert().Value(false, false, func(context.Context) any { return nil })
+		c3 := NewColumnPolicyConfig("name", "user").OnInsert().Value(false, false, func(context.Context) any { return nil }).
+			OnUpdate().Value(false, false, func(context.Context) any { return nil })
+		c4 := NewColumnPolicyConfig("name").OnInsert().Value(false, false, func(context.Context) any { return nil }).
+			OnUpdate().Value(false, false, func(context.Context) any { return nil })
+		c5 := NewColumnPolicyConfig("level", "user").OnInsert().Value(false, false, func(context.Context) any { return nil }).
+			OnUpdate().Value(false, false, func(context.Context) any { return nil })
+		c6 := NewColumnPolicyConfig("level", "user").OnInsert().Value(false, false, func(context.Context) any { return nil }).
+			OnUpdate().Value(false, false, func(context.Context) any { return nil })
+		c7 := NewColumnPolicyConfig("deleted", "user").OnDeleteSoftly().AssignedNullMode(0)
+		c8 := NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0)
 		ei, err := newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, ColumnPolicyConfigs{c1, c2, c3, c4, c5, c6, c7, c8})
 		r.NoError(err)
 		equalFunc(r, c3.onInsert.value, ei.insertPolicy.assignedValueMap["name"].value)
@@ -134,17 +135,17 @@ func TestGetEntity(t *testing.T) {
 		equalFunc(r, c6.onUpdate.value, ei.updatePolicy.assignedValueMap["level"].value)
 	}
 	{
-		c1 := NewColumnPolicyConfig("deleted", "user").OnDeleteSoftly().NullMode(0)
-		c2 := NewColumnPolicyConfig("deleted").OnDeleteSoftly().PkMode(0)
+		c1 := NewColumnPolicyConfig("deleted", "user").OnDeleteSoftly().AssignedNullMode(0)
+		c2 := NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0)
 		ei, err := newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, ColumnPolicyConfigs{c1, c2})
 		r.NoError(err)
-		r.Equal(deleteSoftlyMode_.null, ei.deleteSoftlyPolicy.mod)
+		r.Equal(deleteSoftlyMode_.assignedNull, ei.deleteSoftlyPolicy.mode)
 
-		c1 = NewColumnPolicyConfig("deleted", "user").OnDeleteSoftly().NullMode(0)
-		c2 = NewColumnPolicyConfig("deleted", "user").OnDeleteSoftly().PkMode(0)
+		c1 = NewColumnPolicyConfig("deleted", "user").OnDeleteSoftly().AssignedNullMode(0)
+		c2 = NewColumnPolicyConfig("deleted", "user").OnDeleteSoftly().AssignedPkMode(0)
 		ei, err = newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, ColumnPolicyConfigs{c1, c2})
 		r.NoError(err)
-		r.Equal(deleteSoftlyMode_.pk, ei.deleteSoftlyPolicy.mod)
+		r.Equal(deleteSoftlyMode_.assignedPk, ei.deleteSoftlyPolicy.mode)
 	}
 }
 
