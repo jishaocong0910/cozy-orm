@@ -19,14 +19,14 @@ import (
 	"sync"
 )
 
-type Convert[V ScalarType] interface {
+type Convert[V any] interface {
 	ToValue() V
 	ToField(val V)
 }
 
-type ScalarType interface {
-	int | int8 | int16 | int32 | int64 | uint | uint8 | uint16 | uint32 | uint64 | float32 | float64 | bool | string
-}
+//type ScalarType interface {
+//	int | int8 | int16 | int32 | int64 | uint | uint8 | uint16 | uint32 | uint64 | float32 | float64 | bool | string
+//}
 
 const (
 	ToValueMethodName = "ToValue"
@@ -102,16 +102,16 @@ func registerFieldConverter(t reflect.Type) fieldConverter {
 			pt = reflect.PointerTo(t)
 		}
 		method, _ := pt.MethodByName(ToFieldMethodName)
-		scalarType := method.Type.In(1)
+		indirectType := method.Type.In(1)
 		switch t.Kind() {
 		case reflect.Pointer:
-			fc = ptrFieldConverter{ptrScalarType: reflect.PointerTo(scalarType)}
+			fc = ptrFieldConverter{ptrScalarType: reflect.PointerTo(indirectType)}
 		case reflect.Slice:
-			fc = sliceFieldConverter{ptrScalarType: reflect.PointerTo(scalarType)}
+			fc = sliceFieldConverter{ptrScalarType: reflect.PointerTo(indirectType)}
 		case reflect.Map:
-			fc = mapFieldConverter{ptrScalarType: reflect.PointerTo(scalarType)}
+			fc = mapFieldConverter{ptrScalarType: reflect.PointerTo(indirectType)}
 		default:
-			fc = valueFieldConverter{ptrScalarType: reflect.PointerTo(scalarType)}
+			fc = valueFieldConverter{ptrScalarType: reflect.PointerTo(indirectType)}
 		}
 	} else if isBaseValueType(t) {
 		fc = zeroFieldConverter{ptrType: reflect.PointerTo(t)}
