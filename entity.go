@@ -214,16 +214,13 @@ func (e *entityInfo) _registerField(tf reflect.StructField, tag fieldTag, column
 
 func (e *entityInfo) _registerPolicy(columnPolicyConfig_ []*columnPolicyConfig) {
 	for _, pk := range e.pkColumn_ {
-		columnPolicyConfig_ = append(columnPolicyConfig_, NewColumnPolicyConfig(pk).ForTables(e.table).OnUpdate().Never())
+		columnPolicyConfig_ = append(columnPolicyConfig_, NewColumnPolicyConfig(pk, e.table).OnUpdate().Never())
 	}
 	columnSet := newSet(e.column_...)
 	columnOnInsertMap := map[string]*assignedPolicyConfig{}
 	columnOnUpdateMap := map[string]*assignedPolicyConfig{}
 	var finalDeleteSoftlyPolicyConfig *deleteSoftlyPolicyConfig
 	for _, config := range columnPolicyConfig_ {
-		if config.ignoreTableSet.contain(e.table) {
-			continue
-		}
 		if !config.isDefault() && !config.tableSet.contain(e.table) {
 			continue
 		}
