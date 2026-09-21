@@ -15,7 +15,7 @@
 package orm
 
 type Tuple[T any] struct {
-	Field1 T
+	Field T
 }
 
 type Tuple2[T1 any, T2 any] struct {

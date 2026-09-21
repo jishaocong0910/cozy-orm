@@ -34,7 +34,7 @@ var isBaseKind = func() func(t reflect.Kind) bool {
 	}
 }()
 
-var isBaseScalarType, isBaseScalarKind = func() (func(t reflect.Type) bool, func(t reflect.Type) bool) {
+var isBaseScalarKind = func() func(t reflect.Type) bool {
 	var baseScalarTypes = newSet(
 		reflect.TypeFor[int](),
 		reflect.TypeFor[int8](),
@@ -58,10 +58,8 @@ var isBaseScalarType, isBaseScalarKind = func() (func(t reflect.Type) bool, func
 	}
 
 	return func(t reflect.Type) bool {
-			return baseScalarTypes.contain(t)
-		}, func(t reflect.Type) (b bool) {
-			return baseScalarKinds.contain(t.Kind())
-		}
+		return baseScalarKinds.contain(t.Kind())
+	}
 }()
 
 var isBaseStructType = func() func(t reflect.Type) bool {
@@ -77,22 +75,24 @@ func isBaseArrayType(t reflect.Type) bool {
 
 //go:linkname isValidFieldType github.com/jishaocong0910/cozy-orm/orm.isValidFieldType
 func isValidFieldType(t reflect.Type) bool {
-	k := t.Kind()
-	if !isBaseKind(k) {
+	if !isBaseKind(t.Kind()) {
 		return false
 	}
+	return isValidBuiltinType(t) || isImplementConverter(t) || isImplementScannerValuer(t)
+}
 
-	if k == reflect.Pointer {
+func isValidBuiltinType(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.Pointer:
 		if isBaseValueType(t.Elem()) {
 			return true
 		}
-	} else if k == reflect.Slice {
+	case reflect.Slice:
 		if t.Elem().Kind() == reflect.Uint8 {
 			return true
 		}
 	}
-
-	return isImplementConverter(t) || isImplementScannerValuer(t)
+	return false
 }
 
 func isBaseValueType(t reflect.Type) bool {
@@ -134,7 +134,7 @@ func isImplementConverter(t reflect.Type) bool {
 		}
 		// 返回值基本标量类型
 		vt = mt.Out(0)
-		if !isBaseScalarType(vt) {
+		if !isBaseValueType(vt) && !isValidBuiltinType(vt) {
 			return false
 		}
 	} else {

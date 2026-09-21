@@ -658,7 +658,7 @@ func (c *count[E]) Do() (i int64, err error) {
 		})
 	}).Do()
 	if err == nil {
-		i = es[0].Field1
+		i = es[0].Field
 	}
 	return
 }

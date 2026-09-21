@@ -142,12 +142,41 @@ func TestConvertArgs(t *testing.T) {
 }
 
 type ConvDemo struct {
-	Field1 *UserProperties
-	Field2 UserLevel
-	Field3 UserTags
-	Field4 UserAttributes
-	Field5 string
-	Field6 time.Time
-	Field7 uuid.UUID
-	Field8 UserCategory
+	Field1  *UserProperties
+	Field2  UserLevel
+	Field3  UserTags
+	Field4  UserAttributes
+	Field5  string
+	Field6  time.Time
+	Field7  uuid.UUID
+	Field8  UserCategory
+	Field9  ConvBytes
+	Field10 ConvTime
+}
+
+type ConvBytes struct {
+	str string
+}
+
+func (c ConvBytes) ToValue() []byte {
+	return []byte(c.str)
+}
+
+func (c *ConvBytes) ToField(val []byte) {
+	c.str = string(val)
+}
+
+type ConvTime struct {
+	str string
+}
+
+func (c ConvTime) ToValue() *time.Time {
+	if t, err := time.Parse(time.DateTime, c.str); err != nil {
+		return &t
+	}
+	return nil
+}
+
+func (c *ConvTime) ToField(val *time.Time) {
+	c.str = val.Format(time.DateTime)
 }
