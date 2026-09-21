@@ -27,37 +27,31 @@ type query[E any] struct {
 	mapTargets []*E
 }
 
-// Must if true, panic when error occurs, otherwise, return error.
 func (q *query[E]) Must() *query[E] {
 	q.setMust()
 	return q
 }
 
-// Describe the SQL in the log.
 func (q *query[E]) Describe(desc string) *query[E] {
 	q.setDescribe(desc)
 	return q
 }
 
-// SqlLogLevel specifies the SQL log level, default use the global config.
 func (q *query[E]) SqlLogLevel(level Level) *query[E] {
 	q.setSqlLogLevel(level)
 	return q
 }
 
-// BuildSql is used to build SQL.
 func (q *query[E]) BuildSql(buildSql func(b *SqlBuilder)) *query[E] {
 	q.setBuildSql(buildSql)
 	return q
 }
 
-// MapTarget indicates that the sql.Rows will be mapped to the specified target rather than returning new entities.
 func (q *query[E]) MapTarget(entity_ ...*E) *query[E] {
 	q.mapTargets = entity_
 	return q
 }
 
-// Do execute SQL
 func (q *query[E]) Do() (entity_ []*E, err error) {
 	rows, columns, cost, cancel, err := q.doQuery()
 	if err != nil {
@@ -137,31 +131,26 @@ type mutation struct {
 	mapTarget_    []any
 }
 
-// Must if true, panic when error occurs, otherwise, return error.
 func (m *mutation) Must() *mutation {
 	m.setMust()
 	return m
 }
 
-// Describe the SQL in the log.
 func (m *mutation) Describe(desc string) *mutation {
 	m.setDescribe(desc)
 	return m
 }
 
-// SqlLogLevel specifies the SQL log level, default use the global config.
 func (m *mutation) SqlLogLevel(level Level) *mutation {
 	m.setSqlLogLevel(level)
 	return m
 }
 
-// BuildSql is used to build SQL.
 func (m *mutation) BuildSql(buildSql func(b *SqlBuilder)) *mutation {
 	m.setBuildSql(buildSql)
 	return m
 }
 
-// MapTarget specifies the entities that are going to be injected the ID (field with "auto" tag) after executing INSERT SQL.
 func (m *mutation) MapTarget[E any](entity_ ...*E) *mutation {
 	m.mapTargetType = reflect.TypeFor[E]()
 	m.mapTarget_ = make([]any, 0, len(entity_))
@@ -171,7 +160,6 @@ func (m *mutation) MapTarget[E any](entity_ ...*E) *mutation {
 	return m
 }
 
-// Do execute SQL
 func (m *mutation) Do() (affected int64, err error) {
 	result, cost, cancel, err := m.doExec()
 	if err != nil {

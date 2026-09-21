@@ -40,7 +40,6 @@ type DB struct {
 	registerMapperLock sync.Mutex
 }
 
-// Raw returns the underlying *sql.DB
 func (d *DB) Raw() *sql.DB {
 	return d.sqlDB
 }
@@ -129,21 +128,14 @@ func (d *DB) getMapper(t reflect.Type) (mapper, error) {
 }
 
 type DBConfig struct {
-	SqlDB       *sql.DB
-	Logger      Logger
-	SqlLogLevel Level
-	// TabNameMapper setting name mapping from entity to table
-	TabNameMapper *NameMapper
-	// setting field name mapping from entity to table
-	ColNameMapper *NameMapper
-	DBType        DBType
-	// setting the SQL parameter placeholder prefix; if empty, parameter placeholder uses the default "?",
-	// otherwise, use the specified prefix appended to the auto increment number started at 1. This effect is manifested
-	// in method SqlBuilder.WritePh()
-	ParamPrefix string
-	// indicates how to get id when executing INSERT SQL
+	SqlDB               *sql.DB
+	Logger              Logger
+	SqlLogLevel         Level
+	TabNameMapper       *NameMapper
+	ColNameMapper       *NameMapper
+	DBType              DBType
+	ParamPrefix         string
 	GetGeneratedKeyMode GetGeneratedKeyMode
-	// indicates the paging clause
 	PageMode            PageMode
 	QuotedIdentifier    QuotedIdentifier
 	ColumnPolicyConfigs ColumnPolicyConfigs

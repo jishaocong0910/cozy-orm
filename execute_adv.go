@@ -32,25 +32,21 @@ type find[E any] struct {
 	lastStr        string
 }
 
-// Must if true, panic when error occurs, otherwise, return error.
 func (f *find[E]) Must() *find[E] {
 	f.query.Must()
 	return f
 }
 
-// Describe the SQL in the log.
 func (f *find[E]) Describe(desc string) *find[E] {
 	f.query.Describe(desc)
 	return f
 }
 
-// SqlLogLevel specifies the SQL log level, default use the global config.
 func (f *find[E]) SqlLogLevel(level Level) *find[E] {
 	f.query.SqlLogLevel(level)
 	return f
 }
 
-// Select is the SELECT LIST clause, default is all columns.
 func (f *find[E]) Select(column_ ...string) *find[E] {
 	f.selectedSet = newSet(column_...)
 	return f
@@ -61,37 +57,31 @@ func (f *find[E]) OnDemand(onDemand *OnDemand) *find[E] {
 	return f
 }
 
-// Condition is the condition of WHERE clause, create by function Cond.
 func (f *find[E]) Condition(cond *Condition) *find[E] {
 	f.condition = cond
 	return f
 }
 
-// OrderBy is the ORDER BY clause, create by function OrderBy.
 func (f *find[E]) OrderBy(orderBy *orderBy) *find[E] {
 	f.orderBy = orderBy
 	return f
 }
 
-// Page is the Paging clause, create by function Page.
 func (f *find[E]) Page(page *page) *find[E] {
 	f.page = page
 	return f
 }
 
-// IncludeDeleted indicates the conditions do not automatically filter out logical deleted rows.
 func (f *find[E]) IncludeDeleted() *find[E] {
 	f.includeDeleted = true
 	return f
 }
 
-// LastStr is the last string of the SQL.
 func (f *find[E]) LastStr(lastStr string) *find[E] {
 	f.lastStr = lastStr
 	return f
 }
 
-// Do execute SQL
 func (f *find[E]) Do() ([]*E, error) {
 	es, err := f.query.BuildSql(func(b *SqlBuilder) {
 		ei, err := f.query.db.getEntityInfo(reflect.TypeFor[E]())
@@ -129,25 +119,21 @@ type findOne[E any] struct {
 	compatible bool
 }
 
-// Must if true, panic when error occurs, otherwise, return error.
 func (f *findOne[E]) Must() *findOne[E] {
 	f.find.Must()
 	return f
 }
 
-// Describe the SQL in the log.
 func (f *findOne[E]) Describe(desc string) *findOne[E] {
 	f.find.Describe(desc)
 	return f
 }
 
-// SqlLogLevel specifies the SQL log level, default use the global config.
 func (f *findOne[E]) SqlLogLevel(level Level) *findOne[E] {
 	f.find.SqlLogLevel(level)
 	return f
 }
 
-// Select is the SELECT LIST clause, default is all columns.
 func (f *findOne[E]) Select(column_ ...string) *findOne[E] {
 	f.find.Select(column_...)
 	return f
@@ -158,37 +144,31 @@ func (f *findOne[E]) OnDemand(onDemand *OnDemand) *findOne[E] {
 	return f
 }
 
-// Condition is the condition of WHERE clause, create by function Cond.
 func (f *findOne[E]) Condition(cond *Condition) *findOne[E] {
 	f.find.Condition(cond)
 	return f
 }
 
-// OrderBy is the ORDER BY clause, create by function OrderBy.
 func (f *findOne[E]) OrderBy(orderBy *orderBy) *findOne[E] {
 	f.find.OrderBy(orderBy)
 	return f
 }
 
-// IncludeDeleted indicates the conditions do not automatically filter out logical deleted rows.
 func (f *findOne[E]) IncludeDeleted() *findOne[E] {
 	f.find.IncludeDeleted()
 	return f
 }
 
-// LastStr is the last string of the SQL.
 func (f *findOne[E]) LastStr(lastStr string) *findOne[E] {
 	f.find.LastStr(lastStr)
 	return f
 }
 
-// Compatible will take first row when returning more than one row, otherwise, return error.
 func (f *findOne[E]) Compatible() *findOne[E] {
 	f.compatible = true
 	return f
 }
 
-// Do execute SQL
 func (f *findOne[E]) Do() (*E, error) {
 	entities, err := f.find.Do()
 	var fst *E
@@ -208,45 +188,36 @@ type insert[E any] struct {
 	lastStr     string
 }
 
-// Must if true, panic when error occurs, otherwise, return error.
 func (i *insert[E]) Must() *insert[E] {
 	i.executor.setMust()
 	return i
 }
 
-// Describe the SQL in the log.
 func (i *insert[E]) Describe(desc string) *insert[E] {
 	i.executor.setDescribe(desc)
 	return i
 }
 
-// SqlLogLevel specifies the SQL log level, default use the global config.
 func (i *insert[E]) SqlLogLevel(level Level) *insert[E] {
 	i.executor.setSqlLogLevel(level)
 	return i
 }
 
-// Entities is the data will be saved, only the non-nil fields will be saved (except those which have the "auto" tag).
-//
-// Please note: the non-nil fields will be taken from the first entity.
 func (i *insert[E]) Entities(entity_ ...*E) *insert[E] {
 	i.entity_ = entity_
 	return i
 }
 
-// Nullable specifies the columns that the mapped field is nil in the entity set to null, work only All is false.
 func (i *insert[E]) Nullable(column_ ...string) *insert[E] {
 	i.nullableSet = newSet(column_...)
 	return i
 }
 
-// LastStr is the last string of the SQL.
 func (i *insert[E]) LastStr(lastStr string) *insert[E] {
 	i.lastStr = lastStr
 	return i
 }
 
-// Do execute SQL
 func (i *insert[E]) Do() (int64, error) {
 	switch i.executor.db.GetGeneratedKeyMode.ID {
 	case GetGeneratedKeyMode_.InsertReturning.ID, GetGeneratedKeyMode_.SQLServer.ID:
@@ -323,25 +294,21 @@ type update[E any] struct {
 	skipSafety     bool
 }
 
-// Must if true, panic when error occurs, otherwise, return error.
 func (u *update[E]) Must() *update[E] {
 	u.mutation.Must()
 	return u
 }
 
-// Describe the SQL in the log.
 func (u *update[E]) Describe(desc string) *update[E] {
 	u.mutation.Describe(desc)
 	return u
 }
 
-// SqlLogLevel specifies the SQL log level, default use the global config.
 func (u *update[E]) SqlLogLevel(level Level) *update[E] {
 	u.mutation.SqlLogLevel(level)
 	return u
 }
 
-// Entity is the data will be updated, only the non-nil fields will be saved (except those which have the "auto" tag).
 func (u *update[E]) Entity(entity *E) *update[E] {
 	u.entity = entity
 	return u
@@ -362,19 +329,16 @@ func (u *update[E]) SetRaw(column string, sql string) *update[E] {
 	return u
 }
 
-// Nullable specifies the columns that the mapped field is nil in the entity set to null, work only All is false.
 func (u *update[E]) Nullable(column_ ...string) *update[E] {
 	u.nullableSet = newSet(column_...)
 	return u
 }
 
-// Condition is the condition of WHERE clause, create by function Cond.
 func (u *update[E]) Condition(cond *Condition) *update[E] {
 	u.condition = cond
 	return u
 }
 
-// IncludeDeleted indicates the conditions do not automatically filter out logical deleted rows.
 func (u *update[E]) IncludeDeleted() *update[E] {
 	u.includeDeleted = true
 	return u
@@ -385,7 +349,6 @@ func (u *update[E]) SkipSafety() *update[E] {
 	return u
 }
 
-// Do execute SQL
 func (u *update[E]) Do() (int64, error) {
 	if u.entity == nil && len(u.setColumns.columnSet) == 0 {
 		return 0, nil
@@ -441,19 +404,16 @@ type updateRow[E any] struct {
 	skipSafety     bool
 }
 
-// Must if true, panic when error occurs, otherwise, return error.
 func (u *updateRow[E]) Must() *updateRow[E] {
 	u.mutation.Must()
 	return u
 }
 
-// Describe the SQL in the log.
 func (u *updateRow[E]) Describe(desc string) *updateRow[E] {
 	u.mutation.Describe(desc)
 	return u
 }
 
-// SqlLogLevel specifies the SQL log level, default use the global config.
 func (u *updateRow[E]) SqlLogLevel(level Level) *updateRow[E] {
 	u.mutation.SqlLogLevel(level)
 	return u
@@ -474,33 +434,26 @@ func (u *updateRow[E]) SetRaw(column string, sql string) *updateRow[E] {
 	return u
 }
 
-// Nullable specifies the columns that the mapped field is nil in the entity set to null, work only All is false.
 func (u *updateRow[E]) Nullable(column_ ...string) *updateRow[E] {
 	u.nullableSet = newSet(column_...)
 	return u
 }
 
-// Condition is the condition of WHERE clause, create by function Cond.
 func (u *updateRow[E]) Condition(cond *Condition) *updateRow[E] {
 	u.condition = cond
 	return u
 }
 
-// IncludeDeleted indicates the conditions do not automatically filter out logical deleted rows.
 func (u *updateRow[E]) IncludeDeleted() *updateRow[E] {
 	u.includeDeleted = true
 	return u
 }
 
-// Entities is the data will be saved, only the non-nil fields will be saved (except those which have the "auto" tag).
-//
-// Please note: the non-nil fields will be taken from the first entity.
 func (u *updateRow[E]) Entities(entity_ ...*E) *updateRow[E] {
 	u.entity_ = entity_
 	return u
 }
 
-// Do execute SQL
 func (u *updateRow[E]) Do() (int64, error) {
 	if len(u.entity_) == 0 {
 		return 0, nil
@@ -565,25 +518,21 @@ type delete[E any] struct {
 	skipSafety     bool
 }
 
-// Must if true, panic when error occurs, otherwise, return error.
 func (d *delete[E]) Must() *delete[E] {
 	d.mutation.Must()
 	return d
 }
 
-// Describe the SQL in the log.
 func (d *delete[E]) Describe(desc string) *delete[E] {
 	d.mutation.Describe(desc)
 	return d
 }
 
-// SqlLogLevel specifies the SQL log level, default use the global config.
 func (d *delete[E]) SqlLogLevel(level Level) *delete[E] {
 	d.mutation.SqlLogLevel(level)
 	return d
 }
 
-// Condition is the condition of WHERE clause, create by function Cond.
 func (d *delete[E]) Condition(cond *Condition) *delete[E] {
 	d.condition = cond
 	return d
@@ -594,7 +543,6 @@ func (d *delete[E]) SkipSafety() *delete[E] {
 	return d
 }
 
-// Do execute SQL
 func (d *delete[E]) Do() (int64, error) {
 	return d.mutation.BuildSql(func(b *SqlBuilder) {
 		ei, err := d.mutation.db.getEntityInfo(reflect.TypeFor[E]())
@@ -615,25 +563,21 @@ type deleteSoftly[E any] struct {
 	skipSafety bool
 }
 
-// Must if true, panic when error occurs, otherwise, return error.
 func (d *deleteSoftly[E]) Must() *deleteSoftly[E] {
 	d.mutation.Must()
 	return d
 }
 
-// Describe the SQL in the log.
 func (d *deleteSoftly[E]) Describe(desc string) *deleteSoftly[E] {
 	d.mutation.Describe(desc)
 	return d
 }
 
-// SqlLogLevel specifies the SQL log level, default use the global config.
 func (d *deleteSoftly[E]) SqlLogLevel(level Level) *deleteSoftly[E] {
 	d.mutation.SqlLogLevel(level)
 	return d
 }
 
-// Condition is the condition of WHERE clause, create by function Cond.
 func (d *deleteSoftly[E]) Condition(cond *Condition) *deleteSoftly[E] {
 	d.condition = cond
 	return d
@@ -644,7 +588,6 @@ func (d *deleteSoftly[E]) SkipSafety() *deleteSoftly[E] {
 	return d
 }
 
-// Do execute SQL
 func (d *deleteSoftly[E]) Do() (int64, error) {
 	return d.mutation.BuildSql(func(b *SqlBuilder) {
 		ei, err := d.mutation.db.getEntityInfo(reflect.TypeFor[E]())
@@ -676,37 +619,31 @@ type count[E any] struct {
 	includeDeleted bool
 }
 
-// Must if true, panic when error occurs, otherwise, return error.
 func (c *count[E]) Must() *count[E] {
 	c.query.Must()
 	return c
 }
 
-// Describe the SQL in the log.
 func (c *count[E]) Describe(desc string) *count[E] {
 	c.query.Describe(desc)
 	return c
 }
 
-// SqlLogLevel specifies the SQL log level, default use the global config.
 func (c *count[E]) SqlLogLevel(level Level) *count[E] {
 	c.query.SqlLogLevel(level)
 	return c
 }
 
-// Condition is the condition of WHERE clause, create by function Cond.
 func (c *count[E]) Condition(cond *Condition) *count[E] {
 	c.condition = cond
 	return c
 }
 
-// IncludeDeleted indicates the conditions do not automatically filter out logical deleted rows.
 func (c *count[E]) IncludeDeleted() *count[E] {
 	c.includeDeleted = true
 	return c
 }
 
-// Do execute SQL
 func (c *count[E]) Do() (i int64, err error) {
 	es, err := c.query.BuildSql(func(b *SqlBuilder) {
 		ei, err := c.query.db.getEntityInfo(reflect.TypeFor[E]())
