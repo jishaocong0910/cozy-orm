@@ -1,6 +1,6 @@
 # CozyORM
 
-A lightweight Go ORM featuring method chaining, with a minimalist API and multi-driver compatibility.
+Lightweight Go ORM with method chaining, minimalist API, and multi-database support.
 
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/jishaocong0910/cozy-orm)
 [![GoDoc](https://pkg.go.dev/badge/github.com/gookit/validate.svg)](https://pkg.go.dev/github.com/jishaocong0910/cozy-orm)
@@ -35,7 +35,7 @@ Please refer to the [Documentation]() for the full guide.
 
 # CozyORM (中文说明)
 
-轻量级Go语言ORM框架，链式调用模式，极少的API，灵活兼容各种数据库驱动。
+轻量级Go语言ORM框架，链式调用模式，极少的API，灵活兼容各种数据库。
 
 👉 [Back to English ↑](#cozyorm)
 
