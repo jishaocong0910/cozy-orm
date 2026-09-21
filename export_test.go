@@ -61,7 +61,7 @@ func checkMapKeys[K comparable, V any](r *require.Assertions, keys []K, actual m
 	}
 }
 
-func checkNotContainKey[K comparable, V any](r *require.Assertions, key K, actual map[K]V) {
+func checkNoKey[K comparable, V any](r *require.Assertions, key K, actual map[K]V) {
 	_, ok := actual[key]
 	r.False(ok)
 }

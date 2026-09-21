@@ -197,16 +197,27 @@ func (c DBConfig) Build() *DB {
 
 type ColumnPolicyConfigs []*columnPolicyConfig
 
-func NewColumnPolicyConfig(column string, tables ...string) *columnPolicyConfig {
-	return &columnPolicyConfig{column: column, tableSet: newSet(tables...)}
+func NewColumnPolicyConfig(column string) *columnPolicyConfig {
+	return &columnPolicyConfig{column: column}
 }
 
 type columnPolicyConfig struct {
 	column         string
-	tableSet       set[string]
+	forTableSet    set[string]
+	exceptTableSet set[string]
 	onInsert       *assignedPolicyConfig
 	onUpdate       *assignedPolicyConfig
 	onDeleteSoftly *deleteSoftlyPolicyConfig
+}
+
+func (c *columnPolicyConfig) ForTable(tables ...string) *columnPolicyConfig {
+	c.forTableSet = newSet(tables...)
+	return c
+}
+
+func (c *columnPolicyConfig) IgnoreTable(tables ...string) *columnPolicyConfig {
+	c.exceptTableSet = newSet(tables...)
+	return c
 }
 
 func (c *columnPolicyConfig) OnInsert() *assignedPolicyConfig {
@@ -250,7 +261,7 @@ func (c *columnPolicyConfig) UseRowVersion() *columnPolicyConfig {
 }
 
 func (c *columnPolicyConfig) isDefault() bool {
-	return len(c.tableSet) == 0
+	return len(c.forTableSet) == 0
 }
 
 type assignedPolicyConfig struct {
