@@ -92,3 +92,22 @@ func newMapper(ei *entityInfo, t reflect.Type) (mapper, error) {
 	}
 	return nil, errors.New("unsupported mapping type")
 }
+
+type mappingMedium struct {
+	p2pValue reflect.Value
+}
+
+func (d mappingMedium) dest() any {
+	return d.p2pValue.Interface()
+}
+
+func (d mappingMedium) value() any {
+	if ptr := d.p2pValue.Elem(); !ptr.IsNil() {
+		return ptr.Elem().Interface()
+	}
+	return nil
+}
+
+func newMappingMedium(t reflect.Type) mappingMedium {
+	return mappingMedium{p2pValue: reflect.New(t)}
+}

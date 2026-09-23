@@ -36,6 +36,19 @@ var (
 	registerFieldConverterLock sync.Mutex
 )
 
+type argConverter struct {
+	isPtrReceiver bool
+}
+
+func (c *argConverter) toArg(v reflect.Value) any {
+	if c.isPtrReceiver && v.Kind() != reflect.Pointer {
+		pv := reflect.New(v.Type())
+		pv.Elem().Set(v)
+		v = pv
+	}
+	return v.MethodByName(toArgMethodName).Call(nil)[0].Interface()
+}
+
 func convertArgs(arg_ []any) []any {
 	for i, a := range arg_ {
 		if a != nil {
@@ -53,8 +66,8 @@ func convertArgs(arg_ []any) []any {
 
 func getArgConverter(t reflect.Type) *argConverter {
 	if val, ok := argConverters.Load(t); ok {
-		vc, _ := val.(*argConverter)
-		return vc
+		ac, _ := val.(*argConverter)
+		return ac
 	}
 	return registerArgConverter(t)
 }
@@ -64,8 +77,8 @@ func registerArgConverter(t reflect.Type) *argConverter {
 	defer registerArgConverterLock.Unlock()
 
 	if val, ok := argConverters.Load(t); ok { // coverage-ignore
-		vc, _ := val.(*argConverter)
-		return vc
+		ac, _ := val.(*argConverter)
+		return ac
 	}
 
 	if !isImplementConverter(t) {
@@ -82,6 +95,14 @@ func registerArgConverter(t reflect.Type) *argConverter {
 
 	argConverters.Store(t, ac)
 	return ac
+}
+
+type fieldConverter struct {
+	ptrType reflect.Type
+}
+
+func (c *fieldConverter) toField(field reflect.Value, value any) {
+
 }
 
 func getFieldConverter(t reflect.Type) fieldConverter {
@@ -111,7 +132,7 @@ func registerFieldConverter(t reflect.Type) fieldConverter {
 		mediumType := method.Type.In(1)
 		switch t.Kind() {
 		case reflect.Pointer:
-			fc = ptrFieldConverter{ptrType: reflect.PointerTo(mediumType)}
+			fc = ptrFieldConverter{ptrMediumType: reflect.PointerTo(mediumType)}
 		case reflect.Slice:
 			fc = sliceFieldConverter{ptrType: reflect.PointerTo(mediumType)}
 		case reflect.Map:
@@ -127,30 +148,8 @@ func registerFieldConverter(t reflect.Type) fieldConverter {
 	return fc
 }
 
-type argConverter struct {
-	isPtrReceiver bool
-}
-
-func (a argConverter) toArg(v reflect.Value) any {
-	if a.isPtrReceiver && v.Kind() != reflect.Pointer {
-		pv := reflect.New(v.Type())
-		pv.Elem().Set(v)
-		v = pv
-	}
-	return v.MethodByName(toArgMethodName).Call(nil)[0].Interface()
-}
-
-type fieldConverter interface {
-	newScanDest() scanDest
-	toField(field reflect.Value, value any)
-}
-
 type ptrFieldConverter struct {
-	ptrType reflect.Type
-}
-
-func (c ptrFieldConverter) newScanDest() scanDest {
-	return scanDest{p2pValue: reflect.New(c.ptrType)}
+	ptrMediumType reflect.Type
 }
 
 func (c ptrFieldConverter) toField(field reflect.Value, value any) {
@@ -164,8 +163,8 @@ type sliceFieldConverter struct {
 	ptrType reflect.Type
 }
 
-func (c sliceFieldConverter) newScanDest() scanDest {
-	return scanDest{p2pValue: reflect.New(c.ptrType)}
+func (c sliceFieldConverter) newScanDest() mappingMedium {
+	return mappingMedium{p2pValue: reflect.New(c.ptrType)}
 }
 
 func (c sliceFieldConverter) toField(field reflect.Value, value any) {
@@ -179,8 +178,8 @@ type mapFieldConverter struct {
 	ptrType reflect.Type
 }
 
-func (c mapFieldConverter) newScanDest() scanDest {
-	return scanDest{p2pValue: reflect.New(c.ptrType)}
+func (c mapFieldConverter) newScanDest() mappingMedium {
+	return mappingMedium{p2pValue: reflect.New(c.ptrType)}
 }
 
 func (c mapFieldConverter) toField(field reflect.Value, value any) {
@@ -194,8 +193,8 @@ type valueFieldConverter struct {
 	ptrType reflect.Type
 }
 
-func (c valueFieldConverter) newScanDest() scanDest {
-	return scanDest{p2pValue: reflect.New(c.ptrType)}
+func (c valueFieldConverter) newScanDest() mappingMedium {
+	return mappingMedium{p2pValue: reflect.New(c.ptrType)}
 }
 
 func (c valueFieldConverter) toField(field reflect.Value, value any) {
@@ -208,27 +207,12 @@ type zeroFieldConverter struct {
 	ptrType reflect.Type
 }
 
-func (c zeroFieldConverter) newScanDest() scanDest {
-	return scanDest{p2pValue: reflect.New(c.ptrType)}
+func (c zeroFieldConverter) newScanDest() mappingMedium {
+	return mappingMedium{p2pValue: reflect.New(c.ptrType)}
 }
 
 func (c zeroFieldConverter) toField(field reflect.Value, value any) {
 	if value != nil {
 		field.Addr().Elem().Set(reflect.ValueOf(value))
 	}
-}
-
-type scanDest struct {
-	p2pValue reflect.Value
-}
-
-func (d scanDest) dest() any {
-	return d.p2pValue.Interface()
-}
-
-func (d scanDest) value() any {
-	if ptr := d.p2pValue.Elem(); !ptr.IsNil() {
-		return ptr.Elem().Interface()
-	}
-	return nil
 }
