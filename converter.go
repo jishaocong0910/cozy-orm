@@ -30,31 +30,31 @@ const (
 )
 
 var (
-	valueConverters            sync.Map
-	registerValueConverterLock sync.Mutex
+	argConverters              sync.Map
+	registerArgConverterLock   sync.Mutex
 	fieldConverters            sync.Map
 	registerFieldConverterLock sync.Mutex
 )
 
-func getValueConverter(t reflect.Type) valueConverter {
-	if val, ok := valueConverters.Load(t); ok {
-		vc, _ := val.(valueConverter)
+func getArgConverter(t reflect.Type) argConverter {
+	if val, ok := argConverters.Load(t); ok {
+		vc, _ := val.(argConverter)
 		return vc
 	}
-	return registerValueConverter(t)
+	return registerArgConverter(t)
 }
 
-func registerValueConverter(t reflect.Type) valueConverter {
-	registerValueConverterLock.Lock()
-	defer registerValueConverterLock.Unlock()
+func registerArgConverter(t reflect.Type) argConverter {
+	registerArgConverterLock.Lock()
+	defer registerArgConverterLock.Unlock()
 
-	if val, ok := valueConverters.Load(t); ok { // coverage-ignore
-		vc, _ := val.(valueConverter)
+	if val, ok := argConverters.Load(t); ok { // coverage-ignore
+		vc, _ := val.(argConverter)
 		return vc
 	}
 
 	if !isImplementConverter(t) {
-		valueConverters.Store(t, nil)
+		argConverters.Store(t, nil)
 		return nil
 	}
 
@@ -62,15 +62,14 @@ func registerValueConverter(t reflect.Type) valueConverter {
 	if vt.Kind() == reflect.Pointer {
 		vt = t.Elem()
 	}
-	_, valueReceiver := vt.MethodByName(toArgMethodName)
-
-	var vc valueConverter
-	if valueReceiver {
-		vc = vrValueConverter{}
+	var vc argConverter
+	if _, isValueReceiver := vt.MethodByName(toArgMethodName); isValueReceiver {
+		vc = vrArgConverter{}
 	} else {
-		vc = prValueConverter{}
+		vc = prArgConverter{}
 	}
-	valueConverters.Store(t, vc)
+
+	argConverters.Store(t, vc)
 	return vc
 }
 
@@ -117,7 +116,7 @@ func registerFieldConverter(t reflect.Type) fieldConverter {
 	return fc
 }
 
-type valueConverter interface {
+type argConverter interface {
 	toValue(v reflect.Value) any
 }
 
@@ -126,15 +125,15 @@ type fieldConverter interface {
 	toField(field reflect.Value, value any)
 }
 
-type vrValueConverter struct{}
+type vrArgConverter struct{}
 
-func (c vrValueConverter) toValue(v reflect.Value) any {
+func (c vrArgConverter) toValue(v reflect.Value) any {
 	return v.MethodByName(toArgMethodName).Call(nil)[0].Interface()
 }
 
-type prValueConverter struct{}
+type prArgConverter struct{}
 
-func (c prValueConverter) toValue(v reflect.Value) any {
+func (c prArgConverter) toValue(v reflect.Value) any {
 	if v.Kind() != reflect.Pointer {
 		pv := reflect.New(v.Type())
 		pv.Elem().Set(v)
@@ -238,7 +237,7 @@ func convertArgs(arg_ []any) []any {
 			if isBaseKind(v.Kind()) && v.IsNil() {
 				continue
 			}
-			if c := getValueConverter(v.Type()); c != nil {
+			if c := getArgConverter(v.Type()); c != nil {
 				arg_[i] = c.toValue(v)
 			}
 		}
