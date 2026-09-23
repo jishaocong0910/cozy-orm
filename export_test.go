@@ -139,13 +139,13 @@ type UserStatus int
 
 type UserLevel string
 
-func (u UserLevel) ToValue() int8 {
+func (u UserLevel) ToArg() int8 {
 	i, _ := strconv.ParseInt(string(u), 10, 8)
 	return int8(i)
 }
 
-func (u *UserLevel) ToField(value int8) {
-	str := strconv.FormatInt(int64(value), 10)
+func (u *UserLevel) ToField(src int8) {
+	str := strconv.FormatInt(int64(src), 10)
 	*u = UserLevel(str)
 }
 
@@ -154,34 +154,34 @@ type UserProperties struct {
 	Country string `json:"country"`
 }
 
-func (p *UserProperties) ToValue() string {
+func (p *UserProperties) ToArg() string {
 	bs, _ := json.Marshal(p)
 	return string(bs)
 }
 
-func (p *UserProperties) ToField(value string) {
-	json.Unmarshal([]byte(value), p)
+func (p *UserProperties) ToField(src string) {
+	json.Unmarshal([]byte(src), p)
 }
 
 type UserTags []string
 
-func (s UserTags) ToValue() string {
+func (s UserTags) ToArg() string {
 	return strings.Join(s, ",")
 }
 
-func (s *UserTags) ToField(value string) {
-	*s = strings.Split(value, ",")
+func (s *UserTags) ToField(src string) {
+	*s = strings.Split(src, ",")
 }
 
 type UserAttributes map[string]string
 
-func (a UserAttributes) ToValue() string {
+func (a UserAttributes) ToArg() string {
 	bs, _ := json.Marshal(a)
 	return string(bs)
 }
 
-func (a *UserAttributes) ToField(value string) {
-	json.Unmarshal([]byte(value), a)
+func (a *UserAttributes) ToField(src string) {
+	json.Unmarshal([]byte(src), a)
 }
 
 type UserCategory struct {

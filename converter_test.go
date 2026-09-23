@@ -158,25 +158,25 @@ type ConvBytes struct {
 	str string
 }
 
-func (c ConvBytes) ToValue() []byte {
+func (c ConvBytes) ToArg() []byte {
 	return []byte(c.str)
 }
 
-func (c *ConvBytes) ToField(val []byte) {
-	c.str = string(val)
+func (c *ConvBytes) ToField(src []byte) {
+	c.str = string(src)
 }
 
 type ConvTime struct {
 	str string
 }
 
-func (c ConvTime) ToValue() *time.Time {
+func (c ConvTime) ToArg() *time.Time {
 	if t, err := time.Parse(time.DateTime, c.str); err != nil {
 		return &t
 	}
 	return nil
 }
 
-func (c *ConvTime) ToField(val *time.Time) {
-	c.str = val.Format(time.DateTime)
+func (c *ConvTime) ToField(src *time.Time) {
+	c.str = src.Format(time.DateTime)
 }

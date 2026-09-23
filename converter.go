@@ -19,13 +19,13 @@ import (
 	"sync"
 )
 
-type Convert[V any] interface {
-	ToValue() V
-	ToField(val V)
+type Converter[T any] interface {
+	ToArg() T
+	ToField(src T)
 }
 
 const (
-	toValueMethodName = "ToValue"
+	toArgMethodName   = "ToArg"
 	toFieldMethodName = "ToField"
 )
 
@@ -53,7 +53,7 @@ func registerValueConverter(t reflect.Type) valueConverter {
 		return vc
 	}
 
-	if !isImplementConvert(t) {
+	if !isImplementConverter(t) {
 		valueConverters.Store(t, nil)
 		return nil
 	}
@@ -62,7 +62,7 @@ func registerValueConverter(t reflect.Type) valueConverter {
 	if vt.Kind() == reflect.Pointer {
 		vt = t.Elem()
 	}
-	_, valueReceiver := vt.MethodByName(toValueMethodName)
+	_, valueReceiver := vt.MethodByName(toArgMethodName)
 
 	var vc valueConverter
 	if valueReceiver {
@@ -92,7 +92,7 @@ func registerFieldConverter(t reflect.Type) fieldConverter {
 	}
 
 	var fc fieldConverter
-	if isImplementConvert(t) {
+	if isImplementConverter(t) {
 		pt := t
 		if pt.Kind() != reflect.Pointer {
 			pt = reflect.PointerTo(t)
@@ -101,13 +101,13 @@ func registerFieldConverter(t reflect.Type) fieldConverter {
 		indirectType := method.Type.In(1)
 		switch t.Kind() {
 		case reflect.Pointer:
-			fc = ptrFieldConverter{ptrScalarType: reflect.PointerTo(indirectType)}
+			fc = ptrFieldConverter{ptrType: reflect.PointerTo(indirectType)}
 		case reflect.Slice:
-			fc = sliceFieldConverter{ptrScalarType: reflect.PointerTo(indirectType)}
+			fc = sliceFieldConverter{ptrType: reflect.PointerTo(indirectType)}
 		case reflect.Map:
-			fc = mapFieldConverter{ptrScalarType: reflect.PointerTo(indirectType)}
+			fc = mapFieldConverter{ptrType: reflect.PointerTo(indirectType)}
 		default:
-			fc = valueFieldConverter{ptrScalarType: reflect.PointerTo(indirectType)}
+			fc = valueFieldConverter{ptrType: reflect.PointerTo(indirectType)}
 		}
 	} else if isBaseValueType(t) {
 		fc = zeroFieldConverter{ptrType: reflect.PointerTo(t)}
@@ -129,7 +129,7 @@ type fieldConverter interface {
 type vrValueConverter struct{}
 
 func (c vrValueConverter) toValue(v reflect.Value) any {
-	return v.MethodByName(toValueMethodName).Call(nil)[0].Interface()
+	return v.MethodByName(toArgMethodName).Call(nil)[0].Interface()
 }
 
 type prValueConverter struct{}
@@ -140,15 +140,15 @@ func (c prValueConverter) toValue(v reflect.Value) any {
 		pv.Elem().Set(v)
 		v = pv
 	}
-	return v.MethodByName(toValueMethodName).Call(nil)[0].Interface()
+	return v.MethodByName(toArgMethodName).Call(nil)[0].Interface()
 }
 
 type ptrFieldConverter struct {
-	ptrScalarType reflect.Type
+	ptrType reflect.Type
 }
 
 func (c ptrFieldConverter) newScanDest() scanDest {
-	return scanDest{p2pValue: reflect.New(c.ptrScalarType)}
+	return scanDest{p2pValue: reflect.New(c.ptrType)}
 }
 
 func (c ptrFieldConverter) toField(field reflect.Value, value any) {
@@ -159,11 +159,11 @@ func (c ptrFieldConverter) toField(field reflect.Value, value any) {
 }
 
 type sliceFieldConverter struct {
-	ptrScalarType reflect.Type
+	ptrType reflect.Type
 }
 
 func (c sliceFieldConverter) newScanDest() scanDest {
-	return scanDest{p2pValue: reflect.New(c.ptrScalarType)}
+	return scanDest{p2pValue: reflect.New(c.ptrType)}
 }
 
 func (c sliceFieldConverter) toField(field reflect.Value, value any) {
@@ -174,11 +174,11 @@ func (c sliceFieldConverter) toField(field reflect.Value, value any) {
 }
 
 type mapFieldConverter struct {
-	ptrScalarType reflect.Type
+	ptrType reflect.Type
 }
 
 func (c mapFieldConverter) newScanDest() scanDest {
-	return scanDest{p2pValue: reflect.New(c.ptrScalarType)}
+	return scanDest{p2pValue: reflect.New(c.ptrType)}
 }
 
 func (c mapFieldConverter) toField(field reflect.Value, value any) {
@@ -189,11 +189,11 @@ func (c mapFieldConverter) toField(field reflect.Value, value any) {
 }
 
 type valueFieldConverter struct {
-	ptrScalarType reflect.Type
+	ptrType reflect.Type
 }
 
 func (c valueFieldConverter) newScanDest() scanDest {
-	return scanDest{p2pValue: reflect.New(c.ptrScalarType)}
+	return scanDest{p2pValue: reflect.New(c.ptrType)}
 }
 
 func (c valueFieldConverter) toField(field reflect.Value, value any) {

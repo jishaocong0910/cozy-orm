@@ -53,16 +53,16 @@ func TestIsValidFieldType(t *testing.T) {
 
 func TestIsImplementConvert(t *testing.T) {
 	r := require.New(t)
-	r.True(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo]()))
-	r.True(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo2]()))
-	r.False(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo3]()))
-	r.False(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo4]()))
-	r.False(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo5]()))
-	r.False(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo6]()))
-	r.False(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo7]()))
-	r.False(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo8]()))
-	r.False(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo9]()))
-	r.False(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo10]()))
+	r.True(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo]()))
+	r.True(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo2]()))
+	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo3]()))
+	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo4]()))
+	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo5]()))
+	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo6]()))
+	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo7]()))
+	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo8]()))
+	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo9]()))
+	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo10]()))
 }
 
 func TestIsTupleType(t *testing.T) {
@@ -89,39 +89,39 @@ func TestIsEntityType(t *testing.T) {
 
 type ConvInt int
 
-func (c ConvInt) ToValue() string {
+func (c ConvInt) ToArg() string {
 	return ""
 }
 
-func (c *ConvInt) ToField(t string) {
+func (c *ConvInt) ToField(string) {
 }
 
 type ConvStruct struct {
 }
 
-func (c ConvStruct) ToValue() string {
+func (c ConvStruct) ToArg() string {
 	return ""
 }
 
-func (c *ConvStruct) ToField(t string) {
+func (c *ConvStruct) ToField(string) {
 }
 
 type ConvSlice []string
 
-func (m ConvSlice) ToValue() string {
+func (m ConvSlice) ToArg() string {
 	return ""
 }
 
-func (m *ConvSlice) ToField(t string) {
+func (m *ConvSlice) ToField(string) {
 }
 
 type ConvMap map[string]string
 
-func (c ConvMap) ToValue() string {
+func (c ConvMap) ToArg() string {
 	return ""
 }
 
-func (c *ConvMap) ToField(t string) {
+func (c *ConvMap) ToField(string) {
 }
 
 type ScannerValuerInt struct {
@@ -168,21 +168,21 @@ func (s ScannerValuerMap) Scan(src any) error {
 type ImplementConvertDemo struct {
 }
 
-func (d ImplementConvertDemo) ToValue() string {
+func (d ImplementConvertDemo) ToArg() string {
 	return ""
 }
 
-func (d *ImplementConvertDemo) ToField(t string) {
+func (d *ImplementConvertDemo) ToField(string) {
 }
 
 type ImplementConvertDemo2 struct {
 }
 
-func (d *ImplementConvertDemo2) ToValue() string {
+func (d *ImplementConvertDemo2) ToArg() string {
 	return ""
 }
 
-func (d *ImplementConvertDemo2) ToField(t string) {
+func (d *ImplementConvertDemo2) ToField(string) {
 }
 
 type ImplementConvertDemo3 struct {
@@ -249,11 +249,11 @@ func (d *ImplementConvertDemo8) ToField(t string) string {
 type ImplementConvertDemo9 struct {
 }
 
-func (d ImplementConvertDemo9) ToValue() string {
+func (d ImplementConvertDemo9) ToArg() string {
 	return ""
 }
 
-func (d ImplementConvertDemo9) ToField(t string) {
+func (d ImplementConvertDemo9) ToField(string) {
 }
 
 type ImplementConvertDemo10 struct {
