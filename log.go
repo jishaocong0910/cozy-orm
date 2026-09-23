@@ -36,7 +36,7 @@ func printWarn(ctx context.Context, logger Logger, err error) {
 	}
 }
 
-func printSql(ctx context.Context, logger Logger, level Level, tx bool, desc string, sql string, arg_ []any,
+func printSql(ctx context.Context, logger Logger, level Level, tx bool, desc string, sql string, args []any,
 	rowCount int64, affected int64, cost time.Duration, err error) {
 	if err != nil {
 		level = Level_.Error
@@ -48,7 +48,7 @@ func printSql(ctx context.Context, logger Logger, level Level, tx bool, desc str
 	builder.WriteString("SQL: ")
 	builder.WriteString(sql)
 	builder.WriteString("; args:")
-	builder.WriteString(formatArg(arg_))
+	builder.WriteString(formatArg(args))
 	builder.WriteString(", tx: ")
 	builder.WriteString(strconv.FormatBool(tx))
 	if desc != "" {
@@ -75,10 +75,10 @@ func printSql(ctx context.Context, logger Logger, level Level, tx bool, desc str
 	printLog(ctx, logger, level, builder.String())
 }
 
-func printLog(ctx context.Context, logger Logger, level Level, msg string, arg_ ...any) {
+func printLog(ctx context.Context, logger Logger, level Level, msg string, args ...any) {
 	if logger != nil {
-		if len(arg_) > 0 {
-			msg = fmt.Sprintf(msg, arg_...)
+		if len(args) > 0 {
+			msg = fmt.Sprintf(msg, args...)
 		}
 		switch level.ID {
 		case Level_.Debug.ID:
@@ -93,10 +93,10 @@ func printLog(ctx context.Context, logger Logger, level Level, msg string, arg_ 
 	}
 }
 
-func formatArg(arg_ []any) string {
+func formatArg(args []any) string {
 	var builder strings.Builder
 	sep := " "
-	for _, a := range arg_ {
+	for _, a := range args {
 		builder.WriteString(sep)
 
 		if a == nil {

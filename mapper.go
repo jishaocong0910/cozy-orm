@@ -20,33 +20,33 @@ import (
 )
 
 type mapper interface {
-	mapping(column_ []string, target any) (dest_ []any, afterScan func())
+	mapping(columns []string, target any) (dest []any, afterScan func())
 }
 
 type entityMapper struct {
 	ei *entityInfo
 }
 
-func (m entityMapper) mapping(columns []string, target any) (dest_ []any, afterScan func()) {
+func (m entityMapper) mapping(columns []string, target any) (dest []any, afterScan func()) {
 	v := reflect.ValueOf(target).Elem()
-	dest_ = make([]any, 0, len(columns))
-	afterScan_ := make([]func(), 0, len(columns))
+	dest = make([]any, 0, len(columns))
+	conv := make([]func(), 0, len(columns))
 	for _, column := range columns {
 		if index, ok := m.ei.columnToFieldIndexMap[column]; ok {
 			field := v.Field(index)
 			if c := getFieldConverter(field.Type()); c != nil {
-				sd := c.newScanDest()
-				dest_ = append(dest_, sd.dest())
-				afterScan_ = append(afterScan_, func() { c.toField(field, sd.value()) })
+				medium := newMappingMedium(c.ptrMediumType)
+				dest = append(dest, medium.dest())
+				conv = append(conv, func() { c.convert(field, medium.value()) })
 				continue
 			}
-			dest_ = append(dest_, field.Addr().Interface())
+			dest = append(dest, field.Addr().Interface())
 			continue
 		}
-		dest_ = append(dest_, new(any))
+		dest = append(dest, new(any))
 	}
 	afterScan = func() {
-		for _, f := range afterScan_ {
+		for _, f := range conv {
 			f()
 		}
 	}
@@ -55,29 +55,39 @@ func (m entityMapper) mapping(columns []string, target any) (dest_ []any, afterS
 
 type tupleMapper struct{}
 
-func (m tupleMapper) mapping(column_ []string, target any) (dest_ []any, afterScan func()) {
+func (m tupleMapper) mapping(columns []string, target any) (dest []any, afterScan func()) {
 	v := reflect.ValueOf(target).Elem()
-	dest_ = make([]any, 0, len(column_))
-	afterScan_ := make([]func(), 0, len(column_))
-	for i := range column_ {
+	dest = make([]any, 0, len(columns))
+	conv := make([]func(), 0, len(columns))
+	for i := range columns {
 		if v.NumField() > i {
 			field := v.Field(i)
 			fieldType := field.Type()
 			if c := getFieldConverter(fieldType); c != nil {
-				sd := c.newScanDest()
-				dest_ = append(dest_, sd.dest())
-				afterScan_ = append(afterScan_, func() { c.toField(field, sd.value()) })
+				medium := newMappingMedium(c.ptrMediumType)
+				dest = append(dest, medium.dest())
+				conv = append(conv, func() { c.convert(field, medium.value()) })
+				continue
+			}
+			if isBaseValueType(fieldType) {
+				medium := newMappingMedium(reflect.PointerTo(fieldType))
+				dest = append(dest, medium.dest())
+				conv = append(conv, func() {
+					if value := medium.value(); value != nil {
+						field.Addr().Elem().Set(reflect.ValueOf(value))
+					}
+				})
 				continue
 			}
 			if isValidFieldType(fieldType) || isImplementScannerValuer(fieldType) {
-				dest_ = append(dest_, field.Addr().Interface())
+				dest = append(dest, field.Addr().Interface())
 				continue
 			}
 		}
-		dest_ = append(dest_, new(any))
+		dest = append(dest, new(any))
 	}
 	afterScan = func() {
-		for _, f := range afterScan_ {
+		for _, f := range conv {
 			f()
 		}
 	}
@@ -94,20 +104,20 @@ func newMapper(ei *entityInfo, t reflect.Type) (mapper, error) {
 }
 
 type mappingMedium struct {
-	p2pValue reflect.Value
+	ptrToPtr reflect.Value
 }
 
 func (d mappingMedium) dest() any {
-	return d.p2pValue.Interface()
+	return d.ptrToPtr.Interface()
 }
 
 func (d mappingMedium) value() any {
-	if ptr := d.p2pValue.Elem(); !ptr.IsNil() {
+	if ptr := d.ptrToPtr.Elem(); !ptr.IsNil() {
 		return ptr.Elem().Interface()
 	}
 	return nil
 }
 
 func newMappingMedium(t reflect.Type) mappingMedium {
-	return mappingMedium{p2pValue: reflect.New(t)}
+	return mappingMedium{ptrToPtr: reflect.New(t)}
 }

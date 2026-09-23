@@ -20,12 +20,12 @@ import (
 )
 
 type NameMapper struct {
-	mapping_     []nameMapping
+	mappings     []nameMapping
 	hasCamelCase bool
 }
 
 func (n *NameMapper) Convert(str string) string {
-	for _, m := range n.mapping_ {
+	for _, m := range n.mappings {
 		str = m(str)
 	}
 	return str
@@ -38,59 +38,59 @@ type nameMapping func(str string) string
 
 func (n *NameMapper) LowerCamelCase() *NameMapper {
 	n.hasCamelCase = true
-	n.mapping_ = append(n.mapping_, lowerCamelCase)
+	n.mappings = append(n.mappings, lowerCamelCase)
 	return n
 }
 
 func (n *NameMapper) LowerSnakeCase() *NameMapper {
 	if !n.hasCamelCase {
-		n.mapping_ = append(n.mapping_, lowerCamelCase)
+		n.mappings = append(n.mappings, lowerCamelCase)
 	}
-	n.mapping_ = append(n.mapping_, lowerSnakeCase)
+	n.mappings = append(n.mappings, lowerSnakeCase)
 	return n
 }
 
 func (n *NameMapper) LowerFirstLiteral() *NameMapper {
-	n.mapping_ = append(n.mapping_, lowerFirstLiteral)
+	n.mappings = append(n.mappings, lowerFirstLiteral)
 	return n
 }
 
 func (n *NameMapper) UpperCamelCase() *NameMapper {
 	n.hasCamelCase = true
-	n.mapping_ = append(n.mapping_, upperCamelCase)
+	n.mappings = append(n.mappings, upperCamelCase)
 	return n
 }
 
 func (n *NameMapper) UpperSnakeCase() *NameMapper {
 	if !n.hasCamelCase {
-		n.mapping_ = append(n.mapping_, upperCamelCase)
+		n.mappings = append(n.mappings, upperCamelCase)
 	}
-	n.mapping_ = append(n.mapping_, upperSnakeCase)
+	n.mappings = append(n.mappings, upperSnakeCase)
 	return n
 }
 
 func (n *NameMapper) UpperFirstLiteral() *NameMapper {
-	n.mapping_ = append(n.mapping_, upperFirstLiteral)
+	n.mappings = append(n.mappings, upperFirstLiteral)
 	return n
 }
 
 func (n *NameMapper) AddPrefix(prefix string) *NameMapper {
-	n.mapping_ = append(n.mapping_, addPrefix(prefix))
+	n.mappings = append(n.mappings, addPrefix(prefix))
 	return n
 }
 
 func (n *NameMapper) AddSuffix(suffix string) *NameMapper {
-	n.mapping_ = append(n.mapping_, addSuffix(suffix))
+	n.mappings = append(n.mappings, addSuffix(suffix))
 	return n
 }
 
 func (n *NameMapper) SubPrefix(prefix string) *NameMapper {
-	n.mapping_ = append(n.mapping_, subPrefix(prefix))
+	n.mappings = append(n.mappings, subPrefix(prefix))
 	return n
 }
 
 func (n *NameMapper) SubSuffix(suffix string) *NameMapper {
-	n.mapping_ = append(n.mapping_, subSuffix(suffix))
+	n.mappings = append(n.mappings, subSuffix(suffix))
 	return n
 }
 
@@ -99,11 +99,11 @@ var lowerCamelCase = func(str string) string {
 		return str
 	}
 	var builder = strings.Builder{}
-	char_ := []rune(str)
-	builder.WriteRune(unicode.ToLower(char_[0]))
+	chars := []rune(str)
+	builder.WriteRune(unicode.ToLower(chars[0]))
 	up := false
-	for i := 1; i < len(char_); i++ {
-		c := char_[i]
+	for i := 1; i < len(chars); i++ {
+		c := chars[i]
 		switch c {
 		case '_', '-', ' ':
 			up = true
@@ -112,7 +112,7 @@ var lowerCamelCase = func(str string) string {
 			if up {
 				up = false
 				builder.WriteRune(unicode.ToUpper(c))
-			} else if unicode.IsUpper(c) && unicode.IsLower(char_[i-1]) {
+			} else if unicode.IsUpper(c) && unicode.IsLower(chars[i-1]) {
 				builder.WriteRune(c)
 			} else {
 				builder.WriteRune(unicode.ToLower(c))
@@ -127,11 +127,11 @@ var lowerSnakeCase = func(str string) string {
 		return str
 	}
 	var builder = strings.Builder{}
-	char_ := []rune(str)
-	builder.WriteRune(unicode.ToLower(char_[0]))
-	for i := 1; i < len(char_); i++ {
-		c := char_[i]
-		if unicode.IsUpper(c) && char_[i-1] != '-' && char_[i-1] != ' ' {
+	chars := []rune(str)
+	builder.WriteRune(unicode.ToLower(chars[0]))
+	for i := 1; i < len(chars); i++ {
+		c := chars[i]
+		if unicode.IsUpper(c) && chars[i-1] != '-' && chars[i-1] != ' ' {
 			builder.WriteRune('_')
 			builder.WriteRune(unicode.ToLower(c))
 		} else {
@@ -145,8 +145,8 @@ var lowerFirstLiteral = func(str string) string {
 	if str == "" {
 		return str
 	}
-	rune_ := []rune(str)
-	return strings.ToLower(string(rune_[:1])) + string(rune_[1:])
+	runes := []rune(str)
+	return strings.ToLower(string(runes[:1])) + string(runes[1:])
 }
 
 var upperCamelCase = func(str string) string {
@@ -154,11 +154,11 @@ var upperCamelCase = func(str string) string {
 		return str
 	}
 	var builder = strings.Builder{}
-	char_ := []rune(str)
-	builder.WriteRune(unicode.ToUpper(char_[0]))
+	chars := []rune(str)
+	builder.WriteRune(unicode.ToUpper(chars[0]))
 	up := false
-	for i := 1; i < len(char_); i++ {
-		c := char_[i]
+	for i := 1; i < len(chars); i++ {
+		c := chars[i]
 		switch c {
 		case '_', '-', ' ':
 			up = true
@@ -167,7 +167,7 @@ var upperCamelCase = func(str string) string {
 			if up {
 				up = false
 				builder.WriteRune(unicode.ToUpper(c))
-			} else if unicode.IsUpper(c) && unicode.IsLower(char_[i-1]) {
+			} else if unicode.IsUpper(c) && unicode.IsLower(chars[i-1]) {
 				builder.WriteRune(c)
 			} else {
 				builder.WriteRune(unicode.ToLower(c))
@@ -182,11 +182,11 @@ var upperSnakeCase = func(str string) string {
 		return str
 	}
 	var builder = strings.Builder{}
-	char_ := []rune(str)
-	builder.WriteRune(unicode.ToUpper(char_[0]))
-	for i := 1; i < len(char_); i++ {
-		c := char_[i]
-		if unicode.IsUpper(c) && char_[i-1] != '-' && char_[i-1] != ' ' {
+	chars := []rune(str)
+	builder.WriteRune(unicode.ToUpper(chars[0]))
+	for i := 1; i < len(chars); i++ {
+		c := chars[i]
+		if unicode.IsUpper(c) && chars[i-1] != '-' && chars[i-1] != ' ' {
 			builder.WriteRune('_')
 			builder.WriteRune(unicode.ToUpper(c))
 		} else {
@@ -200,8 +200,8 @@ var upperFirstLiteral = func(str string) string {
 	if str == "" {
 		return str
 	}
-	rune_ := []rune(str)
-	return strings.ToUpper(string(rune_[:1])) + string(rune_[1:])
+	runes := []rune(str)
+	return strings.ToUpper(string(runes[:1])) + string(runes[1:])
 }
 
 var addPrefix = func(prefix string) nameMapping {

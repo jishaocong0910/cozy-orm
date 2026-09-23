@@ -50,7 +50,7 @@ func TestSqlBuilder_Write(t *testing.T) {
 		b.Error(errors.New("test error"))
 
 		r.Equal("a b ? test writer s1,s2,s3 (s1,s2,s3) () (s1,s2,s3) col", b.b.String())
-		r.Equal([]any{1, 2, 3, 4, 5, 6}, b.arg_)
+		r.Equal([]any{1, 2, 3, 4, 5, 6}, b.args)
 		r.EqualError(b.err, "test error")
 	}
 	{

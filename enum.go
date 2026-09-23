@@ -76,7 +76,7 @@ var QuotedIdentifier_ = e.NewEnum(_QuotedIdentifier{
 
 type GetGeneratedKeyMode struct {
 	e.EnumElem
-	writeSql func(b *SqlBuilder, autoColumn_ []string)
+	writeSql func(b *SqlBuilder, autoColumns []string)
 }
 
 type _GetGeneratedKeyMode struct {
@@ -90,15 +90,15 @@ type _GetGeneratedKeyMode struct {
 
 var GetGeneratedKeyMode_ = e.NewEnum(_GetGeneratedKeyMode{
 	InsertReturning: GetGeneratedKeyMode{
-		writeSql: func(b *SqlBuilder, autoColumn_ []string) {
-			b.ForEach(b.SepFixOpt(" RETURNING ", ", ", ""), autoColumn_, func(_ int, column string) {
+		writeSql: func(b *SqlBuilder, autoColumns []string) {
+			b.ForEach(b.SepFixOpt(" RETURNING ", ", ", ""), autoColumns, func(_ int, column string) {
 				b.WriteColumn(column)
 			})
 		},
 	},
 	SQLServer: GetGeneratedKeyMode{
-		writeSql: func(b *SqlBuilder, autoColumn_ []string) {
-			b.ForEach(b.SepFixOpt(" OUTPUT ", ", ", ""), autoColumn_, func(_ int, column string) {
+		writeSql: func(b *SqlBuilder, autoColumns []string) {
+			b.ForEach(b.SepFixOpt(" OUTPUT ", ", ", ""), autoColumns, func(_ int, column string) {
 				b.Write("INSERTED.").WriteColumn(column)
 			})
 		},

@@ -32,7 +32,7 @@ type DB struct {
 	GetGeneratedKeyMode GetGeneratedKeyMode
 	pageMode            PageMode
 	quotedIdentifier    QuotedIdentifier
-	columnPolicyConfig_ []*columnPolicyConfig
+	columnPolicyConfigs []*columnPolicyConfig
 
 	entities           sync.Map
 	mappers            sync.Map
@@ -100,7 +100,7 @@ func (d *DB) getEntityInfo(t reflect.Type) (*entityInfo, error) {
 		return val.(*entityInfo), nil
 	}
 
-	ei, err := newEntityInfo(t, d.tabNameMapper, d.colNameMapper, d.columnPolicyConfig_)
+	ei, err := newEntityInfo(t, d.tabNameMapper, d.colNameMapper, d.columnPolicyConfigs)
 	if ei != nil {
 		d.entities.Store(t, ei)
 	}
@@ -183,7 +183,7 @@ func (c DBConfig) Build() *DB {
 		GetGeneratedKeyMode: c.GetGeneratedKeyMode,
 		pageMode:            c.PageMode,
 		quotedIdentifier:    c.QuotedIdentifier,
-		columnPolicyConfig_: c.ColumnPolicyConfigs,
+		columnPolicyConfigs: c.ColumnPolicyConfigs,
 	}
 }
 

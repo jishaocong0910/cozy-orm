@@ -49,30 +49,30 @@ func (s set[T]) contain(e T) bool {
 	return ok
 }
 
-func (s set[T]) add(e_ ...T) {
-	for _, e := range e_ {
+func (s set[T]) add(es ...T) {
+	for _, e := range es {
 		s[e] = struct{}{}
 	}
 }
 
-func (s set[T]) concat(source_ ...set[T]) set[T] {
-	source_ = slices.DeleteFunc(source_, func(s set[T]) bool {
+func (s set[T]) concat(sources ...set[T]) set[T] {
+	sources = slices.DeleteFunc(sources, func(s set[T]) bool {
 		return len(s) == 0
 	})
-	if len(source_) == 0 {
+	if len(sources) == 0 {
 		return s
 	}
 
-	set_ := make([]set[T], 0, 1+len(source_))
-	set_ = append(set_, s)
+	sets := make([]set[T], 0, 1+len(sources))
+	sets = append(sets, s)
 	size := len(s)
-	for _, source := range source_ {
-		set_ = append(set_, source)
+	for _, source := range sources {
+		sets = append(sets, source)
 		size += len(source)
 	}
 
 	m := make(set[T], size)
-	for _, s2 := range set_ {
+	for _, s2 := range sets {
 		for e := range s2 {
 			m[e] = struct{}{}
 		}
@@ -80,10 +80,10 @@ func (s set[T]) concat(source_ ...set[T]) set[T] {
 	return m
 }
 
-func newSet[T comparable](e_ ...T) set[T] {
-	m := make(set[T], len(e_))
-	if len(e_) > 0 {
-		for _, e := range e_ {
+func newSet[T comparable](es ...T) set[T] {
+	m := make(set[T], len(es))
+	if len(es) > 0 {
+		for _, e := range es {
 			m[e] = struct{}{}
 		}
 	}

@@ -49,7 +49,7 @@ func TestCond(t *testing.T) {
 			"AND c10 LIKE ? AND c11 LIKE ? AND c12 IN(?, ?) AND c13 BETWEEN ? AND ? AND c14 IS NULL AND c15 IS NOT NULL "+
 			"AND NOT c16 = ? OR c17 = ? AND c18 = ?", b.b.String())
 		r.Equal([]any{"c1_1", "c3_2", "c4_3", "c5_4", "c6_5", "c7_6", "c8_7", "%c9_8%",
-			"c10_9%", "%c11_10", "c12_11", "c12_12", "c13_13", "c13_14", "c16_15", "c17_16","c18_17"}, b.arg_)
+			"c10_9%", "%c11_10", "c12_11", "c12_12", "c13_13", "c13_14", "c16_15", "c17_16", "c18_17"}, b.args)
 	}
 }
 
@@ -61,7 +61,7 @@ func TestCondSub(t *testing.T) {
 		b := newSqlBuilder("", QuotedIdentifier_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("c1 = ? OR c2 = ?", b.b.String())
-		r.Equal([]any{"c1_1", "c2_2"}, b.arg_)
+		r.Equal([]any{"c1_1", "c2_2"}, b.args)
 	}
 	{
 		arg := argFetcher()
@@ -69,7 +69,7 @@ func TestCondSub(t *testing.T) {
 		b := newSqlBuilder("", QuotedIdentifier_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("(c1 = ? OR c2 = ?) AND c3 = ?", b.b.String())
-		r.Equal([]any{"c1_1", "c2_2", "c3_3"}, b.arg_)
+		r.Equal([]any{"c1_1", "c2_2", "c3_3"}, b.args)
 	}
 	{
 		arg := argFetcher()
@@ -77,7 +77,7 @@ func TestCondSub(t *testing.T) {
 		b := newSqlBuilder("", QuotedIdentifier_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("c1 = ? AND (c2 = ? OR c3 = ?)", b.b.String())
-		r.Equal([]any{"c1_1", "c2_2", "c3_3"}, b.arg_)
+		r.Equal([]any{"c1_1", "c2_2", "c3_3"}, b.args)
 	}
 	{
 		arg := argFetcher()
@@ -86,7 +86,7 @@ func TestCondSub(t *testing.T) {
 		b := newSqlBuilder("", QuotedIdentifier_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("NOT (c1 = ? AND c2 = ?) AND NOT (c3 = ? AND c4 = ?)", b.b.String())
-		r.Equal([]any{"c1_1", "c2_2","c3_3", "c4_4"}, b.arg_)
+		r.Equal([]any{"c1_1", "c2_2", "c3_3", "c4_4"}, b.args)
 	}
 }
 

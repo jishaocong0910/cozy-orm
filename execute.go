@@ -47,12 +47,12 @@ func (q *query[E]) BuildSql(buildSql func(b *SqlBuilder)) *query[E] {
 	return q
 }
 
-func (q *query[E]) MapTarget(entity_ ...*E) *query[E] {
-	q.mapTargets = entity_
+func (q *query[E]) MapTarget(entities ...*E) *query[E] {
+	q.mapTargets = entities
 	return q
 }
 
-func (q *query[E]) Do() (entity_ []*E, err error) {
+func (q *query[E]) Do() (entities []*E, err error) {
 	rows, columns, cost, cancel, err := q.doQuery()
 	if err != nil {
 		q.printSqlError(err)
@@ -75,17 +75,17 @@ func (q *query[E]) Do() (entity_ []*E, err error) {
 	if len(q.mapTargets) > 0 {
 		rowCount, err = q._mapTargetEntities(rows, columns, mp)
 	} else {
-		rowCount, entity_, err = q._mapNewEntities(rows, columns, mp)
+		rowCount, entities, err = q._mapNewEntities(rows, columns, mp)
 	}
 	q.printSqlRowCount(int64(rowCount), cost)
 	return
 }
 
-func (q *query[E]) _mapTargetEntities(rows *sql.Rows, column_ []string, mp mapper) (rowCount int, err error) {
+func (q *query[E]) _mapTargetEntities(rows *sql.Rows, columns []string, mp mapper) (rowCount int, err error) {
 	for rows.Next() {
 		if len(q.mapTargets) > rowCount {
 			e := q.mapTargets[rowCount]
-			dest_, afterScan := mp.mapping(column_, e)
+			dest_, afterScan := mp.mapping(columns, e)
 			err = rows.Scan(dest_...)
 			if err != nil {
 				return 0, checkMust(q.must, err)
@@ -101,22 +101,22 @@ func (q *query[E]) _mapTargetEntities(rows *sql.Rows, column_ []string, mp mappe
 	return
 }
 
-func (q *query[E]) _mapNewEntities(rows *sql.Rows, column_ []string, mp mapper) (rowCount int, entity_ []*E, err error) {
+func (q *query[E]) _mapNewEntities(rows *sql.Rows, columns []string, mp mapper) (rowCount int, entities []*E, err error) {
 	for rows.Next() {
 		e := new(E)
-		dest_, afterScan := mp.mapping(column_, e)
-		err = rows.Scan(dest_...)
+		dest, afterScan := mp.mapping(columns, e)
+		err = rows.Scan(dest...)
 		if err != nil {
 			return 0, []*E{}, checkMust(q.must, err)
 		}
 		afterScan()
-		entity_ = append(entity_, e)
+		entities = append(entities, e)
 		rowCount++
 	}
 	err = rows.Err()
 	if err != nil {
 		rowCount = -1
-		entity_ = []*E{}
+		entities = []*E{}
 	}
 	return
 }
@@ -128,7 +128,7 @@ func newQuery[E any](e *executor) *query[E] {
 type mutation struct {
 	*executor
 	mapTargetType reflect.Type
-	mapTarget_    []any
+	mapTargets    []any
 }
 
 func (m *mutation) Must() *mutation {
@@ -151,11 +151,11 @@ func (m *mutation) BuildSql(buildSql func(b *SqlBuilder)) *mutation {
 	return m
 }
 
-func (m *mutation) MapTarget[E any](entity_ ...*E) *mutation {
+func (m *mutation) MapTarget[E any](entities ...*E) *mutation {
 	m.mapTargetType = reflect.TypeFor[E]()
-	m.mapTarget_ = make([]any, 0, len(entity_))
-	for _, e := range entity_ {
-		m.mapTarget_ = append(m.mapTarget_, e)
+	m.mapTargets = make([]any, 0, len(entities))
+	for _, e := range entities {
+		m.mapTargets = append(m.mapTargets, e)
 	}
 	return m
 }
@@ -177,7 +177,7 @@ func (m *mutation) Do() (affected int64, err error) {
 }
 
 func (m *mutation) _getGenKey(result sql.Result) {
-	if m.executor.db.GetGeneratedKeyMode.Is(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) && len(m.mapTarget_) > 0 {
+	if m.executor.db.GetGeneratedKeyMode.Is(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) && len(m.mapTargets) > 0 {
 		id, warn := result.LastInsertId()
 		if warn != nil {
 			printWarn(m.ctx, m.db.logger, errors.New("get generated key fail, "+warn.Error()))
@@ -188,16 +188,16 @@ func (m *mutation) _getGenKey(result sql.Result) {
 			printWarn(m.ctx, m.db.logger, errors.New("get generated key fail, "+warn.Error()))
 			return
 		}
-		if len(ei.autoColumn_) != 1 {
+		if len(ei.autoColumns) != 1 {
 			printWarn(m.ctx, m.db.logger, errors.New("get generated key fail, the entity \""+
 				m.mapTargetType.String()+"\" must have exactly one field with \"auto\" tag"))
 			return
 		}
-		fieldIndex := ei.columnToFieldIndexMap[ei.autoColumn_[0]]
+		fieldIndex := ei.columnToFieldIndexMap[ei.autoColumns[0]]
 		if m.db.GetGeneratedKeyMode.Is(GetGeneratedKeyMode_.LastInsertId) {
-			id = id - int64(len(m.mapTarget_)-1)*ei.lastInsertIdStep
+			id = id - int64(len(m.mapTargets)-1)*ei.lastInsertIdStep
 		}
-		for _, et := range m.mapTarget_ {
+		for _, et := range m.mapTargets {
 			v := reflect.ValueOf(et).Elem()
 			field := v.Field(fieldIndex)
 			field.Set(ei.lastInsertIdConversion(id))
@@ -274,7 +274,7 @@ func (e *executor) doQuery() (*sql.Rows, []string, time.Duration, bool, error) {
 	}()
 
 	start := time.Now()
-	rows, err := stmt.QueryContext(e.ctx, convertArgs(builder.arg_)...)
+	rows, err := stmt.QueryContext(e.ctx, convertArgs(builder.args)...)
 	if err != nil {
 		return nil, nil, -1, false, err
 	}
@@ -311,7 +311,7 @@ func (e *executor) doExec() (sql.Result, time.Duration, bool, error) {
 	}()
 
 	start := time.Now()
-	result, err := stmt.ExecContext(e.ctx, convertArgs(builder.arg_)...)
+	result, err := stmt.ExecContext(e.ctx, convertArgs(builder.args)...)
 	if err != nil {
 		return nil, -1, false, err
 	}

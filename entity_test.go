@@ -39,7 +39,7 @@ func TestGetEntity(t *testing.T) {
 		r.NoError(err)
 		r.Equal("user", ei.table)
 		r.Equal([]string{"id", "name", "phone", "email", "avatar_url", "status", "level", "properties", "category", "tags", "attributes",
-			"uuid", "create_at", "update_at", "version", "deleted"}, ei.column_)
+			"uuid", "create_at", "update_at", "version", "deleted"}, ei.columns)
 		r.Equal(map[string]int{"id": 0, "name": 1, "phone": 4, "email": 5, "avatar_url": 6, "status": 7, "level": 8,
 			"properties": 9, "category": 10, "tags": 11, "attributes": 12, "uuid": 13, "create_at": 14, "update_at": 15,
 			"version": 16, "deleted": 17},
@@ -49,8 +49,8 @@ func TestGetEntity(t *testing.T) {
 			"properties": "Properties", "category": "Category", "tags": "Tags", "attributes": "Attributes",
 			"uuid": "Uuid", "create_at": "CreateAt", "update_at": "UpdateAt", "version": "Version", "deleted": "Deleted"},
 			ei.columnToFieldNameMap)
-		r.Equal([]string{"id"}, ei.pkColumn_)
-		r.Equal([]string{"id"}, ei.autoColumn_)
+		r.Equal([]string{"id"}, ei.pkColumns)
+		r.Equal([]string{"id"}, ei.autoColumns)
 		r.Equal(int64(1), ei.lastInsertIdStep)
 		r.NotNil(ei.lastInsertIdConversion)
 
@@ -87,12 +87,12 @@ func TestGetEntity(t *testing.T) {
 		ei, err := newEntityInfo(reflect.TypeFor[DemoIgnoreField](), defaultNameMapper, defaultNameMapper, nil)
 		r.NoError(err)
 		r.Equal("demo_ignore_field", ei.table)
-		r.Equal([]string{"id"}, ei.column_)
+		r.Equal([]string{"id"}, ei.columns)
 		r.Len(ei.columnToFieldIndexMap, 1)
 		r.Equal(map[string]int{"id": 0}, ei.columnToFieldIndexMap)
 		r.Equal(map[string]string{"id": "Id"}, ei.columnToFieldNameMap)
-		r.Empty(ei.pkColumn_)
-		r.Equal([]string{"id"}, ei.autoColumn_)
+		r.Empty(ei.pkColumns)
+		r.Equal([]string{"id"}, ei.autoColumns)
 		r.Equal(int64(2), ei.lastInsertIdStep)
 		r.NotNil(ei.lastInsertIdConversion)
 	}
@@ -105,11 +105,11 @@ func TestGetEntity(t *testing.T) {
 		ei, err := newEntityInfo(reflect.TypeFor[DemoMulPk](), defaultNameMapper, defaultNameMapper, nil)
 		r.NoError(err)
 		r.Equal("demo_mul_pk", ei.table)
-		r.Equal([]string{"id1", "id2"}, ei.column_)
+		r.Equal([]string{"id1", "id2"}, ei.columns)
 		r.Equal(map[string]int{"id1": 0, "id2": 1}, ei.columnToFieldIndexMap)
 		r.Equal(map[string]string{"id1": "Id1", "id2": "Id2"}, ei.columnToFieldNameMap)
-		r.Equal([]string{"id1", "id2"}, ei.pkColumn_)
-		r.Equal([]string{"id1", "id2"}, ei.autoColumn_)
+		r.Equal([]string{"id1", "id2"}, ei.pkColumns)
+		r.Equal([]string{"id1", "id2"}, ei.autoColumns)
 		r.Equal(int64(0), ei.lastInsertIdStep)
 		r.Nil(ei.lastInsertIdConversion)
 	}

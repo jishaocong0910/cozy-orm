@@ -160,8 +160,8 @@ func (c *Condition) LikeRight(column string, arg string) *Condition {
 	return c.add(&condBinOp{column: column, op: "LIKE", arg: "%" + arg})
 }
 
-func (c *Condition) In(column string, arg_ []any) *Condition {
-	return c.add(&condIn{column: column, arg_: arg_})
+func (c *Condition) In(column string, args []any) *Condition {
+	return c.add(&condIn{column: column, args: args})
 }
 
 func (c *Condition) Between(column string, min, max any) *Condition {
@@ -252,16 +252,16 @@ func (c condBinOp) WriteSQL(b *SqlBuilder) {
 type condIn struct {
 	condBase
 	column string
-	arg_   []any
+	args   []any
 }
 
 func (c condIn) WriteSQL(b *SqlBuilder) {
 	c.doWrite(b, func() {
 		b.WriteColumn(c.column).Write(" IN(")
-		for i := 0; i < len(c.arg_); i++ {
+		for i := 0; i < len(c.args); i++ {
 			b.WriteIf(i != 0, ", ").WritePh()
 		}
-		b.Write(")", c.arg_...)
+		b.Write(")", c.args...)
 	})
 }
 

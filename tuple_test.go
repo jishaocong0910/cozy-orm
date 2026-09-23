@@ -53,13 +53,14 @@ func TestTuple(t *testing.T) {
 	}
 	{
 		db, mock := orm.MockDB(r)
-		mock.ExpectPrepare("").ExpectQuery().WillReturnRows(mock.NewRows([]string{"name", "phone", "properties", "tags"}).
-			AddRow(nil, nil, nil, nil))
-		tuples, err := db.Query[orm.Tuple4[string, *time.Time, orm.UserProperties, orm.UserCategory]](nil).BuildSql(func(b *orm.SqlBuilder) {}).Do()
+		mock.ExpectPrepare("").ExpectQuery().WillReturnRows(mock.NewRows([]string{"name", "phone", "properties", "tags", "unknown"}).
+			AddRow(nil, nil, nil, nil, nil))
+		tuples, err := db.Query[orm.Tuple5[string, *time.Time, orm.UserProperties, orm.UserCategory, complex64]](nil).BuildSql(func(b *orm.SqlBuilder) {}).Do()
 		r.NoError(err)
 		r.Equal("", tuples[0].Field1)
 		r.Nil(tuples[0].Field2)
 		r.Equal(orm.UserProperties{}, tuples[0].Field3)
 		r.Equal(orm.UserCategory{}, tuples[0].Field4)
+		r.Equal(*new(complex64), tuples[0].Field5)
 	}
 }

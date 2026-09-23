@@ -16,7 +16,10 @@ package orm
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"reflect"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 	_ "unsafe"
@@ -41,6 +44,10 @@ func TestIsValidFieldType(t *testing.T) {
 	r.True(isValidFieldType(reflect.TypeFor[*ConvSlice]()))
 	r.True(isValidFieldType(reflect.TypeFor[ConvMap]()))
 	r.True(isValidFieldType(reflect.TypeFor[*ConvMap]()))
+	r.False(isValidFieldType(reflect.TypeFor[ConvBytes]()))
+	r.True(isValidFieldType(reflect.TypeFor[*ConvBytes]()))
+	r.False(isValidFieldType(reflect.TypeFor[ConvTime]()))
+	r.True(isValidFieldType(reflect.TypeFor[*ConvTime]()))
 	r.False(isValidFieldType(reflect.TypeFor[ScannerValuerInt]()))
 	r.True(isValidFieldType(reflect.TypeFor[*ScannerValuerInt]()))
 	r.False(isValidFieldType(reflect.TypeFor[ScannerValuerStruct]()))
@@ -63,6 +70,7 @@ func TestIsImplementConvert(t *testing.T) {
 	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo8]()))
 	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo9]()))
 	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo10]()))
+	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo11]()))
 }
 
 func TestIsTupleType(t *testing.T) {
@@ -93,17 +101,22 @@ func (c ConvInt) ToArg() string {
 	return ""
 }
 
-func (c *ConvInt) ToField(string) {
+func (c *ConvInt) ToField(src string) {
+	i, _ := strconv.ParseInt(src, 10, 64)
+	*c = ConvInt(i)
 }
 
 type ConvStruct struct {
+	Field1 string `json:"field1"`
+	Field2 string `json:"field2"`
 }
 
 func (c ConvStruct) ToArg() string {
 	return ""
 }
 
-func (c *ConvStruct) ToField(string) {
+func (c *ConvStruct) ToField(src string) {
+	json.Unmarshal([]byte(src), c)
 }
 
 type ConvSlice []string
@@ -112,7 +125,8 @@ func (m ConvSlice) ToArg() string {
 	return ""
 }
 
-func (m *ConvSlice) ToField(string) {
+func (m *ConvSlice) ToField(src string) {
+	*m = strings.Split(src, ",")
 }
 
 type ConvMap map[string]string
@@ -121,7 +135,35 @@ func (c ConvMap) ToArg() string {
 	return ""
 }
 
-func (c *ConvMap) ToField(string) {
+func (c *ConvMap) ToField(src string) {
+	json.Unmarshal([]byte(src), c)
+}
+
+type ConvBytes struct {
+	str string
+}
+
+func (c ConvBytes) ToArg() []byte {
+	return []byte(c.str)
+}
+
+func (c *ConvBytes) ToField(src []byte) {
+	c.str = string(src)
+}
+
+type ConvTime struct {
+	str string
+}
+
+func (c ConvTime) ToArg() *time.Time {
+	if t, err := time.Parse(time.DateTime, c.str); err != nil {
+		return &t
+	}
+	return nil
+}
+
+func (c *ConvTime) ToField(src *time.Time) {
+	c.str = src.Format(time.DateTime)
 }
 
 type ScannerValuerInt struct {
@@ -188,61 +230,61 @@ func (d *ImplementConvertDemo2) ToField(string) {
 type ImplementConvertDemo3 struct {
 }
 
-func (d *ImplementConvertDemo3) ToValue(string) string {
+func (d *ImplementConvertDemo3) ToArg(string) string {
 	return ""
 }
 
-func (d *ImplementConvertDemo3) ToField(t string) {
+func (d *ImplementConvertDemo3) ToField(string) {
 }
 
 type ImplementConvertDemo4 struct {
 }
 
-func (d *ImplementConvertDemo4) ToValue() (string, string) {
+func (d *ImplementConvertDemo4) ToArg() (string, string) {
 	return "", ""
 }
 
-func (d *ImplementConvertDemo4) ToField(t string) {
+func (d *ImplementConvertDemo4) ToField(string) {
 }
 
 type ImplementConvertDemo5 struct {
 }
 
-func (d *ImplementConvertDemo5) ToValue() ConvInt {
+func (d *ImplementConvertDemo5) ToArg() ConvInt {
 	return 0
 }
 
-func (d *ImplementConvertDemo5) ToField(t string) {
+func (d *ImplementConvertDemo5) ToField(string) {
 }
 
 type ImplementConvertDemo6 struct {
 }
 
-func (d ImplementConvertDemo6) ToValue() string {
+func (d ImplementConvertDemo6) ToArg() string {
 	return ""
 }
 
-func (d *ImplementConvertDemo6) ToField(t, t2 string) {
+func (d *ImplementConvertDemo6) ToField(src, src2 string) {
 }
 
 type ImplementConvertDemo7 struct {
 }
 
-func (d ImplementConvertDemo7) ToValue() int {
+func (d ImplementConvertDemo7) ToArg() int {
 	return 0
 }
 
-func (d *ImplementConvertDemo7) ToField(t ConvInt) {
+func (d *ImplementConvertDemo7) ToField(ConvInt) {
 }
 
 type ImplementConvertDemo8 struct {
 }
 
-func (d ImplementConvertDemo8) ToValue() string {
+func (d ImplementConvertDemo8) ToArg() string {
 	return ""
 }
 
-func (d *ImplementConvertDemo8) ToField(t string) string {
+func (d *ImplementConvertDemo8) ToField(string) string {
 	return ""
 }
 
@@ -259,6 +301,16 @@ func (d ImplementConvertDemo9) ToField(string) {
 type ImplementConvertDemo10 struct {
 }
 
-func (d ImplementConvertDemo10) ToValue() string {
+func (d ImplementConvertDemo10) ToArg() string {
 	return ""
+}
+
+type ImplementConvertDemo11 struct {
+}
+
+func (d *ImplementConvertDemo11) ToArg() complex64 {
+	return 1 + 2i
+}
+
+func (d *ImplementConvertDemo11) ToField(complex64) {
 }

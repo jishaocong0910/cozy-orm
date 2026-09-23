@@ -257,7 +257,7 @@ func GetTxInfoInner(ctx context.Context) *TxInfoInner {
 	return &TxInfoInner{
 		Creator: ti.creator,
 		SqlTx:   ti.sqlTx,
-		TxHook:  ti.txHook_,
+		TxHook:  ti.txHooks,
 	}
 }
 

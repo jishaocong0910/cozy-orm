@@ -66,7 +66,7 @@ func (t *tx) _safeDo(do func(ctx context.Context) error) (err error) {
 
 	err = do(t.ctx)
 
-	for _, hook := range t.ti.txHook_ {
+	for _, hook := range t.ti.txHooks {
 		if hook.beforeHandler != nil {
 			err = hook.beforeHandler(t.ctx)
 			if err != nil {
@@ -119,10 +119,10 @@ func (t *tx) _rollback() error {
 }
 
 func (t *tx) _runAfterHook(commit bool) {
-	for _, hook := range t.ti.txHook_ {
+	for _, hook := range t.ti.txHooks {
 		if hook.afterHandler != nil {
 			ctx := context.Background()
-			for _, key := range hook.inheritCtxKey_ {
+			for _, key := range hook.inheritCtxKeys {
 				val := t.ctx.Value(key)
 				if val != nil {
 					ctx = context.WithValue(ctx, key, val)
@@ -143,7 +143,7 @@ func (t *tx) _runAfterHook(commit bool) {
 type txInfoInner struct {
 	creator *tx
 	sqlTx   *sql.Tx
-	txHook_ []*txHook
+	txHooks []*txHook
 }
 
 type txInfo struct {
@@ -161,7 +161,7 @@ func (t *txInfo) matchingDb(db *DB) bool {
 type txHook struct {
 	beforeHandler  func(ctx context.Context) error
 	afterHandler   func(ctx context.Context, commit bool)
-	inheritCtxKey_ []any
+	inheritCtxKeys []any
 }
 
 func (t *txHook) BeforeSync(handler func(ctx context.Context) error) *txHook {
@@ -169,15 +169,15 @@ func (t *txHook) BeforeSync(handler func(ctx context.Context) error) *txHook {
 	return t
 }
 
-func (t *txHook) AfterAsync(handler func(ctx context.Context, commit bool), inheritCtxKey_ ...any) *txHook {
+func (t *txHook) AfterAsync(handler func(ctx context.Context, commit bool), inheritCtxKeys ...any) *txHook {
 	t.afterHandler = handler
-	t.inheritCtxKey_ = inheritCtxKey_
+	t.inheritCtxKeys = inheritCtxKeys
 	return t
 }
 
 func (t *txHook) Bind(ctx context.Context) bool {
 	if ti := cvTx.get(ctx); ti.isValid() {
-		ti.txHook_ = append(ti.txHook_, t)
+		ti.txHooks = append(ti.txHooks, t)
 		return true
 	}
 	return false

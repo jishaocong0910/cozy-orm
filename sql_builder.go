@@ -22,23 +22,23 @@ import (
 
 type SqlBuilder struct {
 	b      strings.Builder
-	arg_   []any
+	args   []any
 	cancel bool
 	err    error
 	ph     SqlWriter
 	qit    QuotedIdentifier
 }
 
-func (b *SqlBuilder) Write(str string, arg_ ...any) *SqlBuilder {
+func (b *SqlBuilder) Write(str string, args ...any) *SqlBuilder {
 	b.b.WriteString(str)
-	b.Args(arg_...)
+	b.Args(args...)
 	return b
 }
 
-func (b *SqlBuilder) WriteIf(check bool, str string, arg_ ...any) *SqlBuilder {
+func (b *SqlBuilder) WriteIf(check bool, str string, args ...any) *SqlBuilder {
 	if check {
 		b.b.WriteString(str)
-		b.Args(arg_...)
+		b.Args(args...)
 	}
 	return b
 }
@@ -61,17 +61,17 @@ func (b *SqlBuilder) Accept(w SqlWriter) *SqlBuilder {
 	return b
 }
 
-func (b *SqlBuilder) ForEach[T any](sep separate, elem_ []T, handle func(i int, t T)) *SqlBuilder {
-	total := len(elem_)
+func (b *SqlBuilder) ForEach[T any](sep separate, elems []T, handle func(i int, t T)) *SqlBuilder {
+	total := len(elems)
 	if sep.prefix != "" && (total > 0 || !sep.omitempty) {
 		b.Write(sep.prefix)
 	}
 	if total > 0 {
-		handle(0, elem_[0])
+		handle(0, elems[0])
 	}
 	for i := 1; i < total; i++ {
 		b.Write(sep.separator)
-		handle(i, elem_[i])
+		handle(i, elems[i])
 	}
 	if sep.suffix != "" && (total > 0 || !sep.omitempty) {
 		b.Write(sep.suffix)
@@ -79,8 +79,8 @@ func (b *SqlBuilder) ForEach[T any](sep separate, elem_ []T, handle func(i int, 
 	return b
 }
 
-func (b *SqlBuilder) Args(arg_ ...any) *SqlBuilder {
-	b.arg_ = append(b.arg_, arg_...)
+func (b *SqlBuilder) Args(args ...any) *SqlBuilder {
+	b.args = append(b.args, args...)
 	return b
 }
 
@@ -106,10 +106,10 @@ func (b *SqlBuilder) SepFixOpt(prefix, separator, suffix string) separate {
 	return separate{prefix: prefix, separator: separator, suffix: suffix, omitempty: true}
 }
 
-func (b *SqlBuilder) sqlAndArgs() (sql string, arg_ []any) {
+func (b *SqlBuilder) sqlAndArgs() (sql string, args []any) {
 	if b != nil {
 		sql = b.b.String()
-		arg_ = b.arg_
+		args = b.args
 	}
 	return
 }

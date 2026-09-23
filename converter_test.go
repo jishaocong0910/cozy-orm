@@ -18,7 +18,6 @@ import (
 	"reflect"
 	"testing"
 	"time"
-	"uuid"
 
 	"github.com/stretchr/testify/require"
 )
@@ -29,94 +28,65 @@ func TestFieldConv(t *testing.T) {
 	v := reflect.ValueOf(&demo).Elem()
 	{
 		field := v.FieldByName("Field1")
-		c := getFieldConverter(field.Type())
-		r.NotNil(c)
-		c = getFieldConverter(reflect.TypeFor[*UserProperties]())
-		r.NotNil(c)
-		fc, ok := c.(ptrFieldConverter)
-		r.True(ok)
-		sd := fc.newScanDest()
-		r.Equal(reflect.TypeFor[**string](), sd.p2pValue.Type())
-		r.Equal(reflect.New(reflect.TypeFor[*string]()).Interface(), sd.dest())
-		reflect.ValueOf(sd.dest()).Elem().Set(reflect.ValueOf((*string)(nil)))
-		r.Nil(sd.value())
-		reflect.ValueOf(sd.dest()).Elem().Set(reflect.ValueOf(new(`{"source":"a","country":"b"}`)))
-		r.Equal(`{"source":"a","country":"b"}`, sd.value())
-		fc.toField(field, `{"source":"a","country":"b"}`)
-		r.Equal(&UserProperties{Source: "a", Country: "b"}, field.Interface().(*UserProperties))
+		fc := getFieldConverter(field.Type())
+		r.NotNil(fc)
+		fc = getFieldConverter(reflect.TypeFor[*ConvStruct]())
+		r.NotNil(fc)
+		r.Equal(reflect.TypeFor[*string](), fc.ptrMediumType)
+		r.Equal(reflect.Pointer, fc.fieldKind)
+		fc.convert(field, `{"field1":"a","field2":"b"}`)
+		r.Equal(&ConvStruct{Field1: "a", Field2: "b"}, field.Interface().(*ConvStruct))
 	}
 	{
 		field := v.FieldByName("Field2")
-		c := getFieldConverter(field.Type())
-		r.NotNil(c)
-		fc, ok := c.(valueFieldConverter)
-		r.True(ok)
-		sd := fc.newScanDest()
-		r.Equal(reflect.TypeFor[**int8](), sd.p2pValue.Type())
-		fc.toField(field, int8(3))
-		r.Equal(UserLevel("3"), field.Interface().(UserLevel))
+		fc := getFieldConverter(field.Type())
+		r.NotNil(fc)
+		r.Equal(reflect.TypeFor[*string](), fc.ptrMediumType)
+		r.Equal(reflect.Int, fc.fieldKind)
+		fc.convert(field, "3")
+		r.Equal(ConvInt(3), field.Interface().(ConvInt))
 	}
 	{
 		field := v.FieldByName("Field3")
-		c := getFieldConverter(field.Type())
-		r.NotNil(c)
-		fc, ok := c.(sliceFieldConverter)
-		r.True(ok)
-		sd := fc.newScanDest()
-		r.Equal(reflect.TypeFor[**string](), sd.p2pValue.Type())
-		fc.toField(field, "a,b,c")
-		r.Equal(UserTags{"a", "b", "c"}, field.Interface().(UserTags))
+		fc := getFieldConverter(field.Type())
+		r.NotNil(fc)
+		r.Equal(reflect.TypeFor[*string](), fc.ptrMediumType)
+		r.Equal(reflect.Slice, fc.fieldKind)
+		fc.convert(field, "a,b,c")
+		r.Equal(ConvSlice{"a", "b", "c"}, field.Interface().(ConvSlice))
 	}
 	{
 		field := v.FieldByName("Field4")
-		c := getFieldConverter(field.Type())
-		r.NotNil(c)
-		fc, ok := c.(mapFieldConverter)
-		r.True(ok)
-		sd := fc.newScanDest()
-		r.Equal(reflect.TypeFor[**string](), sd.p2pValue.Type())
-		fc.toField(field, `{"key1":"a","key2":"b"}`)
-		r.Equal(UserAttributes{"key1": "a", "key2": "b"}, field.Interface().(UserAttributes))
+		fc := getFieldConverter(field.Type())
+		r.NotNil(fc)
+		r.Equal(reflect.TypeFor[*string](), fc.ptrMediumType)
+		r.Equal(reflect.Map, fc.fieldKind)
+		fc.convert(field, `{"key1":"a","key2":"b"}`)
+		r.Equal(ConvMap{"key1": "a", "key2": "b"}, field.Interface().(ConvMap))
 	}
 	{
 		field := v.FieldByName("Field5")
-		c := getFieldConverter(field.Type())
-		r.NotNil(c)
-		fc, ok := c.(zeroFieldConverter)
-		r.True(ok)
-		sd := fc.newScanDest()
-		r.Equal(reflect.TypeFor[**string](), sd.p2pValue.Type())
-		fc.toField(field, `test`)
-		r.Equal("test", field.Interface().(string))
+		fc := getFieldConverter(field.Type())
+		r.Nil(fc)
 	}
 	{
-		tm := time.Now()
 		field := v.FieldByName("Field6")
-		c := getFieldConverter(field.Type())
-		r.NotNil(c)
-		fc, ok := c.(zeroFieldConverter)
-		r.True(ok)
-		sd := fc.newScanDest()
-		r.Equal(reflect.TypeFor[**time.Time](), sd.p2pValue.Type())
-		fc.toField(field, tm)
-		r.Equal(tm, field.Interface().(time.Time))
+		fc := getFieldConverter(field.Type())
+		r.NotNil(fc)
+		r.Equal(reflect.TypeFor[*[]byte](), fc.ptrMediumType)
+		r.Equal(reflect.Struct, fc.fieldKind)
+		fc.convert(field, []byte("abc"))
+		r.Equal(ConvBytes{str: "abc"}, field.Interface().(ConvBytes))
 	}
 	{
-		u := uuid.New()
+		tm, _ := time.Parse(time.DateTime, "2026-09-23 23:50:43")
 		field := v.FieldByName("Field7")
-		c := getFieldConverter(field.Type())
-		r.NotNil(c)
-		fc, ok := c.(zeroFieldConverter)
-		r.True(ok)
-		sd := fc.newScanDest()
-		r.Equal(reflect.TypeFor[**uuid.UUID](), sd.p2pValue.Type())
-		fc.toField(field, u)
-		r.Equal(u, field.Interface().(uuid.UUID))
-	}
-	{
-		field := v.FieldByName("Field8")
-		c := getFieldConverter(field.Type())
-		r.Nil(c)
+		fc := getFieldConverter(field.Type())
+		r.NotNil(fc)
+		r.Equal(reflect.TypeFor[**time.Time](), fc.ptrMediumType)
+		r.Equal(reflect.Struct, fc.fieldKind)
+		fc.convert(field, new(tm))
+		r.Equal(ConvTime{str: "2026-09-23 23:50:43"}, field.Interface().(ConvTime))
 	}
 }
 
@@ -142,41 +112,11 @@ func TestConvertArgs(t *testing.T) {
 }
 
 type ConvDemo struct {
-	Field1  *UserProperties
-	Field2  UserLevel
-	Field3  UserTags
-	Field4  UserAttributes
-	Field5  string
-	Field6  time.Time
-	Field7  uuid.UUID
-	Field8  UserCategory
-	Field9  ConvBytes
-	Field10 ConvTime
-}
-
-type ConvBytes struct {
-	str string
-}
-
-func (c ConvBytes) ToArg() []byte {
-	return []byte(c.str)
-}
-
-func (c *ConvBytes) ToField(src []byte) {
-	c.str = string(src)
-}
-
-type ConvTime struct {
-	str string
-}
-
-func (c ConvTime) ToArg() *time.Time {
-	if t, err := time.Parse(time.DateTime, c.str); err != nil {
-		return &t
-	}
-	return nil
-}
-
-func (c *ConvTime) ToField(src *time.Time) {
-	c.str = src.Format(time.DateTime)
+	Field1 *ConvStruct
+	Field2 ConvInt
+	Field3 ConvSlice
+	Field4 ConvMap
+	Field5 string
+	Field6 ConvBytes
+	Field7 ConvTime
 }

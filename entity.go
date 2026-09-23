@@ -23,7 +23,7 @@ import (
 	"sync"
 )
 
-func newEntityInfo(t reflect.Type, tableNameMapper, columnNameMapper *NameMapper, columnPolicyConfig_ []*columnPolicyConfig) (*entityInfo, error) {
+func newEntityInfo(t reflect.Type, tableNameMapper, columnNameMapper *NameMapper, columnPolicyConfigs []*columnPolicyConfig) (*entityInfo, error) {
 	if !isEntityType(t) {
 		return nil, errors.New("not a valid entity type")
 	}
@@ -63,19 +63,19 @@ func newEntityInfo(t reflect.Type, tableNameMapper, columnNameMapper *NameMapper
 		ei.table = tableNameMapper.Convert(t.Name())
 	}
 
-	ei._registerPolicy(columnPolicyConfig_)
+	ei._registerPolicy(columnPolicyConfigs)
 	return ei, nil
 }
 
 type entityInfo struct {
 	typ                    reflect.Type
 	table                  string
-	column_                []string
+	columns                []string
 	columnToFieldIndexMap  map[string]int
 	columnToFieldNameMap   map[string]string
 	fieldToColumnMap       map[string]string
-	pkColumn_              []string
-	autoColumn_            []string
+	pkColumns              []string
+	autoColumns            []string
 	lastInsertIdStep       int64
 	lastInsertIdConversion func(id int64) reflect.Value
 	insertPolicy           assignedPolicy
@@ -87,25 +87,25 @@ type entityInfo struct {
 }
 
 func (e *entityInfo) getColumns(entity any, onDemand *OnDemand, requiredSet set[string], ignoredSet set[string]) []string {
-	var column_ []string
+	var columns []string
 	var ev reflect.Value
 	onDemandColumnSet := e._getOnDemandColumnSet(onDemand)
 
 	if onDemandColumnSet == nil {
-		column_ = make([]string, 0, len(e.column_))
+		columns = make([]string, 0, len(e.columns))
 		if entity != nil {
 			ev = reflect.ValueOf(entity).Elem()
 		}
 	} else {
-		column_ = make([]string, 0, len(onDemandColumnSet))
+		columns = make([]string, 0, len(onDemandColumnSet))
 	}
 
-	for _, column := range e.column_ {
+	for _, column := range e.columns {
 		if ignoredSet.contain(column) {
 			continue
 		}
 		if requiredSet.contain(column) {
-			column_ = append(column_, column)
+			columns = append(columns, column)
 			continue
 		}
 		if onDemandColumnSet == nil {
@@ -113,18 +113,18 @@ func (e *entityInfo) getColumns(entity any, onDemand *OnDemand, requiredSet set[
 				continue
 			}
 			if !ev.Field(e.columnToFieldIndexMap[column]).IsNil() {
-				column_ = append(column_, column)
+				columns = append(columns, column)
 				continue
 			}
 		} else if onDemandColumnSet.contain(column) {
-			column_ = append(column_, column)
+			columns = append(columns, column)
 			continue
 		}
 	}
-	return column_
+	return columns
 }
 
-func (e *entityInfo) getValueMap(entity any, column__ ...[]string) map[string]any {
+func (e *entityInfo) getValueMap(entity any, column2s ...[]string) map[string]any {
 	var v reflect.Value
 	if entity != nil {
 		v = reflect.ValueOf(entity).Elem()
@@ -134,12 +134,12 @@ func (e *entityInfo) getValueMap(entity any, column__ ...[]string) map[string]an
 	}
 	var valueMap map[string]any
 	size := 0
-	for _, column_ := range column__ {
-		size += len(column_)
+	for _, columns := range column2s {
+		size += len(columns)
 	}
 	valueMap = make(map[string]any, size)
-	for _, column_ := range column__ {
-		for _, column := range column_ {
+	for _, columns := range column2s {
+		for _, column := range columns {
 			if i, ok := e.columnToFieldIndexMap[column]; ok {
 				vf := v.Field(i)
 				if !vf.IsNil() {
@@ -193,16 +193,16 @@ func (e *entityInfo) _registerField(tf reflect.StructField, tag fieldTag, column
 	if column == "" {
 		column = columnNameMapper.Convert(tf.Name)
 	}
-	e.column_ = append(e.column_, column)
+	e.columns = append(e.columns, column)
 	e.columnToFieldIndexMap[column] = tf.Index[0]
 	e.columnToFieldNameMap[column] = tf.Name
 	e.fieldToColumnMap[tf.Name] = column
 	if tag.pk {
-		e.pkColumn_ = append(e.pkColumn_, column)
+		e.pkColumns = append(e.pkColumns, column)
 	}
 	if tag.auto > 0 {
-		e.autoColumn_ = append(e.autoColumn_, column)
-		if len(e.autoColumn_) > 1 {
+		e.autoColumns = append(e.autoColumns, column)
+		if len(e.autoColumns) > 1 {
 			e.lastInsertIdStep = 0
 			e.lastInsertIdConversion = nil
 		} else if a, ok := lastInsertIdConversionMap[tf.Type]; ok {
@@ -212,15 +212,15 @@ func (e *entityInfo) _registerField(tf reflect.StructField, tag fieldTag, column
 	}
 }
 
-func (e *entityInfo) _registerPolicy(columnPolicyConfig_ []*columnPolicyConfig) {
-	for _, pk := range e.pkColumn_ {
-		columnPolicyConfig_ = append(columnPolicyConfig_, NewColumnPolicyConfig(pk).ForTable(e.table).OnUpdate().Never())
+func (e *entityInfo) _registerPolicy(columnPolicyConfigs []*columnPolicyConfig) {
+	for _, pk := range e.pkColumns {
+		columnPolicyConfigs = append(columnPolicyConfigs, NewColumnPolicyConfig(pk).ForTable(e.table).OnUpdate().Never())
 	}
-	columnSet := newSet(e.column_...)
+	columnSet := newSet(e.columns...)
 	columnOnInsertMap := map[string]*assignedPolicyConfig{}
 	columnOnUpdateMap := map[string]*assignedPolicyConfig{}
 	var finalDeleteSoftlyPolicyConfig *deleteSoftlyPolicyConfig
-	for _, config := range columnPolicyConfig_ {
+	for _, config := range columnPolicyConfigs {
 		if config.exceptTableSet.contain(e.table) {
 			continue
 		}
@@ -248,7 +248,7 @@ func (e *entityInfo) _registerPolicy(columnPolicyConfig_ []*columnPolicyConfig) 
 	}
 	e.insertPolicy.loadConfig(columnOnInsertMap)
 	e.updatePolicy.loadConfig(columnOnUpdateMap)
-	e.deleteSoftlyPolicy.loadConfig(finalDeleteSoftlyPolicyConfig, e.pkColumn_)
+	e.deleteSoftlyPolicy.loadConfig(finalDeleteSoftlyPolicyConfig, e.pkColumns)
 }
 
 type assignedPolicy struct {
@@ -322,13 +322,13 @@ type deleteSoftlyPolicy struct {
 	normalValue   any
 }
 
-func (p *deleteSoftlyPolicy) loadConfig(config *deleteSoftlyPolicyConfig, pkColumn_ []string) {
-	if config == nil || config.mode.IsUndefined() || config.normalValue == nil || config.mode.Is(deleteSoftlyMode_.assignedPk) && len(pkColumn_) != 1 {
+func (p *deleteSoftlyPolicy) loadConfig(config *deleteSoftlyPolicyConfig, pkColumns []string) {
+	if config == nil || config.mode.IsUndefined() || config.normalValue == nil || config.mode.Is(deleteSoftlyMode_.assignedPk) && len(pkColumns) != 1 {
 		return
 	}
 	p.mode = config.mode
 	p.deletedColumn = config.parent.column
-	p.pkColumn = pkColumn_[0]
+	p.pkColumn = pkColumns[0]
 	p.normalValue = config.normalValue
 }
 

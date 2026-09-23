@@ -36,34 +36,6 @@ var (
 	registerFieldConverterLock sync.Mutex
 )
 
-type argConverter struct {
-	isPtrReceiver bool
-}
-
-func (c *argConverter) toArg(v reflect.Value) any {
-	if c.isPtrReceiver && v.Kind() != reflect.Pointer {
-		pv := reflect.New(v.Type())
-		pv.Elem().Set(v)
-		v = pv
-	}
-	return v.MethodByName(toArgMethodName).Call(nil)[0].Interface()
-}
-
-func convertArgs(arg_ []any) []any {
-	for i, a := range arg_ {
-		if a != nil {
-			v := reflect.ValueOf(a)
-			if isBaseKind(v.Kind()) && v.IsNil() {
-				continue
-			}
-			if c := getArgConverter(v.Type()); c != nil {
-				arg_[i] = c.toArg(v)
-			}
-		}
-	}
-	return arg_
-}
-
 func getArgConverter(t reflect.Type) *argConverter {
 	if val, ok := argConverters.Load(t); ok {
 		ac, _ := val.(*argConverter)
@@ -97,32 +69,37 @@ func registerArgConverter(t reflect.Type) *argConverter {
 	return ac
 }
 
-type fieldConverter struct {
-	ptrType reflect.Type
+type argConverter struct {
+	isPtrReceiver bool
 }
 
-func (c *fieldConverter) toField(field reflect.Value, value any) {
-
+func (c *argConverter) convert(v reflect.Value) any {
+	if c.isPtrReceiver && v.Kind() != reflect.Pointer {
+		pv := reflect.New(v.Type())
+		pv.Elem().Set(v)
+		v = pv
+	}
+	return v.MethodByName(toArgMethodName).Call(nil)[0].Interface()
 }
 
-func getFieldConverter(t reflect.Type) fieldConverter {
+func getFieldConverter(t reflect.Type) *fieldConverter {
 	if val, ok := fieldConverters.Load(t); ok {
-		fc, _ := val.(fieldConverter)
+		fc, _ := val.(*fieldConverter)
 		return fc
 	}
 	return registerFieldConverter(t)
 }
 
-func registerFieldConverter(t reflect.Type) fieldConverter {
+func registerFieldConverter(t reflect.Type) *fieldConverter {
 	registerFieldConverterLock.Lock()
 	defer registerFieldConverterLock.Unlock()
 
 	if val, ok := fieldConverters.Load(t); ok { // coverage-ignore
-		fc, _ := val.(fieldConverter)
+		fc, _ := val.(*fieldConverter)
 		return fc
 	}
 
-	var fc fieldConverter
+	var fc *fieldConverter
 	if isImplementConverter(t) {
 		pt := t
 		if pt.Kind() != reflect.Pointer {
@@ -130,89 +107,48 @@ func registerFieldConverter(t reflect.Type) fieldConverter {
 		}
 		method, _ := pt.MethodByName(toFieldMethodName)
 		mediumType := method.Type.In(1)
-		switch t.Kind() {
-		case reflect.Pointer:
-			fc = ptrFieldConverter{ptrMediumType: reflect.PointerTo(mediumType)}
-		case reflect.Slice:
-			fc = sliceFieldConverter{ptrType: reflect.PointerTo(mediumType)}
-		case reflect.Map:
-			fc = mapFieldConverter{ptrType: reflect.PointerTo(mediumType)}
-		default:
-			fc = valueFieldConverter{ptrType: reflect.PointerTo(mediumType)}
+		fc = &fieldConverter{
+			ptrMediumType: reflect.PointerTo(mediumType),
+			fieldKind:     t.Kind(),
 		}
-	} else if isBaseValueType(t) {
-		fc = zeroFieldConverter{ptrType: reflect.PointerTo(t)}
 	}
 
 	fieldConverters.Store(t, fc)
 	return fc
 }
 
-type ptrFieldConverter struct {
+type fieldConverter struct {
 	ptrMediumType reflect.Type
+	fieldKind     reflect.Kind
 }
 
-func (c ptrFieldConverter) toField(field reflect.Value, value any) {
-	if value != nil {
+func (c *fieldConverter) convert(field reflect.Value, value any) {
+	if value == nil {
+		return
+	}
+	switch c.fieldKind {
+	case reflect.Pointer:
 		field.Set(reflect.New(field.Type().Elem()))
 		field.MethodByName(toFieldMethodName).Call([]reflect.Value{reflect.ValueOf(value)})
-	}
-}
-
-type sliceFieldConverter struct {
-	ptrType reflect.Type
-}
-
-func (c sliceFieldConverter) newScanDest() mappingMedium {
-	return mappingMedium{p2pValue: reflect.New(c.ptrType)}
-}
-
-func (c sliceFieldConverter) toField(field reflect.Value, value any) {
-	if value != nil {
+	case reflect.Slice, reflect.Map:
 		field.Set(reflect.New(field.Type()).Elem())
+		fallthrough
+	default:
 		field.Addr().MethodByName(toFieldMethodName).Call([]reflect.Value{reflect.ValueOf(value)})
 	}
 }
 
-type mapFieldConverter struct {
-	ptrType reflect.Type
-}
-
-func (c mapFieldConverter) newScanDest() mappingMedium {
-	return mappingMedium{p2pValue: reflect.New(c.ptrType)}
-}
-
-func (c mapFieldConverter) toField(field reflect.Value, value any) {
-	if value != nil {
-		field.Set(reflect.New(field.Type()).Elem())
-		field.Addr().MethodByName(toFieldMethodName).Call([]reflect.Value{reflect.ValueOf(value)})
+func convertArgs(args []any) []any {
+	for i, a := range args {
+		if a != nil {
+			v := reflect.ValueOf(a)
+			if isBaseKind(v.Kind()) && v.IsNil() {
+				continue
+			}
+			if c := getArgConverter(v.Type()); c != nil {
+				args[i] = c.convert(v)
+			}
+		}
 	}
-}
-
-type valueFieldConverter struct {
-	ptrType reflect.Type
-}
-
-func (c valueFieldConverter) newScanDest() mappingMedium {
-	return mappingMedium{p2pValue: reflect.New(c.ptrType)}
-}
-
-func (c valueFieldConverter) toField(field reflect.Value, value any) {
-	if value != nil {
-		field.Addr().MethodByName(toFieldMethodName).Call([]reflect.Value{reflect.ValueOf(value)})
-	}
-}
-
-type zeroFieldConverter struct {
-	ptrType reflect.Type
-}
-
-func (c zeroFieldConverter) newScanDest() mappingMedium {
-	return mappingMedium{p2pValue: reflect.New(c.ptrType)}
-}
-
-func (c zeroFieldConverter) toField(field reflect.Value, value any) {
-	if value != nil {
-		field.Addr().Elem().Set(reflect.ValueOf(value))
-	}
+	return args
 }
