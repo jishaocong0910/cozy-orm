@@ -53,16 +53,16 @@ func TestIsValidFieldType(t *testing.T) {
 
 func TestIsImplementConvert(t *testing.T) {
 	r := require.New(t)
-	r.True(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo]()))
-	r.True(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo2]()))
-	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo3]()))
-	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo4]()))
-	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo5]()))
-	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo6]()))
-	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo7]()))
-	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo8]()))
-	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo9]()))
-	r.False(isImplementConverter(reflect.TypeFor[*ImplementConvertDemo10]()))
+	r.True(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo]()))
+	r.True(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo2]()))
+	r.False(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo3]()))
+	r.False(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo4]()))
+	r.False(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo5]()))
+	r.False(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo6]()))
+	r.False(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo7]()))
+	r.False(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo8]()))
+	r.False(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo9]()))
+	r.False(isImplementConvert(reflect.TypeFor[*ImplementConvertDemo10]()))
 }
 
 func TestIsTupleType(t *testing.T) {

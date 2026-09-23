@@ -78,7 +78,7 @@ func isValidFieldType(t reflect.Type) bool {
 	if !isBaseKind(t.Kind()) {
 		return false
 	}
-	return isValidBuiltinType(t) || isImplementConverter(t) || isImplementScannerValuer(t)
+	return isValidBuiltinType(t) || isImplementConvert(t) || isImplementScannerValuer(t)
 }
 
 func isValidBuiltinType(t reflect.Type) bool {
@@ -102,7 +102,7 @@ func isBaseValueType(t reflect.Type) bool {
 	return false
 }
 
-func isImplementConverter(t reflect.Type) bool {
+func isImplementConvert(t reflect.Type) bool {
 	switch t.Kind() {
 	case reflect.Slice, reflect.Map:
 	case reflect.Pointer:
@@ -122,7 +122,7 @@ func isImplementConverter(t reflect.Type) bool {
 		t = reflect.PointerTo(t)
 	}
 	var vt reflect.Type
-	if method, ok := t.MethodByName(ToValueMethodName); ok {
+	if method, ok := t.MethodByName(toValueMethodName); ok {
 		mt := method.Type
 		// 方法参数个数必须为1（接收者）
 		if mt.NumIn() != 1 {
@@ -140,7 +140,7 @@ func isImplementConverter(t reflect.Type) bool {
 	} else {
 		return false
 	}
-	if method, ok := t.MethodByName(ToFieldMethodName); ok {
+	if method, ok := t.MethodByName(toFieldMethodName); ok {
 		mt := method.Type
 		// 方法参数个数必须为2（接收者，值）
 		if mt.NumIn() != 2 {
@@ -155,7 +155,7 @@ func isImplementConverter(t reflect.Type) bool {
 			return false
 		}
 		// 接受者必须为指针
-		if _, ok = t.Elem().MethodByName(ToFieldMethodName); ok {
+		if _, ok = t.Elem().MethodByName(toFieldMethodName); ok {
 			return false
 		}
 	} else {

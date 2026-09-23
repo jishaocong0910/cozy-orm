@@ -25,8 +25,8 @@ type Convert[V any] interface {
 }
 
 const (
-	ToValueMethodName = "ToValue"
-	ToFieldMethodName = "ToField"
+	toValueMethodName = "ToValue"
+	toFieldMethodName = "ToField"
 )
 
 var (
@@ -53,7 +53,7 @@ func registerValueConverter(t reflect.Type) valueConverter {
 		return vc
 	}
 
-	if !isImplementConverter(t) {
+	if !isImplementConvert(t) {
 		valueConverters.Store(t, nil)
 		return nil
 	}
@@ -62,7 +62,7 @@ func registerValueConverter(t reflect.Type) valueConverter {
 	if vt.Kind() == reflect.Pointer {
 		vt = t.Elem()
 	}
-	_, valueReceiver := vt.MethodByName(ToValueMethodName)
+	_, valueReceiver := vt.MethodByName(toValueMethodName)
 
 	var vc valueConverter
 	if valueReceiver {
@@ -92,12 +92,12 @@ func registerFieldConverter(t reflect.Type) fieldConverter {
 	}
 
 	var fc fieldConverter
-	if isImplementConverter(t) {
+	if isImplementConvert(t) {
 		pt := t
 		if pt.Kind() != reflect.Pointer {
 			pt = reflect.PointerTo(t)
 		}
-		method, _ := pt.MethodByName(ToFieldMethodName)
+		method, _ := pt.MethodByName(toFieldMethodName)
 		indirectType := method.Type.In(1)
 		switch t.Kind() {
 		case reflect.Pointer:
@@ -129,7 +129,7 @@ type fieldConverter interface {
 type vrValueConverter struct{}
 
 func (c vrValueConverter) toValue(v reflect.Value) any {
-	return v.MethodByName(ToValueMethodName).Call(nil)[0].Interface()
+	return v.MethodByName(toValueMethodName).Call(nil)[0].Interface()
 }
 
 type prValueConverter struct{}
@@ -140,7 +140,7 @@ func (c prValueConverter) toValue(v reflect.Value) any {
 		pv.Elem().Set(v)
 		v = pv
 	}
-	return v.MethodByName(ToValueMethodName).Call(nil)[0].Interface()
+	return v.MethodByName(toValueMethodName).Call(nil)[0].Interface()
 }
 
 type ptrFieldConverter struct {
@@ -154,7 +154,7 @@ func (c ptrFieldConverter) newScanDest() scanDest {
 func (c ptrFieldConverter) toField(field reflect.Value, value any) {
 	if value != nil {
 		field.Set(reflect.New(field.Type().Elem()))
-		field.MethodByName(ToFieldMethodName).Call([]reflect.Value{reflect.ValueOf(value)})
+		field.MethodByName(toFieldMethodName).Call([]reflect.Value{reflect.ValueOf(value)})
 	}
 }
 
@@ -169,7 +169,7 @@ func (c sliceFieldConverter) newScanDest() scanDest {
 func (c sliceFieldConverter) toField(field reflect.Value, value any) {
 	if value != nil {
 		field.Set(reflect.New(field.Type()).Elem())
-		field.Addr().MethodByName(ToFieldMethodName).Call([]reflect.Value{reflect.ValueOf(value)})
+		field.Addr().MethodByName(toFieldMethodName).Call([]reflect.Value{reflect.ValueOf(value)})
 	}
 }
 
@@ -184,7 +184,7 @@ func (c mapFieldConverter) newScanDest() scanDest {
 func (c mapFieldConverter) toField(field reflect.Value, value any) {
 	if value != nil {
 		field.Set(reflect.New(field.Type()).Elem())
-		field.Addr().MethodByName(ToFieldMethodName).Call([]reflect.Value{reflect.ValueOf(value)})
+		field.Addr().MethodByName(toFieldMethodName).Call([]reflect.Value{reflect.ValueOf(value)})
 	}
 }
 
@@ -198,7 +198,7 @@ func (c valueFieldConverter) newScanDest() scanDest {
 
 func (c valueFieldConverter) toField(field reflect.Value, value any) {
 	if value != nil {
-		field.Addr().MethodByName(ToFieldMethodName).Call([]reflect.Value{reflect.ValueOf(value)})
+		field.Addr().MethodByName(toFieldMethodName).Call([]reflect.Value{reflect.ValueOf(value)})
 	}
 }
 

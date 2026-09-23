@@ -30,14 +30,14 @@ type entityMapper struct {
 func (m entityMapper) mapping(columns []string, target any) (dest_ []any, afterScan func()) {
 	v := reflect.ValueOf(target).Elem()
 	dest_ = make([]any, 0, len(columns))
-	toFields := make([]func(), 0, len(columns))
+	afterScan_ := make([]func(), 0, len(columns))
 	for _, column := range columns {
 		if index, ok := m.ei.columnToFieldIndexMap[column]; ok {
 			field := v.Field(index)
 			if c := getFieldConverter(field.Type()); c != nil {
 				sd := c.newScanDest()
 				dest_ = append(dest_, sd.dest())
-				toFields = append(toFields, func() { c.toField(field, sd.value()) })
+				afterScan_ = append(afterScan_, func() { c.toField(field, sd.value()) })
 				continue
 			}
 			dest_ = append(dest_, field.Addr().Interface())
@@ -46,7 +46,7 @@ func (m entityMapper) mapping(columns []string, target any) (dest_ []any, afterS
 		dest_ = append(dest_, new(any))
 	}
 	afterScan = func() {
-		for _, f := range toFields {
+		for _, f := range afterScan_ {
 			f()
 		}
 	}
@@ -58,7 +58,7 @@ type tupleMapper struct{}
 func (m tupleMapper) mapping(column_ []string, target any) (dest_ []any, afterScan func()) {
 	v := reflect.ValueOf(target).Elem()
 	dest_ = make([]any, 0, len(column_))
-	toFields := make([]func(), 0, len(column_))
+	afterScan_ := make([]func(), 0, len(column_))
 	for i := range column_ {
 		if v.NumField() > i {
 			field := v.Field(i)
@@ -66,7 +66,7 @@ func (m tupleMapper) mapping(column_ []string, target any) (dest_ []any, afterSc
 			if c := getFieldConverter(fieldType); c != nil {
 				sd := c.newScanDest()
 				dest_ = append(dest_, sd.dest())
-				toFields = append(toFields, func() { c.toField(field, sd.value()) })
+				afterScan_ = append(afterScan_, func() { c.toField(field, sd.value()) })
 				continue
 			}
 			if isValidFieldType(fieldType) || isImplementScannerValuer(fieldType) {
@@ -77,7 +77,7 @@ func (m tupleMapper) mapping(column_ []string, target any) (dest_ []any, afterSc
 		dest_ = append(dest_, new(any))
 	}
 	afterScan = func() {
-		for _, f := range toFields {
+		for _, f := range afterScan_ {
 			f()
 		}
 	}
