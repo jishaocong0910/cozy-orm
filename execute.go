@@ -177,7 +177,7 @@ func (m *mutation) Do() (affected int64, err error) {
 }
 
 func (m *mutation) _getGenKey(result sql.Result) {
-	if m.executor.db.GetGeneratedKeyMode.Is(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) && len(m.mapTargets) > 0 {
+	if m.executor.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) && len(m.mapTargets) > 0 {
 		id, warn := result.LastInsertId()
 		if warn != nil {
 			printWarn(m.ctx, m.db.logger, errors.New("get generated key fail, "+warn.Error()))
@@ -194,7 +194,7 @@ func (m *mutation) _getGenKey(result sql.Result) {
 			return
 		}
 		fieldIndex := ei.columnToFieldIndexMap[ei.autoColumns[0]]
-		if m.db.GetGeneratedKeyMode.Is(GetGeneratedKeyMode_.LastInsertId) {
+		if m.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.LastInsertId) {
 			id = id - int64(len(m.mapTargets)-1)*ei.lastInsertIdStep
 		}
 		for _, et := range m.mapTargets {

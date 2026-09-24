@@ -29,7 +29,7 @@ type DB struct {
 	tabNameMapper       *NameMapper
 	colNameMapper       *NameMapper
 	paramPrefix         string
-	GetGeneratedKeyMode GetGeneratedKeyMode
+	getGeneratedKeyMode GetGeneratedKeyMode
 	pageMode            PageMode
 	quotedIdentifier    QuotedIdentifier
 	columnPolicyConfigs []*columnPolicyConfig
@@ -180,7 +180,7 @@ func (c DBConfig) Build() *DB {
 		tabNameMapper:       c.TabNameMapper,
 		colNameMapper:       c.ColNameMapper,
 		paramPrefix:         c.ParamPrefix,
-		GetGeneratedKeyMode: c.GetGeneratedKeyMode,
+		getGeneratedKeyMode: c.GetGeneratedKeyMode,
 		pageMode:            c.PageMode,
 		quotedIdentifier:    c.QuotedIdentifier,
 		columnPolicyConfigs: c.ColumnPolicyConfigs,

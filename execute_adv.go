@@ -219,7 +219,7 @@ func (i *insert[E]) LastStr(lastStr string) *insert[E] {
 }
 
 func (i *insert[E]) Do() (int64, error) {
-	switch i.executor.db.GetGeneratedKeyMode.ID {
+	switch i.executor.db.getGeneratedKeyMode.ID {
 	case GetGeneratedKeyMode_.InsertReturning.ID, GetGeneratedKeyMode_.SQLServer.ID:
 		_, err := newQuery[E](i.executor).MapTarget(i.entities...).BuildSql(func(b *SqlBuilder) {
 			i.buildSql(b)
@@ -227,7 +227,7 @@ func (i *insert[E]) Do() (int64, error) {
 		return int64(len(i.entities)), err
 	default:
 		m := newMutation(i.executor)
-		if i.executor.db.GetGeneratedKeyMode.Is(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) {
+		if i.executor.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) {
 			m.MapTarget[E](i.entities...)
 		}
 		return m.BuildSql(func(b *SqlBuilder) { i.buildSql(b) }).Do()
@@ -252,14 +252,14 @@ func (i *insert[E]) buildSql(b *SqlBuilder) {
 	b.ForEach(b.SepFix("(", ", ", ")"), insertedColumns, func(_ int, column string) {
 		b.WriteColumn(column)
 	})
-	if len(ei.autoColumns) > 0 && i.executor.db.GetGeneratedKeyMode.IsPresent() {
-		if GetGeneratedKeyMode_.SQLServer.Is(i.executor.db.GetGeneratedKeyMode) {
-			i.executor.db.GetGeneratedKeyMode.writeSql(b, ei.autoColumns)
+	if len(ei.autoColumns) > 0 && i.executor.db.getGeneratedKeyMode.IsPresent() {
+		if GetGeneratedKeyMode_.SQLServer.Is(i.executor.db.getGeneratedKeyMode) {
+			i.executor.db.getGeneratedKeyMode.writeSql(b, ei.autoColumns)
 			i._writeValuesClause(b, ei, insertedColumns)
 		} else {
 			i._writeValuesClause(b, ei, insertedColumns)
-			if i.executor.db.GetGeneratedKeyMode.writeSql != nil {
-				i.executor.db.GetGeneratedKeyMode.writeSql(b, ei.autoColumns)
+			if i.executor.db.getGeneratedKeyMode.writeSql != nil {
+				i.executor.db.getGeneratedKeyMode.writeSql(b, ei.autoColumns)
 			}
 		}
 	} else {

@@ -51,35 +51,35 @@ func TestDB(t *testing.T) {
 		db := DBConfig{DBType: DBType_.MySQL}.Build()
 		r.Equal("", db.paramPrefix)
 		r.Equal(QuotedIdentifier_.Backtick.ID, db.quotedIdentifier.ID)
-		r.Equal(GetGeneratedKeyMode_.FirstInsertId.ID, db.GetGeneratedKeyMode.ID)
+		r.Equal(GetGeneratedKeyMode_.FirstInsertId.ID, db.getGeneratedKeyMode.ID)
 		r.Equal(PageMode_.LimitOffset.ID, db.pageMode.ID)
 	}
 	{
 		db := DBConfig{DBType: DBType_.Oracle}.Build()
 		r.Equal(":", db.paramPrefix)
 		r.Equal(QuotedIdentifier_.DoubleQuote.ID, db.quotedIdentifier.ID)
-		r.Equal(GetGeneratedKeyMode_.Oracle.ID, db.GetGeneratedKeyMode.ID)
+		r.Equal(GetGeneratedKeyMode_.Oracle.ID, db.getGeneratedKeyMode.ID)
 		r.Equal(PageMode_.OffsetFetch.ID, db.pageMode.ID)
 	}
 	{
 		db := DBConfig{DBType: DBType_.Postgres}.Build()
 		r.Equal("$", db.paramPrefix)
 		r.Equal(QuotedIdentifier_.DoubleQuote.ID, db.quotedIdentifier.ID)
-		r.Equal(GetGeneratedKeyMode_.InsertReturning.ID, db.GetGeneratedKeyMode.ID)
+		r.Equal(GetGeneratedKeyMode_.InsertReturning.ID, db.getGeneratedKeyMode.ID)
 		r.Equal(PageMode_.LimitOffset.ID, db.pageMode.ID)
 	}
 	{
 		db := DBConfig{DBType: DBType_.SQLServer}.Build()
 		r.Equal(":", db.paramPrefix)
 		r.Equal(QuotedIdentifier_.Bracket.ID, db.quotedIdentifier.ID)
-		r.Equal(GetGeneratedKeyMode_.SQLServer.ID, db.GetGeneratedKeyMode.ID)
+		r.Equal(GetGeneratedKeyMode_.SQLServer.ID, db.getGeneratedKeyMode.ID)
 		r.Equal(PageMode_.OffsetFetch.ID, db.pageMode.ID)
 	}
 	{
 		db := DBConfig{DBType: DBType_.SQLite}.Build()
 		r.Equal("", db.paramPrefix)
 		r.Equal(QuotedIdentifier_.Backtick.ID, db.quotedIdentifier.ID)
-		r.Equal(GetGeneratedKeyMode_.LastInsertId.ID, db.GetGeneratedKeyMode.ID)
+		r.Equal(GetGeneratedKeyMode_.LastInsertId.ID, db.getGeneratedKeyMode.ID)
 		r.Equal(PageMode_.LimitOffset.ID, db.pageMode.ID)
 	}
 
