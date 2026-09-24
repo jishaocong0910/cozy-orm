@@ -35,12 +35,11 @@ var isValidKind = func() func(t reflect.Kind) bool {
 }()
 
 func isValidBuiltinType(t reflect.Type) bool {
-	switch t.Kind() {
-	case reflect.Pointer:
+	if k := t.Kind(); k == reflect.Pointer {
 		if isBaseValueType(t.Elem()) {
 			return true
 		}
-	case reflect.Slice:
+	} else if k == reflect.Slice {
 		if t.Elem().Kind() == reflect.Uint8 {
 			return true
 		}
