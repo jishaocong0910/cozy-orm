@@ -142,7 +142,7 @@ func convertArgs(args []any) []any {
 	for i, a := range args {
 		if a != nil {
 			v := reflect.ValueOf(a)
-			if isBaseKind(v.Kind()) && v.IsNil() {
+			if isValidKind(v.Kind()) && v.IsNil() {
 				continue
 			}
 			if c := getArgConverter(v.Type()); c != nil {

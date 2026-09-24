@@ -23,7 +23,7 @@ import (
 	_ "unsafe"
 )
 
-var isBaseKind = func() func(t reflect.Kind) bool {
+var isValidKind = func() func(t reflect.Kind) bool {
 	s := newSet(
 		reflect.Pointer,
 		reflect.Slice,
@@ -75,7 +75,7 @@ func isBaseArrayType(t reflect.Type) bool {
 
 //go:linkname isValidFieldType github.com/jishaocong0910/cozy-orm/orm.isValidFieldType
 func isValidFieldType(t reflect.Type) bool {
-	if !isBaseKind(t.Kind()) {
+	if !isValidKind(t.Kind()) {
 		return false
 	}
 	return isValidBuiltinType(t) || isImplementConverter(t) || isImplementScannerValuer(t)
@@ -103,21 +103,6 @@ func isBaseValueType(t reflect.Type) bool {
 }
 
 func isImplementConverter(t reflect.Type) bool {
-	switch t.Kind() {
-	case reflect.Slice, reflect.Map:
-	case reflect.Pointer:
-		t = t.Elem()
-		fallthrough
-	default:
-		switch t.Kind() {
-		case reflect.Struct, reflect.Array, reflect.Slice, reflect.Map:
-		default:
-			if !isBaseScalarKind(t) {
-				return false
-			}
-		}
-	}
-
 	if t.Kind() != reflect.Pointer {
 		t = reflect.PointerTo(t)
 	}
