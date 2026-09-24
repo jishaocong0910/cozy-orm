@@ -21,6 +21,14 @@ import (
 	"reflect"
 )
 
+func DemandFor[T any]() *OnDemand {
+	return &OnDemand{t: reflect.TypeFor[T]()}
+}
+
+type OnDemand struct {
+	t reflect.Type
+}
+
 type find[E any] struct {
 	query          *query[E]
 	selectedSet    set[string]
@@ -867,12 +875,4 @@ func (p *page) WriteSQL(b *SqlBuilder) {
 	if p != nil && p.pageMode.IsPresent() {
 		p.pageMode.writeSql(b, p.offset, p.pageSize)
 	}
-}
-
-func DemandFor[T any]() *OnDemand {
-	return &OnDemand{t: reflect.TypeFor[T]()}
-}
-
-type OnDemand struct {
-	t reflect.Type
 }
