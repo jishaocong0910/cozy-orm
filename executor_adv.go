@@ -229,14 +229,14 @@ func (i *insert[E]) LastStr(lastStr string) *insert[E] {
 func (i *insert[E]) Do() (int64, error) {
 	switch i.executor.db.getGeneratedKeyMode.ID {
 	case GetGeneratedKeyMode_.InsertReturning.ID, GetGeneratedKeyMode_.SQLServer.ID:
-		_, err := newQuery[E](i.executor).MapTarget(i.entities...).BuildSql(func(b *SqlBuilder) {
+		_, err := newQuery[E](i.executor).MapTargets(i.entities...).BuildSql(func(b *SqlBuilder) {
 			i.buildSql(b)
 		}).Do()
 		return int64(len(i.entities)), err
 	default:
 		m := newMutation(i.executor)
 		if i.executor.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) {
-			m.MapTarget[E](i.entities...)
+			m.MapTargets[E](i.entities...)
 		}
 		return m.BuildSql(func(b *SqlBuilder) { i.buildSql(b) }).Do()
 	}
