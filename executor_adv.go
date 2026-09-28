@@ -45,8 +45,8 @@ func (f *find[E]) Must() *find[E] {
 	return f
 }
 
-func (f *find[E]) Describe(desc string) *find[E] {
-	f.query.Describe(desc)
+func (f *find[E]) Description(desc string) *find[E] {
+	f.query.Description(desc)
 	return f
 }
 
@@ -132,8 +132,8 @@ func (f *findOne[E]) Must() *findOne[E] {
 	return f
 }
 
-func (f *findOne[E]) Describe(desc string) *findOne[E] {
-	f.find.Describe(desc)
+func (f *findOne[E]) Description(desc string) *findOne[E] {
+	f.find.Description(desc)
 	return f
 }
 
@@ -201,8 +201,8 @@ func (i *insert[E]) Must() *insert[E] {
 	return i
 }
 
-func (i *insert[E]) Describe(desc string) *insert[E] {
-	i.executor.setDescribe(desc)
+func (i *insert[E]) Description(desc string) *insert[E] {
+	i.executor.setDescription(desc)
 	return i
 }
 
@@ -307,8 +307,8 @@ func (u *update[E]) Must() *update[E] {
 	return u
 }
 
-func (u *update[E]) Describe(desc string) *update[E] {
-	u.mutation.Describe(desc)
+func (u *update[E]) Description(desc string) *update[E] {
+	u.mutation.Description(desc)
 	return u
 }
 
@@ -417,8 +417,8 @@ func (u *updateRow[E]) Must() *updateRow[E] {
 	return u
 }
 
-func (u *updateRow[E]) Describe(desc string) *updateRow[E] {
-	u.mutation.Describe(desc)
+func (u *updateRow[E]) Description(desc string) *updateRow[E] {
+	u.mutation.Description(desc)
 	return u
 }
 
@@ -531,8 +531,8 @@ func (d *delete[E]) Must() *delete[E] {
 	return d
 }
 
-func (d *delete[E]) Describe(desc string) *delete[E] {
-	d.mutation.Describe(desc)
+func (d *delete[E]) Description(desc string) *delete[E] {
+	d.mutation.Description(desc)
 	return d
 }
 
@@ -576,8 +576,8 @@ func (d *deleteSoftly[E]) Must() *deleteSoftly[E] {
 	return d
 }
 
-func (d *deleteSoftly[E]) Describe(desc string) *deleteSoftly[E] {
-	d.mutation.Describe(desc)
+func (d *deleteSoftly[E]) Description(desc string) *deleteSoftly[E] {
+	d.mutation.Description(desc)
 	return d
 }
 
@@ -632,8 +632,8 @@ func (c *count[E]) Must() *count[E] {
 	return c
 }
 
-func (c *count[E]) Describe(desc string) *count[E] {
-	c.query.Describe(desc)
+func (c *count[E]) Description(desc string) *count[E] {
+	c.query.Description(desc)
 	return c
 }
 

@@ -32,8 +32,8 @@ func (q *query[E]) Must() *query[E] {
 	return q
 }
 
-func (q *query[E]) Describe(desc string) *query[E] {
-	q.setDescribe(desc)
+func (q *query[E]) Description(desc string) *query[E] {
+	q.setDescription(desc)
 	return q
 }
 
@@ -136,8 +136,8 @@ func (m *mutation) Must() *mutation {
 	return m
 }
 
-func (m *mutation) Describe(desc string) *mutation {
-	m.setDescribe(desc)
+func (m *mutation) Description(desc string) *mutation {
+	m.setDescription(desc)
 	return m
 }
 
@@ -224,7 +224,7 @@ func (e *executor) setMust() {
 	e.must = true
 }
 
-func (e *executor) setDescribe(desc string) {
+func (e *executor) setDescription(desc string) {
 	e.desc = desc
 }
 

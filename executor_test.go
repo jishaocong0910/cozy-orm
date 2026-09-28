@@ -88,7 +88,7 @@ func TestQuery(t *testing.T) {
 		db, mock := orm.MockDB(r)
 		log := orm.MockLogger(db)
 		mock.ExpectPrepare("sql").ExpectQuery().WillReturnRows(mock.NewRows([]string{"unused"}))
-		_, err := db.Query[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Describe("test desc").BuildSql(func(b *orm.SqlBuilder) {
+		_, err := db.Query[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").BuildSql(func(b *orm.SqlBuilder) {
 			b.Write("sql")
 		}).Do()
 		r.NoError(err)
@@ -211,7 +211,7 @@ func TestMutation(t *testing.T) {
 		db, mock := orm.MockDB(r)
 		log := orm.MockLogger(db)
 		mock.ExpectPrepare("sql").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
-		_, err := db.Mutation(ctx).SqlLogLevel(orm.Level_.Info).Describe("test desc").BuildSql(func(b *orm.SqlBuilder) {
+		_, err := db.Mutation(ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").BuildSql(func(b *orm.SqlBuilder) {
 			b.Write("sql")
 		}).Do()
 		r.NoError(err)
