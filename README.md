@@ -11,7 +11,7 @@ Lightweight Go ORM with method chaining, minimalist API, and multi-database supp
 # Features
 
 - **Method Chaining**: Adopting Go 1.27's revolutionary generic method feature.
-- **Minimalist API**: Provides only two core execution methods, along with some methods for CRUD.
+- **Minimalist API**: Only two base execution APIs (Query & Mutation), along with common CRUD APIs.
 - **Dynamic SQL**: Supports dynamic SQL construction, compatible with all SQL dialects and driver placeholders.
 - **Getting Generated Keys**: Provides various strategies for getting generated keys after inserting.
 - **Custom Mapping**: Provides enhanced custom type mapping.
@@ -42,7 +42,7 @@ Please refer to the [Documentation]() for the full guide.
 # 特色
 
 - **链式调用**：依托Go 1.27泛型方法的革命性特性，实现流畅的链式调用。
-- **轻量API**：核心仅2个基础执行方法，同时封装了CRUD等常用方法。
+- **轻量API**：仅查询、变更两个基础执行API，同时封装了CRUD等通用API。
 - **SQL构建**：支持动态SQL构建，兼容各种SQL方言与参数占位符。
 - **获取生成Key**：兼容各主流数据库插入记录后获取自动生成Key的不同机制。
 - **自定义映射**：提供更友好的自定义类型映射功能。
