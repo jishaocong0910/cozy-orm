@@ -64,7 +64,7 @@ func TestQuery(t *testing.T) {
 	{
 		db, mock := orm.MockDB(r)
 		mock.ExpectPrepare("").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}).AddRow("abc"))
-		_, err := db.Query[orm.User](nil).MapTargets(&orm.User{}).BuildSql(func(b *orm.SqlBuilder) {}).Do()
+		_, err := db.Query[orm.User](nil).MapTo(&orm.User{}).BuildSql(func(b *orm.SqlBuilder) {}).Do()
 		r.EqualError(err, "sql: Scan error on column index 0, name \"id\": converting driver.Value type string (\"abc\") to a int64: invalid syntax")
 	}
 	{
@@ -115,7 +115,7 @@ func TestQuery(t *testing.T) {
 	{
 		db, mock := orm.MockDB(r)
 		mock.ExpectPrepare("").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1).RowError(0, errors.New("rows error")))
-		_, err := db.Query[orm.User](nil).MapTargets(&orm.User{}).BuildSql(func(b *orm.SqlBuilder) {}).Do()
+		_, err := db.Query[orm.User](nil).MapTo(&orm.User{}).BuildSql(func(b *orm.SqlBuilder) {}).Do()
 		r.EqualError(err, "rows error")
 		r.NoError(mock.ExpectationsWereMet())
 	}
@@ -154,7 +154,7 @@ func TestQuery(t *testing.T) {
 		db, mock := orm.MockDB(r)
 		mock.ExpectPrepare("").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}).
 			AddRow(1).AddRow(2))
-		users, err := db.Query[orm.User](nil).BuildSql(func(b *orm.SqlBuilder) {}).MapTargets(targets...).Do()
+		users, err := db.Query[orm.User](nil).BuildSql(func(b *orm.SqlBuilder) {}).MapTo(targets...).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
 		r.Nil(users)
@@ -238,7 +238,7 @@ func TestMutation(t *testing.T) {
 		sqlDB, mock := orm.MockSqlDB(r)
 		db := orm.DBConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId}.Build()
 		mock.ExpectPrepare("").ExpectExec().WillReturnResult(sqlmock.NewResult(1, 1))
-		affected, err := db.Mutation(nil).MapTargets(users...).BuildSql(func(b *orm.SqlBuilder) {
+		affected, err := db.Mutation(nil).MapTo(users...).BuildSql(func(b *orm.SqlBuilder) {
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
@@ -251,7 +251,7 @@ func TestMutation(t *testing.T) {
 		sqlDB, mock := orm.MockSqlDB(r)
 		db := orm.DBConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.LastInsertId}.Build()
 		mock.ExpectPrepare("").ExpectExec().WillReturnResult(sqlmock.NewResult(2, 1))
-		affected, err := db.Mutation(nil).MapTargets(users...).BuildSql(func(b *orm.SqlBuilder) {
+		affected, err := db.Mutation(nil).MapTo(users...).BuildSql(func(b *orm.SqlBuilder) {
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
@@ -264,7 +264,7 @@ func TestMutation(t *testing.T) {
 		db := orm.DBConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId}.Build()
 		log := orm.MockLogger(db)
 		mock.ExpectPrepare("").ExpectExec().WillReturnResult(sqlmock.NewResult(2, 1))
-		affected, err := db.Mutation(nil).MapTargets(new(1), new(1)).BuildSql(func(b *orm.SqlBuilder) {
+		affected, err := db.Mutation(nil).MapTo(new(1), new(1)).BuildSql(func(b *orm.SqlBuilder) {
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
@@ -278,7 +278,7 @@ func TestMutation(t *testing.T) {
 		db := orm.DBConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId}.Build()
 		log := orm.MockLogger(db)
 		mock.ExpectPrepare("").ExpectExec().WillReturnResult(orm.UnsupportedLastInsertIdResult{})
-		_, err := db.Mutation(nil).MapTargets(new(1), new(1)).BuildSql(func(b *orm.SqlBuilder) {
+		_, err := db.Mutation(nil).MapTo(new(1), new(1)).BuildSql(func(b *orm.SqlBuilder) {
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
@@ -291,7 +291,7 @@ func TestMutation(t *testing.T) {
 		db := orm.DBConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId}.Build()
 		log := orm.MockLogger(db)
 		mock.ExpectPrepare("").ExpectExec().WillReturnResult(sqlmock.NewResult(2, 1))
-		affected, err := db.Mutation(nil).MapTargets(&orm.DemoMulPk{}, &orm.DemoMulPk{}).BuildSql(func(b *orm.SqlBuilder) {
+		affected, err := db.Mutation(nil).MapTo(&orm.DemoMulPk{}, &orm.DemoMulPk{}).BuildSql(func(b *orm.SqlBuilder) {
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())

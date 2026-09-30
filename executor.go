@@ -47,7 +47,7 @@ func (q *query[E]) BuildSql(buildSql func(b *SqlBuilder)) *query[E] {
 	return q
 }
 
-func (q *query[E]) MapTargets(entities ...*E) *query[E] {
+func (q *query[E]) MapTo(entities ...*E) *query[E] {
 	q.mapTargets = entities
 	return q
 }
@@ -151,7 +151,7 @@ func (m *mutation) BuildSql(buildSql func(b *SqlBuilder)) *mutation {
 	return m
 }
 
-func (m *mutation) MapTargets[E any](entities ...*E) *mutation {
+func (m *mutation) MapTo[E any](entities ...*E) *mutation {
 	m.mapTargetType = reflect.TypeFor[E]()
 	m.mapTargets = make([]any, 0, len(entities))
 	for _, e := range entities {
