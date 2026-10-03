@@ -164,9 +164,8 @@ func TestInsert(t *testing.T) {
 		ctx := context.WithValue(context.Background(), "test", "test")
 		db, mock := orm.MockDB(r)
 		log := orm.MockLogger(db)
-		mock.ExpectPrepare("INSERT INTO user(name, status) VALUES (?, NULL) ON DUPLICATE KEY UPDATE id = id").ExpectExec().WithArgs("abc").WillReturnResult(sqlmock.NewResult(1, 1))
-		affected, err := db.Insert[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Entities(&orm.User{Name: new("abc")}).Required("status").
-			LastClause("ON DUPLICATE KEY UPDATE id = id").Do()
+		mock.ExpectPrepare("INSERT INTO user(name, status) VALUES (?, NULL)").ExpectExec().WithArgs("abc").WillReturnResult(sqlmock.NewResult(1, 1))
+		affected, err := db.Insert[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Entities(&orm.User{Name: new("abc")}).Required("status").Do()
 		r.NoError(err)
 		r.Equal(int64(1), affected)
 		lm := log.Msgs[0]

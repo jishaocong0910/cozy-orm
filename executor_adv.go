@@ -198,7 +198,6 @@ type insert[E any] struct {
 	executor    *executor
 	entities    []*E
 	requiredSet set[string]
-	lastClause  string
 }
 
 func (i *insert[E]) Must() *insert[E] {
@@ -223,11 +222,6 @@ func (i *insert[E]) Entities(entities ...*E) *insert[E] {
 
 func (i *insert[E]) Required(columns ...string) *insert[E] {
 	i.requiredSet = newSet(columns...)
-	return i
-}
-
-func (i *insert[E]) LastClause(lastClause string) *insert[E] {
-	i.lastClause = lastClause
 	return i
 }
 
@@ -277,9 +271,6 @@ func (i *insert[E]) buildSql(b *SqlBuilder) {
 		}
 	} else {
 		i._writeValuesClause(b, ei, insertedColumns)
-	}
-	if i.lastClause != "" {
-		b.Write(" ").Write(i.lastClause)
 	}
 }
 
