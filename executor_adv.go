@@ -37,7 +37,7 @@ type find[E any] struct {
 	page           *page
 	condition      *Condition
 	includeDeleted bool
-	lastStr        string
+	lastClause     string
 }
 
 func (f *find[E]) Must() *find[E] {
@@ -85,8 +85,8 @@ func (f *find[E]) IncludeDeleted() *find[E] {
 	return f
 }
 
-func (f *find[E]) LastStr(lastStr string) *find[E] {
-	f.lastStr = lastStr
+func (f *find[E]) LastClause(lastClause string) *find[E] {
+	f.lastClause = lastClause
 	return f
 }
 
@@ -115,8 +115,8 @@ func (f *find[E]) Do() ([]*E, error) {
 			f.page.pageMode = f.query.db.pageMode
 			b.Accept(f.page)
 		}
-		if f.lastStr != "" {
-			b.Write(" ").Write(f.lastStr)
+		if f.lastClause != "" {
+			b.Write(" ").Write(f.lastClause)
 		}
 	}).Do()
 	return es, err
@@ -162,13 +162,18 @@ func (f *findOne[E]) OrderBy(orderBy *orderBy) *findOne[E] {
 	return f
 }
 
+func (f *findOne[E]) Page(page *page) *findOne[E] {
+	f.find.Page(page)
+	return f
+}
+
 func (f *findOne[E]) IncludeDeleted() *findOne[E] {
 	f.find.IncludeDeleted()
 	return f
 }
 
-func (f *findOne[E]) LastStr(lastStr string) *findOne[E] {
-	f.find.LastStr(lastStr)
+func (f *findOne[E]) LastClause(lastClause string) *findOne[E] {
+	f.find.LastClause(lastClause)
 	return f
 }
 
@@ -192,8 +197,8 @@ func (f *findOne[E]) Do() (*E, error) {
 type insert[E any] struct {
 	executor    *executor
 	entities    []*E
-	nullableSet set[string]
-	lastStr     string
+	requiredSet set[string]
+	lastClause  string
 }
 
 func (i *insert[E]) Must() *insert[E] {
@@ -216,13 +221,13 @@ func (i *insert[E]) Entities(entities ...*E) *insert[E] {
 	return i
 }
 
-func (i *insert[E]) Nullable(columns ...string) *insert[E] {
-	i.nullableSet = newSet(columns...)
+func (i *insert[E]) Required(columns ...string) *insert[E] {
+	i.requiredSet = newSet(columns...)
 	return i
 }
 
-func (i *insert[E]) LastStr(lastStr string) *insert[E] {
-	i.lastStr = lastStr
+func (i *insert[E]) LastClause(lastClause string) *insert[E] {
+	i.lastClause = lastClause
 	return i
 }
 
@@ -254,7 +259,7 @@ func (i *insert[E]) buildSql(b *SqlBuilder) {
 	}
 
 	insertedColumns := ei.getColumns(i.entities[0], nil,
-		i.nullableSet.concat(ei.insertPolicy.forceColumnSet, ei.insertPolicy.defaultColumnSet),
+		i.requiredSet.concat(ei.insertPolicy.forceColumnSet, ei.insertPolicy.defaultColumnSet),
 		ei.insertPolicy.ignoredColumnSet)
 	b.Write("INSERT INTO ").Write(ei.table)
 	b.ForEach(b.SepFix("(", ", ", ")"), insertedColumns, func(_ int, column string) {
@@ -273,8 +278,8 @@ func (i *insert[E]) buildSql(b *SqlBuilder) {
 	} else {
 		i._writeValuesClause(b, ei, insertedColumns)
 	}
-	if i.lastStr != "" {
-		b.Write(" ").Write(i.lastStr)
+	if i.lastClause != "" {
+		b.Write(" ").Write(i.lastClause)
 	}
 }
 
@@ -296,7 +301,7 @@ type update[E any] struct {
 	entity         *E
 	onDemand       *OnDemand
 	setColumns     setColumns
-	nullableSet    set[string]
+	requiredSet    set[string]
 	condition      *Condition
 	includeDeleted bool
 	skipSafety     bool
@@ -337,8 +342,8 @@ func (u *update[E]) SetRaw(column string, sql string) *update[E] {
 	return u
 }
 
-func (u *update[E]) Nullable(columns ...string) *update[E] {
-	u.nullableSet = newSet(columns...)
+func (u *update[E]) Required(columns ...string) *update[E] {
+	u.requiredSet = newSet(columns...)
 	return u
 }
 
@@ -369,7 +374,7 @@ func (u *update[E]) Do() (int64, error) {
 		}
 
 		updatedColumns := ei.getColumns(u.entity, u.onDemand,
-			u.nullableSet.concat(u.setColumns.columnSet, ei.updatePolicy.forceColumnSet, ei.updatePolicy.defaultColumnSet),
+			u.requiredSet.concat(u.setColumns.columnSet, ei.updatePolicy.forceColumnSet, ei.updatePolicy.defaultColumnSet),
 			ei.updatePolicy.ignoredColumnSet)
 		if len(updatedColumns) == 0 {
 			b.Cancel()
@@ -406,7 +411,7 @@ type updateRow[E any] struct {
 	entities       []*E
 	onDemand       *OnDemand
 	setColumns     setColumns
-	nullableSet    set[string]
+	requiredSet    set[string]
 	condition      *Condition
 	includeDeleted bool
 	skipSafety     bool
@@ -442,8 +447,8 @@ func (u *updateRow[E]) SetRaw(column string, sql string) *updateRow[E] {
 	return u
 }
 
-func (u *updateRow[E]) Nullable(columns ...string) *updateRow[E] {
-	u.nullableSet = newSet(columns...)
+func (u *updateRow[E]) Required(columns ...string) *updateRow[E] {
+	u.requiredSet = newSet(columns...)
 	return u
 }
 
@@ -479,7 +484,7 @@ func (u *updateRow[E]) Do() (int64, error) {
 		pkColumn := ei.pkColumns[0]
 
 		updatedColumns := ei.getColumns(u.entities[0], u.onDemand,
-			u.nullableSet.concat(u.setColumns.columnSet, ei.updatePolicy.forceColumnSet, ei.updatePolicy.defaultColumnSet),
+			u.requiredSet.concat(u.setColumns.columnSet, ei.updatePolicy.forceColumnSet, ei.updatePolicy.defaultColumnSet),
 			ei.updatePolicy.ignoredColumnSet)
 		if len(updatedColumns) == 0 {
 			b.Cancel()

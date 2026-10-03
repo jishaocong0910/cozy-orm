@@ -41,7 +41,7 @@ func TestFind(t *testing.T) {
 			WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(9, "abc").AddRow(10, "efg"))
 		users, err := db.Find[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Select("id", "version").OnDemand(orm.DemandFor[orm.UserSimple]()).
 			Condition(orm.Cond().Eq("level", 1)).OrderBy(orm.OrderBy().Desc("id").Asc("name")).
-			Page(orm.Page(10, 1)).LastStr("FOR UPDATE").Do()
+			Page(orm.Page(10, 1)).LastClause("FOR UPDATE").Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
 		r.Equal(int64(9), *users[0].Id)
@@ -114,7 +114,7 @@ func TestFindOne(t *testing.T) {
 			WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(9, "abc").AddRow(10, "efg"))
 		user, err := db.FindOne[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Compatible().Select("id", "version").
 			OnDemand(orm.DemandFor[orm.UserSimple]()).Condition(orm.Cond().Eq("level", 1)).OrderBy(orm.OrderBy().Desc("id").Asc("name")).
-			LastStr("FOR UPDATE").Do()
+			LastClause("FOR UPDATE").Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
 		r.Equal(int64(9), *user.Id)
@@ -165,8 +165,8 @@ func TestInsert(t *testing.T) {
 		db, mock := orm.MockDB(r)
 		log := orm.MockLogger(db)
 		mock.ExpectPrepare("INSERT INTO user(name, status) VALUES (?, NULL) ON DUPLICATE KEY UPDATE id = id").ExpectExec().WithArgs("abc").WillReturnResult(sqlmock.NewResult(1, 1))
-		affected, err := db.Insert[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Entities(&orm.User{Name: new("abc")}).Nullable("status").
-			LastStr("ON DUPLICATE KEY UPDATE id = id").Do()
+		affected, err := db.Insert[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Entities(&orm.User{Name: new("abc")}).Required("status").
+			LastClause("ON DUPLICATE KEY UPDATE id = id").Do()
 		r.NoError(err)
 		r.Equal(int64(1), affected)
 		lm := log.Msgs[0]
@@ -339,7 +339,7 @@ func TestUpdate(t *testing.T) {
 		mock.ExpectPrepare("UPDATE user SET name = ?, phone = NULL, email = NULL, status = ?, level = '2', properties = NULL, tags = NULL WHERE id = ? AND status = ?").
 			ExpectExec().WithArgs("abc", 2, 1, 4).WillReturnResult(sqlmock.NewResult(0, 1))
 		affected, err := db.Update[orm.User](ctx).Entity(&orm.User{Id: new(int64(1)), Name: new("abc"), Category: &orm.UserCategory{Organization: "none", Class: 1}}).
-			OnDemand(orm.DemandFor[orm.UserSimple]()).Nullable("properties").Set("status", orm.UserStatus(2)).Set("tags", "'t1,t2'").Set("tags", nil).
+			OnDemand(orm.DemandFor[orm.UserSimple]()).Required("properties").Set("status", orm.UserStatus(2)).Set("tags", "'t1,t2'").Set("tags", nil).
 			SetRaw("level", "'2'").
 			Condition(orm.Cond().Eq("status", 4)).Do()
 		r.NoError(err)
@@ -367,7 +367,7 @@ func TestUpdate(t *testing.T) {
 			WithArgs("abc", orm.AnyTime{}, 1).
 			WillReturnResult(sqlmock.NewResult(0, 0))
 		_, err = db.Update[orm.User](nil).Entity(&orm.User{Id: new(int64(1)), Name: new("abc"), CreateAt: new(time.Now()), Version: new(int64(5))}).
-			Nullable("update_at").IncludeDeleted().Do()
+			Required("update_at").IncludeDeleted().Do()
 		r.NoError(err)
 	}
 }
@@ -415,7 +415,7 @@ func TestUpdateRow(t *testing.T) {
 			WithArgs(1, "a", 2, "b", 1, 2, "email", 2, 1, 2, 5).WillReturnResult(sqlmock.NewResult(1, 1))
 		affected, err := db.UpdateRow[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
 			Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b"), Email: new("email")}).
-			Nullable("properties").Set("status", orm.UserStatus(2)).Set("tags", nil).SetRaw("level", "'2'").
+			Required("properties").Set("status", orm.UserStatus(2)).Set("tags", nil).SetRaw("level", "'2'").
 			Condition(orm.Cond().Eq("level", 5)).Do()
 		r.NoError(err)
 		r.Equal(int64(1), affected)
@@ -447,7 +447,7 @@ func TestUpdateRow(t *testing.T) {
 			WithArgs(1, "a", 2, "b", orm.AnyTime{}, 1, 2).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		affected, err = db.UpdateRow[orm.User](nil).Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b"), Version: new(int64(5))}).
-			Nullable("update_at", "version").IncludeDeleted().Do()
+			Required("update_at", "version").IncludeDeleted().Do()
 		r.NoError(err)
 		r.Equal(int64(1), affected)
 	}
@@ -458,7 +458,7 @@ func TestUpdateRow(t *testing.T) {
 			"WHERE id = ? AND level = ?").ExpectExec().
 			WithArgs("a", 2, 1, 5).WillReturnResult(sqlmock.NewResult(1, 1))
 		affected, err := db.UpdateRow[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
-			Entities(&orm.User{Id: new(int64(1)), Name: new("a")}).Nullable("properties").
+			Entities(&orm.User{Id: new(int64(1)), Name: new("a")}).Required("properties").
 			Set("status", orm.UserStatus(2)).Set("tags", nil).SetRaw("level", "'2'").
 			Condition(orm.Cond().Eq("level", 5)).Do()
 		r.NoError(err)
