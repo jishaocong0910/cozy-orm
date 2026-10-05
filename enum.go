@@ -76,7 +76,7 @@ var QuotedIdentifier_ = e.NewEnum(_QuotedIdentifier{
 
 type GetGeneratedKeyMode struct {
 	e.EnumElem
-	writeSql func(b *SqlBuilder, autoColumns []string)
+	writeSQL func(b *SqlBuilder, autoColumns []string)
 }
 
 type _GetGeneratedKeyMode struct {
@@ -90,14 +90,14 @@ type _GetGeneratedKeyMode struct {
 
 var GetGeneratedKeyMode_ = e.NewEnum(_GetGeneratedKeyMode{
 	InsertReturning: GetGeneratedKeyMode{
-		writeSql: func(b *SqlBuilder, autoColumns []string) {
+		writeSQL: func(b *SqlBuilder, autoColumns []string) {
 			b.ForEach(b.SepFixOpt(" RETURNING ", ", ", ""), autoColumns, func(_ int, column string) {
 				b.WriteColumn(column)
 			})
 		},
 	},
 	SQLServer: GetGeneratedKeyMode{
-		writeSql: func(b *SqlBuilder, autoColumns []string) {
+		writeSQL: func(b *SqlBuilder, autoColumns []string) {
 			b.ForEach(b.SepFixOpt(" OUTPUT ", ", ", ""), autoColumns, func(_ int, column string) {
 				b.Write("INSERTED.").WriteColumn(column)
 			})
@@ -107,7 +107,7 @@ var GetGeneratedKeyMode_ = e.NewEnum(_GetGeneratedKeyMode{
 
 type PageMode struct {
 	e.EnumElem
-	writeSql func(b *SqlBuilder, offset, count int)
+	writeSQL func(b *SqlBuilder, offset, count int)
 }
 
 type _PageMode struct {
@@ -118,7 +118,7 @@ type _PageMode struct {
 
 var PageMode_ = e.NewEnum(_PageMode{
 	LimitOffset: PageMode{
-		writeSql: func(b *SqlBuilder, offset, count int) {
+		writeSQL: func(b *SqlBuilder, offset, count int) {
 			b.Write(" LIMIT ").Write(strconv.FormatInt(int64(count), 10))
 			if offset > 0 {
 				b.Write(" OFFSET ").Write(strconv.FormatInt(int64(offset), 10))
@@ -126,7 +126,7 @@ var PageMode_ = e.NewEnum(_PageMode{
 		},
 	},
 	OffsetFetch: PageMode{
-		writeSql: func(b *SqlBuilder, offset, count int) {
+		writeSQL: func(b *SqlBuilder, offset, count int) {
 			b.Write(" OFFSET ").Write(strconv.FormatInt(int64(offset), 10)).Write(" ROWS")
 			b.Write(" FETCH NEXT ").Write(strconv.FormatInt(int64(count), 10)).Write(" ROWS ONLY")
 		},

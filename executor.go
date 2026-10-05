@@ -42,8 +42,8 @@ func (q *query[E]) SqlLogLevel(level Level) *query[E] {
 	return q
 }
 
-func (q *query[E]) BuildSql(buildSql func(b *SqlBuilder)) *query[E] {
-	q.setBuildSql(buildSql)
+func (q *query[E]) BuildSql(buildSQL func(b *SqlBuilder)) *query[E] {
+	q.setBuildSQL(buildSQL)
 	return q
 }
 
@@ -146,8 +146,8 @@ func (m *mutation) SqlLogLevel(level Level) *mutation {
 	return m
 }
 
-func (m *mutation) BuildSql(buildSql func(b *SqlBuilder)) *mutation {
-	m.setBuildSql(buildSql)
+func (m *mutation) BuildSql(buildSQL func(b *SqlBuilder)) *mutation {
+	m.setBuildSQL(buildSQL)
 	return m
 }
 
@@ -217,7 +217,7 @@ type executor struct {
 	desc        string
 	sqlLogLevel Level
 	builder     *SqlBuilder
-	buildSql    func(b *SqlBuilder)
+	buildSQL    func(b *SqlBuilder)
 }
 
 func (e *executor) setMust() {
@@ -232,8 +232,8 @@ func (e *executor) setSqlLogLevel(level Level) {
 	e.sqlLogLevel = level
 }
 
-func (e *executor) setBuildSql(buildSql func(b *SqlBuilder)) {
-	e.buildSql = buildSql
+func (e *executor) setBuildSQL(buildSQL func(b *SqlBuilder)) {
+	e.buildSQL = buildSQL
 }
 
 func (e *executor) printSqlRowCount(rowCount int64, cost time.Duration) {
@@ -252,12 +252,12 @@ func (e *executor) printSqlError(err error) {
 }
 
 func (e *executor) doQuery() (*sql.Rows, []string, time.Duration, bool, error) {
-	if e.buildSql == nil {
+	if e.buildSQL == nil {
 		return nil, nil, -1, true, nil
 	}
 	builder := newSqlBuilder(e.db.paramPrefix, e.db.quotedIdentifier)
 	e.builder = builder
-	e.buildSql(builder)
+	e.buildSQL(builder)
 	if builder.err != nil {
 		return nil, nil, -1, false, builder.err
 	}
@@ -289,12 +289,12 @@ func (e *executor) doQuery() (*sql.Rows, []string, time.Duration, bool, error) {
 }
 
 func (e *executor) doExec() (sql.Result, time.Duration, bool, error) {
-	if e.buildSql == nil {
+	if e.buildSQL == nil {
 		return nil, -1, true, nil
 	}
 	builder := newSqlBuilder(e.db.paramPrefix, e.db.quotedIdentifier)
 	e.builder = builder
-	e.buildSql(builder)
+	e.buildSQL(builder)
 	if builder.err != nil {
 		return nil, -1, false, builder.err
 	}

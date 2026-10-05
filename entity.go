@@ -82,22 +82,22 @@ type entityInfo struct {
 	updatePolicy           assignedPolicy
 	deleteSoftlyPolicy     deleteSoftlyPolicy
 
-	onDemandColumns             sync.Map
+	demandColumns               sync.Map
 	registerOnDemandColumnsLock sync.Mutex
 }
 
-func (e *entityInfo) getColumns(entity any, onDemand *OnDemand, requiredSet set[string], ignoredSet set[string]) []string {
+func (e *entityInfo) getColumns(entity any, demand *Demand, requiredSet set[string], ignoredSet set[string]) []string {
 	var columns []string
 	var ev reflect.Value
-	onDemandColumnSet := e._getOnDemandColumnSet(onDemand)
+	demandColumnSet := e._getDemandColumnSet(demand)
 
-	if onDemandColumnSet == nil {
+	if demandColumnSet == nil {
 		columns = make([]string, 0, len(e.columns))
 		if entity != nil {
 			ev = reflect.ValueOf(entity).Elem()
 		}
 	} else {
-		columns = make([]string, 0, len(onDemandColumnSet))
+		columns = make([]string, 0, len(demandColumnSet))
 	}
 
 	for _, column := range e.columns {
@@ -108,7 +108,7 @@ func (e *entityInfo) getColumns(entity any, onDemand *OnDemand, requiredSet set[
 			columns = append(columns, column)
 			continue
 		}
-		if onDemandColumnSet == nil {
+		if demandColumnSet == nil {
 			if !ev.IsValid() {
 				continue
 			}
@@ -116,7 +116,7 @@ func (e *entityInfo) getColumns(entity any, onDemand *OnDemand, requiredSet set[
 				columns = append(columns, column)
 				continue
 			}
-		} else if onDemandColumnSet.contain(column) {
+		} else if demandColumnSet.contain(column) {
 			columns = append(columns, column)
 			continue
 		}
@@ -151,11 +151,11 @@ func (e *entityInfo) getValueMap(entity any, column2s ...[]string) map[string]an
 	return valueMap
 }
 
-func (e *entityInfo) _getOnDemandColumnSet(onDemand *OnDemand) set[string] {
-	if onDemand == nil || onDemand.t == nil {
+func (e *entityInfo) _getDemandColumnSet(demand *Demand) set[string] {
+	if demand == nil || demand.t == nil {
 		return nil
 	}
-	if val, ok := e.onDemandColumns.Load(onDemand.t); ok {
+	if val, ok := e.demandColumns.Load(demand.t); ok {
 		columnSet, _ := val.(set[string])
 		return columnSet
 	}
@@ -163,18 +163,18 @@ func (e *entityInfo) _getOnDemandColumnSet(onDemand *OnDemand) set[string] {
 	e.registerOnDemandColumnsLock.Lock()
 	defer e.registerOnDemandColumnsLock.Unlock()
 
-	if val, ok := e.onDemandColumns.Load(onDemand.t); ok { // coverage-ignore
+	if val, ok := e.demandColumns.Load(demand.t); ok { // coverage-ignore
 		columnSet, _ := val.(set[string])
 		return columnSet
 	}
 
-	if onDemand.t.Kind() != reflect.Struct {
-		e.onDemandColumns.Store(onDemand.t, nil)
+	if demand.t.Kind() != reflect.Struct {
+		e.demandColumns.Store(demand.t, nil)
 		return nil
 	}
 
-	columns := make([]string, 0, onDemand.t.NumField())
-	for tf := range onDemand.t.Fields() {
+	columns := make([]string, 0, demand.t.NumField())
+	for tf := range demand.t.Fields() {
 		if tf.Anonymous {
 			continue
 		}
@@ -184,7 +184,7 @@ func (e *entityInfo) _getOnDemandColumnSet(onDemand *OnDemand) set[string] {
 	}
 
 	columnSet := newSet(columns...)
-	e.onDemandColumns.Store(onDemand.t, columnSet)
+	e.demandColumns.Store(demand.t, columnSet)
 	return columnSet
 }
 
@@ -284,7 +284,7 @@ func (p *assignedPolicy) loadConfig(columnOnInsertMap map[string]*assignedPolicy
 		assignedValueMap[column] = assignedValuePolicy{
 			trueRawSqlFalseValue: config.trueRawSqlFalseValue,
 			value:                config.value,
-			rawSql:               config.rawSql,
+			rawSQL:               config.rawSQL,
 		}
 	}
 	if len(ignoredColumnSet) > 0 {
@@ -312,7 +312,7 @@ func (p *assignedPolicy) loadConfig(columnOnInsertMap map[string]*assignedPolicy
 type assignedValuePolicy struct {
 	trueRawSqlFalseValue bool
 	value                func(ctx context.Context) any
-	rawSql               func(ctx context.Context) string
+	rawSQL               func(ctx context.Context) string
 }
 
 type deleteSoftlyPolicy struct {

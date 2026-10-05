@@ -112,7 +112,7 @@ func TestFindOne(t *testing.T) {
 		mock.ExpectPrepare("SELECT id, name, phone, email, level, version FROM user " +
 			"WHERE level = ? ORDER BY id DESC, name ASC FOR UPDATE").ExpectQuery().WithArgs(1).
 			WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(9, "abc").AddRow(10, "efg"))
-		user, err := db.FindOne[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Compatible().Select("id", "version").
+		user, err := db.FindOne[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Lenient().Select("id", "version").
 			OnDemand(orm.DemandFor[orm.UserSimple]()).Condition(orm.Cond().Eq("level", 1)).OrderBy(orm.OrderBy().Desc("id").Asc("name")).
 			LastClause("FOR UPDATE").Do()
 		r.NoError(err)
@@ -159,6 +159,17 @@ func TestInsert(t *testing.T) {
 		affected, err := db.Insert[orm.User](nil).Do()
 		r.Equal(int64(0), affected)
 		r.NoError(err)
+	}
+	{
+		db := orm.DBConfig{
+			GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.Oracle,
+		}.Build()
+		users := make([]*orm.User, 0, 1001)
+		for range 1001 {
+			users = append(users, &orm.User{})
+		}
+		_, err := db.Insert[orm.User](nil).Entities(users...).Do()
+		r.Error(err, "entity count cannot exceed 1000 in Oracle")
 	}
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")

@@ -21,18 +21,18 @@ import (
 	"reflect"
 )
 
-func DemandFor[T any]() *OnDemand {
-	return &OnDemand{t: reflect.TypeFor[T]()}
+func DemandFor[T any]() *Demand {
+	return &Demand{t: reflect.TypeFor[T]()}
 }
 
-type OnDemand struct {
+type Demand struct {
 	t reflect.Type
 }
 
 type find[E any] struct {
 	query          *query[E]
 	selectedSet    set[string]
-	onDemand       *OnDemand
+	demand         *Demand
 	orderBy        *orderBy
 	page           *page
 	condition      *Condition
@@ -60,8 +60,8 @@ func (f *find[E]) Select(columns ...string) *find[E] {
 	return f
 }
 
-func (f *find[E]) OnDemand(onDemand *OnDemand) *find[E] {
-	f.onDemand = onDemand
+func (f *find[E]) OnDemand(demand *Demand) *find[E] {
+	f.demand = demand
 	return f
 }
 
@@ -98,7 +98,7 @@ func (f *find[E]) Do() ([]*E, error) {
 			return
 		}
 
-		columns := ei.getColumns(nil, f.onDemand, f.selectedSet, nil)
+		columns := ei.getColumns(nil, f.demand, f.selectedSet, nil)
 		if len(columns) == 0 {
 			columns = ei.columns
 		}
@@ -123,8 +123,8 @@ func (f *find[E]) Do() ([]*E, error) {
 }
 
 type findOne[E any] struct {
-	find       *find[E]
-	compatible bool
+	find    *find[E]
+	lenient bool
 }
 
 func (f *findOne[E]) Must() *findOne[E] {
@@ -147,8 +147,8 @@ func (f *findOne[E]) Select(columns ...string) *findOne[E] {
 	return f
 }
 
-func (f *findOne[E]) OnDemand(onDemand *OnDemand) *findOne[E] {
-	f.find.OnDemand(onDemand)
+func (f *findOne[E]) OnDemand(demand *Demand) *findOne[E] {
+	f.find.OnDemand(demand)
 	return f
 }
 
@@ -177,8 +177,8 @@ func (f *findOne[E]) LastClause(lastClause string) *findOne[E] {
 	return f
 }
 
-func (f *findOne[E]) Compatible() *findOne[E] {
-	f.compatible = true
+func (f *findOne[E]) Lenient() *findOne[E] {
+	f.lenient = true
 	return f
 }
 
@@ -186,7 +186,7 @@ func (f *findOne[E]) Do() (*E, error) {
 	entities, err := f.find.Do()
 	var fst *E
 	if len(entities) > 0 {
-		if len(entities) > 1 && !f.compatible {
+		if len(entities) > 1 && !f.lenient {
 			err = errors.New("return more than one row")
 		}
 		fst = entities[0]
@@ -246,6 +246,10 @@ func (i *insert[E]) buildSql(b *SqlBuilder) {
 		b.Cancel()
 		return
 	}
+	if i.executor.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.Oracle) && len(i.entities) > 1000 {
+		b.Error(errors.New("entity count cannot exceed 1000 in Oracle"))
+		return
+	}
 	ei, err := i.executor.db.getEntityInfo(reflect.TypeFor[E]())
 	if err != nil {
 		b.Error(err)
@@ -260,13 +264,13 @@ func (i *insert[E]) buildSql(b *SqlBuilder) {
 		b.WriteColumn(column)
 	})
 	if len(ei.autoColumns) > 0 && i.executor.db.getGeneratedKeyMode.IsPresent() {
-		if GetGeneratedKeyMode_.SQLServer.Is(i.executor.db.getGeneratedKeyMode) {
-			i.executor.db.getGeneratedKeyMode.writeSql(b, ei.autoColumns)
+		if i.executor.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.SQLServer) {
+			i.executor.db.getGeneratedKeyMode.writeSQL(b, ei.autoColumns)
 			i._writeValuesClause(b, ei, insertedColumns)
 		} else {
 			i._writeValuesClause(b, ei, insertedColumns)
-			if i.executor.db.getGeneratedKeyMode.writeSql != nil {
-				i.executor.db.getGeneratedKeyMode.writeSql(b, ei.autoColumns)
+			if i.executor.db.getGeneratedKeyMode.writeSQL != nil {
+				i.executor.db.getGeneratedKeyMode.writeSQL(b, ei.autoColumns)
 			}
 		}
 	} else {
@@ -290,7 +294,7 @@ func (i *insert[E]) _writeValuesClause(b *SqlBuilder, ei *entityInfo, insertedCo
 type update[E any] struct {
 	mutation       *mutation
 	entity         *E
-	onDemand       *OnDemand
+	demand         *Demand
 	setColumns     setColumns
 	requiredSet    set[string]
 	condition      *Condition
@@ -318,8 +322,8 @@ func (u *update[E]) Entity(entity *E) *update[E] {
 	return u
 }
 
-func (u *update[E]) OnDemand(onDemand *OnDemand) *update[E] {
-	u.onDemand = onDemand
+func (u *update[E]) OnDemand(demand *Demand) *update[E] {
+	u.demand = demand
 	return u
 }
 
@@ -329,7 +333,7 @@ func (u *update[E]) Set(column string, value any) *update[E] {
 }
 
 func (u *update[E]) SetRaw(column string, sql string) *update[E] {
-	u.setColumns.add(column, assignedRawSql{rawSql: sql})
+	u.setColumns.add(column, assignedRawSQL{rawSQL: sql})
 	return u
 }
 
@@ -364,7 +368,7 @@ func (u *update[E]) Do() (int64, error) {
 			return
 		}
 
-		updatedColumns := ei.getColumns(u.entity, u.onDemand,
+		updatedColumns := ei.getColumns(u.entity, u.demand,
 			u.requiredSet.concat(u.setColumns.columnSet, ei.updatePolicy.forceColumnSet, ei.updatePolicy.defaultColumnSet),
 			ei.updatePolicy.ignoredColumnSet)
 		if len(updatedColumns) == 0 {
@@ -400,7 +404,7 @@ func (u *update[E]) Do() (int64, error) {
 type updateRow[E any] struct {
 	mutation       *mutation
 	entities       []*E
-	onDemand       *OnDemand
+	demand         *Demand
 	setColumns     setColumns
 	requiredSet    set[string]
 	condition      *Condition
@@ -423,8 +427,18 @@ func (u *updateRow[E]) SqlLogLevel(level Level) *updateRow[E] {
 	return u
 }
 
-func (u *updateRow[E]) OnDemand(onDemand *OnDemand) *updateRow[E] {
-	u.onDemand = onDemand
+func (u *updateRow[E]) Entities(entities ...*E) *updateRow[E] {
+	u.entities = entities
+	return u
+}
+
+func (u *updateRow[E]) Required(columns ...string) *updateRow[E] {
+	u.requiredSet = newSet(columns...)
+	return u
+}
+
+func (u *updateRow[E]) OnDemand(demand *Demand) *updateRow[E] {
+	u.demand = demand
 	return u
 }
 
@@ -434,12 +448,7 @@ func (u *updateRow[E]) Set(column string, value any) *updateRow[E] {
 }
 
 func (u *updateRow[E]) SetRaw(column string, sql string) *updateRow[E] {
-	u.setColumns.add(column, assignedRawSql{rawSql: sql})
-	return u
-}
-
-func (u *updateRow[E]) Required(columns ...string) *updateRow[E] {
-	u.requiredSet = newSet(columns...)
+	u.setColumns.add(column, assignedRawSQL{rawSQL: sql})
 	return u
 }
 
@@ -450,11 +459,6 @@ func (u *updateRow[E]) Condition(cond *Condition) *updateRow[E] {
 
 func (u *updateRow[E]) IncludeDeleted() *updateRow[E] {
 	u.includeDeleted = true
-	return u
-}
-
-func (u *updateRow[E]) Entities(entities ...*E) *updateRow[E] {
-	u.entities = entities
 	return u
 }
 
@@ -474,7 +478,7 @@ func (u *updateRow[E]) Do() (int64, error) {
 		}
 		pkColumn := ei.pkColumns[0]
 
-		updatedColumns := ei.getColumns(u.entities[0], u.onDemand,
+		updatedColumns := ei.getColumns(u.entities[0], u.demand,
 			u.requiredSet.concat(u.setColumns.columnSet, ei.updatePolicy.forceColumnSet, ei.updatePolicy.defaultColumnSet),
 			ei.updatePolicy.ignoredColumnSet)
 		if len(updatedColumns) == 0 {
@@ -732,7 +736,7 @@ func (a *assignedManager[E]) _getPolicyValueWriter(column string) SqlWriter {
 	var vm SqlWriter
 	p := a.policy.assignedValueMap[column]
 	if p.trueRawSqlFalseValue {
-		vm = assignedRawSql{rawSql: p.rawSql(a.ctx)}
+		vm = assignedRawSQL{rawSQL: p.rawSQL(a.ctx)}
 	} else {
 		vm = assignedValue{value: p.value(a.ctx)}
 	}
@@ -772,12 +776,12 @@ func (a assignedValue) WriteSQL(b *SqlBuilder) {
 	}
 }
 
-type assignedRawSql struct {
-	rawSql string
+type assignedRawSQL struct {
+	rawSQL string
 }
 
-func (a assignedRawSql) WriteSQL(b *SqlBuilder) {
-	b.Write(a.rawSql)
+func (a assignedRawSQL) WriteSQL(b *SqlBuilder) {
+	b.Write(a.rawSQL)
 }
 
 type assignedCases struct {
@@ -869,6 +873,6 @@ type page struct {
 
 func (p *page) WriteSQL(b *SqlBuilder) {
 	if p != nil && p.pageMode.IsPresent() {
-		p.pageMode.writeSql(b, p.offset, p.pageSize)
+		p.pageMode.writeSQL(b, p.offset, p.pageSize)
 	}
 }

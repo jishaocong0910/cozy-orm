@@ -263,7 +263,7 @@ type assignedPolicyConfig struct {
 	never                bool
 	trueRawSqlFalseValue bool
 	value                func(ctx context.Context) any
-	rawSql               func(ctx context.Context) string
+	rawSQL               func(ctx context.Context) string
 }
 
 func (c *assignedPolicyConfig) Never() *columnPolicyConfig {
@@ -278,11 +278,11 @@ func (c *assignedPolicyConfig) Value(force bool, batchReuse bool, value func(ctx
 	return c.parent
 }
 
-func (c *assignedPolicyConfig) RawSql(force bool, batchReuse bool, rawSql func(ctx context.Context) string) *columnPolicyConfig {
+func (c *assignedPolicyConfig) RawSql(force bool, batchReuse bool, rawSQL func(ctx context.Context) string) *columnPolicyConfig {
 	c.force = force
 	c.batchReuse = batchReuse
 	c.trueRawSqlFalseValue = true
-	c.rawSql = rawSql
+	c.rawSQL = rawSQL
 	return c.parent
 }
 

@@ -61,10 +61,10 @@ func TestGetEntity(t *testing.T) {
 		checkMapKeys(r, []string{"create_at", "update_at", "version"}, ei.insertPolicy.assignedValueMap)
 		r.False(ei.insertPolicy.assignedValueMap["create_at"].trueRawSqlFalseValue)
 		r.NotNil(ei.insertPolicy.assignedValueMap["create_at"].value)
-		r.Nil(ei.insertPolicy.assignedValueMap["create_at"].rawSql)
+		r.Nil(ei.insertPolicy.assignedValueMap["create_at"].rawSQL)
 		r.False(ei.insertPolicy.assignedValueMap["update_at"].trueRawSqlFalseValue)
 		r.NotNil(ei.insertPolicy.assignedValueMap["update_at"].value)
-		r.Nil(ei.insertPolicy.assignedValueMap["update_at"].rawSql)
+		r.Nil(ei.insertPolicy.assignedValueMap["update_at"].rawSQL)
 
 		r.Equal(newSet[string]("create_at", "id"), ei.updatePolicy.ignoredColumnSet)
 		r.Equal(newSet[string]("update_at", "version"), ei.updatePolicy.reusedColumnSet)
@@ -73,10 +73,10 @@ func TestGetEntity(t *testing.T) {
 		checkMapKeys(r, []string{"update_at", "version"}, ei.updatePolicy.assignedValueMap)
 		r.False(ei.updatePolicy.assignedValueMap["update_at"].trueRawSqlFalseValue)
 		r.NotNil(ei.updatePolicy.assignedValueMap["update_at"].value)
-		r.Nil(ei.updatePolicy.assignedValueMap["update_at"].rawSql)
+		r.Nil(ei.updatePolicy.assignedValueMap["update_at"].rawSQL)
 		r.True(ei.updatePolicy.assignedValueMap["version"].trueRawSqlFalseValue)
 		r.Nil(ei.updatePolicy.assignedValueMap["version"].value)
-		r.NotNil(ei.updatePolicy.assignedValueMap["version"].rawSql)
+		r.NotNil(ei.updatePolicy.assignedValueMap["version"].rawSQL)
 
 		r.Equal(deleteSoftlyMode_.assignedPk, ei.deleteSoftlyPolicy.mode)
 		r.Equal("deleted", ei.deleteSoftlyPolicy.deletedColumn)
@@ -159,12 +159,12 @@ func TestEntity_getOnDemandColumnSet(t *testing.T) {
 	ei, err := newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, nil)
 	r.NoError(err)
 	{
-		r.Nil(ei._getOnDemandColumnSet(nil))
-		r.Nil(ei._getOnDemandColumnSet(&OnDemand{}))
-		r.Nil(ei._getOnDemandColumnSet(DemandFor[string]()))
-		r.Equal(newSet("name", "phone", "email", "level"), ei._getOnDemandColumnSet(DemandFor[UserSimple]()))
-		r.NotNil(ei._getOnDemandColumnSet(DemandFor[DemoDemand]()))
-		r.Equal(newSet("name", "phone", "email"), ei._getOnDemandColumnSet(DemandFor[DemoDemand]()))
+		r.Nil(ei._getDemandColumnSet(nil))
+		r.Nil(ei._getDemandColumnSet(&Demand{}))
+		r.Nil(ei._getDemandColumnSet(DemandFor[string]()))
+		r.Equal(newSet("name", "phone", "email", "level"), ei._getDemandColumnSet(DemandFor[UserSimple]()))
+		r.NotNil(ei._getDemandColumnSet(DemandFor[DemoDemand]()))
+		r.Equal(newSet("name", "phone", "email"), ei._getDemandColumnSet(DemandFor[DemoDemand]()))
 	}
 }
 
