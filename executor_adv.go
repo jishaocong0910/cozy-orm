@@ -610,7 +610,7 @@ func (d *deleteSoftly[E]) Do() (int64, error) {
 		case deleteSoftlyMode_.assignedNull.ID:
 			b.Write("NULL")
 		default:
-			b.Error(errors.New("feature is not supported"))
+			b.Error(errors.New("delete softly mode is undefined"))
 			return
 		}
 		b.Accept(where{

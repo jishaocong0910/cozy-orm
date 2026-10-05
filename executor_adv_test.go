@@ -520,7 +520,7 @@ func TestDeleteSoftly(t *testing.T) {
 	}
 	{
 		db, _ := orm.MockDB(r)
-		r.PanicsWithError("feature is not supported", func() {
+		r.PanicsWithError("delete softly mode is undefined", func() {
 			db.DeleteSoftly[orm.User](nil).Must().Do()
 		})
 	}
