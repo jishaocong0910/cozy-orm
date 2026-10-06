@@ -245,7 +245,7 @@ type condBinOp struct {
 
 func (c condBinOp) WriteSQL(b *SqlBuilder) {
 	c.writeWrap(b, func() {
-		b.WriteColumn(c.column).Write(" ").Write(c.op).Write(" ").WritePh().Args(c.arg)
+		b.WriteColumn(c.column).Write(" ").Write(c.op).Write(" ").WritePh().AddArgs(c.arg)
 	})
 }
 
@@ -276,7 +276,7 @@ type condBetween struct {
 
 func (c condBetween) WriteSQL(b *SqlBuilder) {
 	c.writeWrap(b, func() {
-		b.WriteColumn(c.column).Write(" BETWEEN ").WritePh().Write(" AND ").WritePh().Args(c.min, c.max)
+		b.WriteColumn(c.column).Write(" BETWEEN ").WritePh().Write(" AND ").WritePh().AddArgs(c.min, c.max)
 	})
 }
 

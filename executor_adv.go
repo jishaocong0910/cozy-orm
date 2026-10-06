@@ -772,7 +772,7 @@ func (a assignedValue) WriteSQL(b *SqlBuilder) {
 	if a.value == nil {
 		b.Write("NULL")
 	} else {
-		b.WritePh().Args(a.value)
+		b.WritePh().AddArgs(a.value)
 	}
 }
 
@@ -803,7 +803,7 @@ type assignedCaseItem struct {
 }
 
 func (a assignedCaseItem) WriteSQL(b *SqlBuilder) {
-	b.Write(" WHEN ").WritePh().Args(a.caseValue).Write(" THEN ").Accept(a.thenValue)
+	b.Write(" WHEN ").WritePh().AddArgs(a.caseValue).Write(" THEN ").Accept(a.thenValue)
 }
 
 type where struct {

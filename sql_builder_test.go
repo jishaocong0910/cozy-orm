@@ -43,7 +43,7 @@ func TestSqlBuilder_Write(t *testing.T) {
 		b.ForEach(b.SepFixOpt(" (", ",", ")"), nil, func(_ int, t string) {
 			b.Write(t)
 		})
-		b.Args(3, 4)
+		b.AddArgs(3, 4)
 		b.Write(" ").WriteColumn("col")
 		b.Error(errors.New("test error"))
 

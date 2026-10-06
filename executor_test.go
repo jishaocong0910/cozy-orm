@@ -227,7 +227,7 @@ func TestMutation(t *testing.T) {
 			ExpectExec().WithArgs(1, 2, 1).WillReturnResult(sqlmock.NewResult(0, 1))
 		affected, err := db.Mutation(nil).BuildSql(func(b *orm.SqlBuilder) {
 			b.Write("UPDATE user SET status = ?, level = ? WHERE id = ?")
-			b.Args(new(orm.UserLevel("1")), 2, 1)
+			b.AddArgs(new(orm.UserLevel("1")), 2, 1)
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())

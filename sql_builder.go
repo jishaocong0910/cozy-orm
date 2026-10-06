@@ -31,7 +31,7 @@ type SqlBuilder struct {
 
 func (b *SqlBuilder) Write(str string, args ...any) *SqlBuilder {
 	b.b.WriteString(str)
-	b.Args(args...)
+	b.AddArgs(args...)
 	return b
 }
 
@@ -48,8 +48,8 @@ func (b *SqlBuilder) WriteColumn(column string) *SqlBuilder {
 	return b
 }
 
-func (b *SqlBuilder) Accept(w SqlWriter) *SqlBuilder {
-	w.WriteSQL(b)
+func (b *SqlBuilder) AddArgs(args ...any) *SqlBuilder {
+	b.args = append(b.args, args...)
 	return b
 }
 
@@ -71,8 +71,20 @@ func (b *SqlBuilder) ForEach[T any](sep separate, elems []T, handle func(i int, 
 	return b
 }
 
-func (b *SqlBuilder) Args(args ...any) *SqlBuilder {
-	b.args = append(b.args, args...)
+func (b *SqlBuilder) Sep(separator string) separate {
+	return separate{separator: separator}
+}
+
+func (b *SqlBuilder) SepFix(prefix, separator, suffix string) separate {
+	return separate{prefix: prefix, separator: separator, suffix: suffix, omitempty: false}
+}
+
+func (b *SqlBuilder) SepFixOpt(prefix, separator, suffix string) separate {
+	return separate{prefix: prefix, separator: separator, suffix: suffix, omitempty: true}
+}
+
+func (b *SqlBuilder) Accept(w SqlWriter) *SqlBuilder {
+	w.WriteSQL(b)
 	return b
 }
 
@@ -84,18 +96,6 @@ func (b *SqlBuilder) Error(err error) {
 	if b.err == nil {
 		b.err = err
 	}
-}
-
-func (b *SqlBuilder) Sep(separator string) separate {
-	return separate{separator: separator}
-}
-
-func (b *SqlBuilder) SepFix(prefix, separator, suffix string) separate {
-	return separate{prefix: prefix, separator: separator, suffix: suffix, omitempty: false}
-}
-
-func (b *SqlBuilder) SepFixOpt(prefix, separator, suffix string) separate {
-	return separate{prefix: prefix, separator: separator, suffix: suffix, omitempty: true}
 }
 
 func (b *SqlBuilder) sqlAndArgs() (sql string, args []any) {
