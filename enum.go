@@ -91,14 +91,14 @@ type _GetGeneratedKeyMode struct {
 var GetGeneratedKeyMode_ = e.NewEnum(_GetGeneratedKeyMode{
 	InsertReturning: GetGeneratedKeyMode{
 		writeSQL: func(b *SqlBuilder, autoColumns []string) {
-			b.ForEach(b.SepFixOpt(" RETURNING ", ", ", ""), autoColumns, func(_ int, column string) {
+			b.ForEach(b.SepWrapOpt(" RETURNING ", ", ", ""), autoColumns, func(_ int, column string) {
 				b.WriteColumn(column)
 			})
 		},
 	},
 	SQLServer: GetGeneratedKeyMode{
 		writeSQL: func(b *SqlBuilder, autoColumns []string) {
-			b.ForEach(b.SepFixOpt(" OUTPUT ", ", ", ""), autoColumns, func(_ int, column string) {
+			b.ForEach(b.SepWrapOpt(" OUTPUT ", ", ", ""), autoColumns, func(_ int, column string) {
 				b.Write("INSERTED.").WriteColumn(column)
 			})
 		},

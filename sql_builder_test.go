@@ -31,16 +31,16 @@ func TestSqlBuilder_Write(t *testing.T) {
 		b.Write(" ").ForEach(b.Sep(","), []string{"s1", "s2", "s3"}, func(_ int, t string) {
 			b.Write(t)
 		})
-		b.ForEach(b.SepFix(" (", ",", ")"), []string{"s1", "s2", "s3"}, func(_ int, t string) {
+		b.ForEach(b.SepWrap(" (", ",", ")"), []string{"s1", "s2", "s3"}, func(_ int, t string) {
 			b.Write(t)
 		})
-		b.ForEach(b.SepFix(" (", ",", ")"), nil, func(_ int, t string) {
+		b.ForEach(b.SepWrap(" (", ",", ")"), nil, func(_ int, t string) {
 			b.Write(t)
 		})
-		b.ForEach(b.SepFixOpt(" (", ",", ")"), []string{"s1", "s2", "s3"}, func(_ int, t string) {
+		b.ForEach(b.SepWrapOpt(" (", ",", ")"), []string{"s1", "s2", "s3"}, func(_ int, t string) {
 			b.Write(t)
 		})
-		b.ForEach(b.SepFixOpt(" (", ",", ")"), nil, func(_ int, t string) {
+		b.ForEach(b.SepWrapOpt(" (", ",", ")"), nil, func(_ int, t string) {
 			b.Write(t)
 		})
 		b.AddArgs(3, 4)

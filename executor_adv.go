@@ -260,7 +260,7 @@ func (i *insert[E]) buildSql(b *SqlBuilder) {
 		i.requiredSet.concat(ei.insertPolicy.forceColumnSet, ei.insertPolicy.defaultColumnSet),
 		ei.insertPolicy.ignoredColumnSet)
 	b.Write("INSERT INTO ").Write(ei.table)
-	b.ForEach(b.SepFix("(", ", ", ")"), insertedColumns, func(_ int, column string) {
+	b.ForEach(b.SepWrap("(", ", ", ")"), insertedColumns, func(_ int, column string) {
 		b.WriteColumn(column)
 	})
 	if len(ei.autoColumns) > 0 && i.executor.db.getGeneratedKeyMode.IsPresent() {
@@ -285,7 +285,7 @@ func (i *insert[E]) _writeValuesClause(b *SqlBuilder, ei *entityInfo, insertedCo
 	}
 	am := newAssignedManager[E](i.executor.ctx, ei.insertPolicy, entityValueMaps, setColumns{}, "")
 	b.Write(" VALUES ").ForEach(b.Sep(", "), i.entities, func(i int, entity *E) {
-		b.ForEach(b.SepFix("(", ", ", ")"), insertedColumns, func(_ int, column string) {
+		b.ForEach(b.SepWrap("(", ", ", ")"), insertedColumns, func(_ int, column string) {
 			b.Accept(am.getValueWriter(column, i))
 		})
 	})

@@ -53,20 +53,20 @@ func (b *SqlBuilder) AddArgs(args ...any) *SqlBuilder {
 	return b
 }
 
-func (b *SqlBuilder) ForEach[T any](sep separate, elems []T, handle func(i int, t T)) *SqlBuilder {
-	total := len(elems)
-	if sep.prefix != "" && (total > 0 || !sep.omitempty) {
-		b.Write(sep.prefix)
+func (b *SqlBuilder) ForEach[T any](sep separate, items []T, handler func(i int, t T)) *SqlBuilder {
+	total := len(items)
+	if sep.open != "" && (total > 0 || !sep.optional) {
+		b.Write(sep.open)
 	}
 	if total > 0 {
-		handle(0, elems[0])
+		handler(0, items[0])
 	}
 	for i := 1; i < total; i++ {
 		b.Write(sep.separator)
-		handle(i, elems[i])
+		handler(i, items[i])
 	}
-	if sep.suffix != "" && (total > 0 || !sep.omitempty) {
-		b.Write(sep.suffix)
+	if sep.close != "" && (total > 0 || !sep.optional) {
+		b.Write(sep.close)
 	}
 	return b
 }
@@ -75,12 +75,12 @@ func (b *SqlBuilder) Sep(separator string) separate {
 	return separate{separator: separator}
 }
 
-func (b *SqlBuilder) SepFix(prefix, separator, suffix string) separate {
-	return separate{prefix: prefix, separator: separator, suffix: suffix, omitempty: false}
+func (b *SqlBuilder) SepWrap(open, separator, close string) separate {
+	return separate{open: open, separator: separator, close: close, optional: false}
 }
 
-func (b *SqlBuilder) SepFixOpt(prefix, separator, suffix string) separate {
-	return separate{prefix: prefix, separator: separator, suffix: suffix, omitempty: true}
+func (b *SqlBuilder) SepWrapOpt(open, separator, close string) separate {
+	return separate{open: open, separator: separator, close: close, optional: true}
 }
 
 func (b *SqlBuilder) Accept(w SqlWriter) *SqlBuilder {
@@ -107,8 +107,8 @@ func (b *SqlBuilder) sqlAndArgs() (sql string, args []any) {
 }
 
 type separate struct {
-	prefix, separator, suffix string
-	omitempty                 bool
+	open, separator, close string
+	optional               bool
 }
 
 type SqlWriter interface {
