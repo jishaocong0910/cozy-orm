@@ -259,7 +259,10 @@ func (c condIn) WriteSQL(b *SqlBuilder) {
 	c.writeWrap(b, func() {
 		b.WriteColumn(c.column).Write(" IN(")
 		for i := 0; i < len(c.args); i++ {
-			b.WriteIf(i != 0, ", ").WritePh()
+			if i != 0 {
+				b.Write(", ")
+			}
+			b.WritePh()
 		}
 		b.Write(")", c.args...)
 	})

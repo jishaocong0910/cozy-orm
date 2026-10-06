@@ -35,14 +35,6 @@ func (b *SqlBuilder) Write(str string, args ...any) *SqlBuilder {
 	return b
 }
 
-func (b *SqlBuilder) WriteIf(check bool, str string, args ...any) *SqlBuilder {
-	if check {
-		b.b.WriteString(str)
-		b.Args(args...)
-	}
-	return b
-}
-
 func (b *SqlBuilder) WritePh() *SqlBuilder {
 	b.Accept(b.ph)
 	return b
