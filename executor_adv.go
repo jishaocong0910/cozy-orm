@@ -91,7 +91,7 @@ func (f *find[E]) LastClause(lastClause string) *find[E] {
 }
 
 func (f *find[E]) Do() ([]*E, error) {
-	es, err := f.query.BuildSql(func(b *SqlBuilder) {
+	es, err := f.query.BuildSql(func(b *SQLBuilder) {
 		ei, err := f.query.db.getEntityInfo(reflect.TypeFor[E]())
 		if err != nil {
 			b.Error(err)
@@ -228,7 +228,7 @@ func (i *insert[E]) Required(columns ...string) *insert[E] {
 func (i *insert[E]) Do() (int64, error) {
 	switch i.executor.db.getGeneratedKeyMode.ID {
 	case GetGeneratedKeyMode_.InsertReturning.ID, GetGeneratedKeyMode_.SQLServer.ID:
-		_, err := newQuery[E](i.executor).MapTo(i.entities...).BuildSql(func(b *SqlBuilder) {
+		_, err := newQuery[E](i.executor).MapTo(i.entities...).BuildSql(func(b *SQLBuilder) {
 			i.buildSql(b)
 		}).Do()
 		return int64(len(i.entities)), err
@@ -237,11 +237,11 @@ func (i *insert[E]) Do() (int64, error) {
 		if i.executor.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) {
 			m.MapTo[E](i.entities...)
 		}
-		return m.BuildSql(func(b *SqlBuilder) { i.buildSql(b) }).Do()
+		return m.BuildSql(func(b *SQLBuilder) { i.buildSql(b) }).Do()
 	}
 }
 
-func (i *insert[E]) buildSql(b *SqlBuilder) {
+func (i *insert[E]) buildSql(b *SQLBuilder) {
 	if len(i.entities) == 0 {
 		b.Cancel()
 		return
@@ -278,7 +278,7 @@ func (i *insert[E]) buildSql(b *SqlBuilder) {
 	}
 }
 
-func (i *insert[E]) _writeValuesClause(b *SqlBuilder, ei *entityInfo, insertedColumns []string) {
+func (i *insert[E]) _writeValuesClause(b *SQLBuilder, ei *entityInfo, insertedColumns []string) {
 	entityValueMaps := make([]map[string]any, 0, len(i.entities))
 	for _, entity := range i.entities {
 		entityValueMaps = append(entityValueMaps, ei.getValueMap(entity, insertedColumns))
@@ -361,7 +361,7 @@ func (u *update[E]) Do() (int64, error) {
 	if u.entity == nil && len(u.setColumns.columnSet) == 0 {
 		return 0, nil
 	}
-	return u.mutation.BuildSql(func(b *SqlBuilder) {
+	return u.mutation.BuildSql(func(b *SQLBuilder) {
 		ei, err := u.mutation.db.getEntityInfo(reflect.TypeFor[E]())
 		if err != nil {
 			b.Error(err)
@@ -466,7 +466,7 @@ func (u *updateRow[E]) Do() (int64, error) {
 	if len(u.entities) == 0 {
 		return 0, nil
 	}
-	return u.mutation.BuildSql(func(b *SqlBuilder) {
+	return u.mutation.BuildSql(func(b *SQLBuilder) {
 		ei, err := u.mutation.db.getEntityInfo(reflect.TypeFor[E]())
 		if err != nil {
 			b.Error(err)
@@ -552,7 +552,7 @@ func (d *delete[E]) SkipSafety() *delete[E] {
 }
 
 func (d *delete[E]) Do() (int64, error) {
-	return d.mutation.BuildSql(func(b *SqlBuilder) {
+	return d.mutation.BuildSql(func(b *SQLBuilder) {
 		ei, err := d.mutation.db.getEntityInfo(reflect.TypeFor[E]())
 		if err != nil {
 			b.Error(err)
@@ -597,7 +597,7 @@ func (d *deleteSoftly[E]) SkipSafety() *deleteSoftly[E] {
 }
 
 func (d *deleteSoftly[E]) Do() (int64, error) {
-	return d.mutation.BuildSql(func(b *SqlBuilder) {
+	return d.mutation.BuildSql(func(b *SQLBuilder) {
 		ei, err := d.mutation.db.getEntityInfo(reflect.TypeFor[E]())
 		if err != nil {
 			b.Error(err)
@@ -653,7 +653,7 @@ func (c *count[E]) IncludeDeleted() *count[E] {
 }
 
 func (c *count[E]) Do() (i int64, err error) {
-	es, err := c.query.BuildSql(func(b *SqlBuilder) {
+	es, err := c.query.BuildSql(func(b *SQLBuilder) {
 		ei, err := c.query.db.getEntityInfo(reflect.TypeFor[E]())
 		if err != nil {
 			b.Error(err)
@@ -678,7 +678,7 @@ func newAssignedManager[E any](ctx context.Context, policy assignedPolicy, entit
 		entitiesValueMaps:      entitiesValueMap,
 		setColumns:             setColumns,
 		pkColumn:               pk,
-		reusePolicyValueWriter: make(map[string]SqlWriter, len(policy.reusedColumnSet)),
+		reusePolicyValueWriter: make(map[string]SQLWriter, len(policy.reusedColumnSet)),
 	}
 }
 
@@ -688,10 +688,10 @@ type assignedManager[E any] struct {
 	entitiesValueMaps      []map[string]any
 	setColumns             setColumns
 	pkColumn               string
-	reusePolicyValueWriter map[string]SqlWriter
+	reusePolicyValueWriter map[string]SQLWriter
 }
 
-func (a *assignedManager[E]) getValueWriter(column string, entityIndex int) SqlWriter {
+func (a *assignedManager[E]) getValueWriter(column string, entityIndex int) SQLWriter {
 	if a.policy.forceColumnSet.contain(column) {
 		return a._getPolicyValueWriter(column)
 	}
@@ -729,11 +729,11 @@ func (a *assignedManager[E]) getValueWriter(column string, entityIndex int) SqlW
 	return assignedValue{value: nil}
 }
 
-func (a *assignedManager[E]) _getPolicyValueWriter(column string) SqlWriter {
+func (a *assignedManager[E]) _getPolicyValueWriter(column string) SQLWriter {
 	if vw, ok := a.reusePolicyValueWriter[column]; ok {
 		return vw
 	}
-	var vm SqlWriter
+	var vm SQLWriter
 	p := a.policy.assignedValueMap[column]
 	if p.trueRawSqlFalseValue {
 		vm = assignedRawSQL{rawSQL: p.rawSQL(a.ctx)}
@@ -748,16 +748,16 @@ func (a *assignedManager[E]) _getPolicyValueWriter(column string) SqlWriter {
 
 type setColumns struct {
 	columnSet      set[string]
-	valueWriterMap map[string]SqlWriter
+	valueWriterMap map[string]SQLWriter
 }
 
-func (s *setColumns) add(column string, valueWriter SqlWriter) {
+func (s *setColumns) add(column string, valueWriter SQLWriter) {
 	if s.columnSet.contain(column) {
 		s.valueWriterMap[column] = valueWriter
 	} else {
 		if s.columnSet == nil {
 			s.columnSet = newSet[string]()
-			s.valueWriterMap = make(map[string]SqlWriter)
+			s.valueWriterMap = make(map[string]SQLWriter)
 		}
 		s.columnSet.add(column)
 		s.valueWriterMap[column] = valueWriter
@@ -768,7 +768,7 @@ type assignedValue struct {
 	value any
 }
 
-func (a assignedValue) WriteSQL(b *SqlBuilder) {
+func (a assignedValue) WriteSQL(b *SQLBuilder) {
 	if a.value == nil {
 		b.Write("NULL")
 	} else {
@@ -780,7 +780,7 @@ type assignedRawSQL struct {
 	rawSQL string
 }
 
-func (a assignedRawSQL) WriteSQL(b *SqlBuilder) {
+func (a assignedRawSQL) WriteSQL(b *SQLBuilder) {
 	b.Write(a.rawSQL)
 }
 
@@ -789,7 +789,7 @@ type assignedCases struct {
 	caseItems []assignedCaseItem
 }
 
-func (a assignedCases) WriteSQL(b *SqlBuilder) {
+func (a assignedCases) WriteSQL(b *SQLBuilder) {
 	b.Write("CASE ").WriteColumn(a.pkColumn)
 	for _, item := range a.caseItems {
 		b.Accept(item)
@@ -802,7 +802,7 @@ type assignedCaseItem struct {
 	thenValue assignedValue
 }
 
-func (a assignedCaseItem) WriteSQL(b *SqlBuilder) {
+func (a assignedCaseItem) WriteSQL(b *SQLBuilder) {
 	b.Write(" WHEN ").WritePh().AddArgs(a.caseValue).Write(" THEN ").Accept(a.thenValue)
 }
 
@@ -813,7 +813,7 @@ type where struct {
 	safety         bool
 }
 
-func (w where) WriteSQL(b *SqlBuilder) {
+func (w where) WriteSQL(b *SQLBuilder) {
 	c := w.condition
 	if !c.notEmpty() {
 		if w.safety {
@@ -849,7 +849,7 @@ func (o *orderBy) Desc(column string) *orderBy {
 	return o
 }
 
-func (o *orderBy) WriteSQL(b *SqlBuilder) {
+func (o *orderBy) WriteSQL(b *SQLBuilder) {
 	if o != nil && len(o.items) > 0 {
 		b.Write(" ORDER BY ").ForEach(b.Sep(", "), o.items, func(_ int, item orderByItem) {
 			b.Accept(item)
@@ -862,7 +862,7 @@ type orderByItem struct {
 	seq    string
 }
 
-func (o orderByItem) WriteSQL(b *SqlBuilder) {
+func (o orderByItem) WriteSQL(b *SQLBuilder) {
 	b.Write(o.column).Write(" ").Write(o.seq)
 }
 
@@ -871,7 +871,7 @@ type page struct {
 	offset, pageSize int
 }
 
-func (p *page) WriteSQL(b *SqlBuilder) {
+func (p *page) WriteSQL(b *SQLBuilder) {
 	if p != nil && p.pageMode.IsPresent() {
 		p.pageMode.writeSQL(b, p.offset, p.pageSize)
 	}

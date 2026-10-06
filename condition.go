@@ -27,7 +27,7 @@ type Condition struct {
 	items   []condItem
 }
 
-func (c *Condition) WriteSQL(b *SqlBuilder) {
+func (c *Condition) WriteSQL(b *SQLBuilder) {
 	if c != nil && len(c.items) > 0 {
 		c.writeWrap(b, func() {
 			for i, item := range c.items {
@@ -177,7 +177,7 @@ func (c *Condition) IsNotNull(column string) *Condition {
 }
 
 type condItem interface {
-	SqlWriter
+	SQLWriter
 	notEmpty() bool
 	isOr() bool
 	setNot()
@@ -212,7 +212,7 @@ func (c *condBase) canParen() bool { return false }
 
 func (c *condBase) setParen() { c.paren = true }
 
-func (c *condBase) writeWrap(b *SqlBuilder, write func()) {
+func (c *condBase) writeWrap(b *SQLBuilder, write func()) {
 	if c.not {
 		b.Write("NOT ")
 	}
@@ -230,7 +230,7 @@ type condRaw struct {
 	sql string
 }
 
-func (c condRaw) WriteSQL(b *SqlBuilder) {
+func (c condRaw) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
 		b.Write(c.sql)
 	})
@@ -243,7 +243,7 @@ type condBinOp struct {
 	arg    any
 }
 
-func (c condBinOp) WriteSQL(b *SqlBuilder) {
+func (c condBinOp) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
 		b.WriteColumn(c.column).Write(" ").Write(c.op).Write(" ").WritePh().AddArgs(c.arg)
 	})
@@ -255,7 +255,7 @@ type condIn struct {
 	args   []any
 }
 
-func (c condIn) WriteSQL(b *SqlBuilder) {
+func (c condIn) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
 		b.WriteColumn(c.column).Write(" IN(")
 		for i := 0; i < len(c.args); i++ {
@@ -274,7 +274,7 @@ type condBetween struct {
 	min, max any
 }
 
-func (c condBetween) WriteSQL(b *SqlBuilder) {
+func (c condBetween) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
 		b.WriteColumn(c.column).Write(" BETWEEN ").WritePh().Write(" AND ").WritePh().AddArgs(c.min, c.max)
 	})
@@ -285,7 +285,7 @@ type condIsNull struct {
 	column string
 }
 
-func (c condIsNull) WriteSQL(b *SqlBuilder) {
+func (c condIsNull) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
 		b.WriteColumn(c.column).Write(" IS NULL")
 	})
@@ -296,7 +296,7 @@ type condIsNotNull struct {
 	column string
 }
 
-func (c condIsNotNull) WriteSQL(b *SqlBuilder) {
+func (c condIsNotNull) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
 		b.WriteColumn(c.column).Write(" IS NOT NULL")
 	})

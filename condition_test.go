@@ -43,7 +43,7 @@ func TestCond(t *testing.T) {
 			Not().Eq("c16", arg("c16")).
 			Or().Eq("c17", arg("c17")).Eq("c18", arg("c18"))
 
-		b := newSqlBuilder("", QuotedIdentifier_.UNDEFINED)
+		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("c1 = ? AND c2 = 'c2' AND c3 = ? AND c4 <> ? AND c5 > ? AND c6 < ? AND c7 >= ? AND c8 <= ? AND c9 LIKE ? "+
 			"AND c10 LIKE ? AND c11 LIKE ? AND c12 IN(?, ?) AND c13 BETWEEN ? AND ? AND c14 IS NULL AND c15 IS NOT NULL "+
@@ -58,7 +58,7 @@ func TestCondSub(t *testing.T) {
 	{
 		arg := argFetcher()
 		c := Cond().Sub(Cond()).Sub(Cond().Eq("c1", arg("c1")).Or().Eq("c2", arg("c2")))
-		b := newSqlBuilder("", QuotedIdentifier_.UNDEFINED)
+		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("c1 = ? OR c2 = ?", b.b.String())
 		r.Equal([]any{"c1_1", "c2_2"}, b.args)
@@ -66,7 +66,7 @@ func TestCondSub(t *testing.T) {
 	{
 		arg := argFetcher()
 		c := Cond().Sub(Cond().Eq("c1", arg("c1")).Or().Eq("c2", arg("c2"))).Eq("c3", arg("c3"))
-		b := newSqlBuilder("", QuotedIdentifier_.UNDEFINED)
+		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("(c1 = ? OR c2 = ?) AND c3 = ?", b.b.String())
 		r.Equal([]any{"c1_1", "c2_2", "c3_3"}, b.args)
@@ -74,7 +74,7 @@ func TestCondSub(t *testing.T) {
 	{
 		arg := argFetcher()
 		c := Cond().Eq("c1", arg("c1")).Sub(Cond().Eq("c2", arg("c2")).Or().Eq("c3", arg("c3")))
-		b := newSqlBuilder("", QuotedIdentifier_.UNDEFINED)
+		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("c1 = ? AND (c2 = ? OR c3 = ?)", b.b.String())
 		r.Equal([]any{"c1_1", "c2_2", "c3_3"}, b.args)
@@ -83,7 +83,7 @@ func TestCondSub(t *testing.T) {
 		arg := argFetcher()
 		c := Cond().Not().Sub(Cond().Eq("c1", arg("c1")).Eq("c2", arg("c2"))).
 			Not().Sub(Cond().Eq("c3", arg("c3")).Eq("c4", arg("c4")))
-		b := newSqlBuilder("", QuotedIdentifier_.UNDEFINED)
+		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("NOT (c1 = ? AND c2 = ?) AND NOT (c3 = ? AND c4 = ?)", b.b.String())
 		r.Equal([]any{"c1_1", "c2_2", "c3_3", "c4_4"}, b.args)

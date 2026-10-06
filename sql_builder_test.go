@@ -21,10 +21,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSqlBuilder_Write(t *testing.T) {
+func TestSQLBuilder_Write(t *testing.T) {
 	r := require.New(t)
 	{
-		b := newSqlBuilder("", QuotedIdentifier_.UNDEFINED)
+		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
 		b.Write("a", 1, 2)
 		b.Write(" ").WritePh()
 		b.Write(" ").Accept(WriterTest{})
@@ -52,22 +52,22 @@ func TestSqlBuilder_Write(t *testing.T) {
 		r.EqualError(b.err, "test error")
 	}
 	{
-		b := newSqlBuilder("", QuotedIdentifier_.Backtick)
+		b := newSQLBuilder("", QuotedIdentifier_.Backtick)
 		b.WriteColumn("col")
 		r.Equal("`col`", b.b.String())
 	}
 	{
-		b := newSqlBuilder("", QuotedIdentifier_.DoubleQuote)
+		b := newSQLBuilder("", QuotedIdentifier_.DoubleQuote)
 		b.WriteColumn("col")
 		r.Equal("\"col\"", b.b.String())
 	}
 	{
-		b := newSqlBuilder("", QuotedIdentifier_.Bracket)
+		b := newSQLBuilder("", QuotedIdentifier_.Bracket)
 		b.WriteColumn("col")
 		r.Equal("[col]", b.b.String())
 	}
 	{
-		b := newSqlBuilder("$", QuotedIdentifier_.UNDEFINED)
+		b := newSQLBuilder("$", QuotedIdentifier_.UNDEFINED)
 		b.WritePh().Write(" ").WritePh().Write(" ").WritePh()
 		r.Equal("$1 $2 $3", b.b.String())
 	}
@@ -75,6 +75,6 @@ func TestSqlBuilder_Write(t *testing.T) {
 
 type WriterTest struct{}
 
-func (w WriterTest) WriteSQL(b *SqlBuilder) {
+func (w WriterTest) WriteSQL(b *SQLBuilder) {
 	b.Write("test writer")
 }

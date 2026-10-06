@@ -27,7 +27,7 @@ func TestDB(t *testing.T) {
 		sqlDB, mock := MockSqlDB(r)
 		db := DBConfig{SqlDB: sqlDB, Logger: log}.Build()
 		mock.ExpectPrepare("test").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}))
-		_, err := db.Query[User](nil).SqlLogLevel(Level_.Info).BuildSql(func(b *SqlBuilder) {
+		_, err := db.Query[User](nil).SqlLogLevel(Level_.Info).BuildSql(func(b *SQLBuilder) {
 			b.Write("test")
 		}).Do()
 		r.NoError(err)
@@ -41,7 +41,7 @@ func TestDB(t *testing.T) {
 		sqlDB, mock := MockSqlDB(r)
 		db := DBConfig{SqlDB: sqlDB, ParamPrefix: ":"}.Build()
 		mock.ExpectPrepare(":1:2:3").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}))
-		_, err := db.Query[User](nil).BuildSql(func(b *SqlBuilder) {
+		_, err := db.Query[User](nil).BuildSql(func(b *SQLBuilder) {
 			b.WritePh().WritePh().WritePh()
 		}).Do()
 		r.NoError(err)

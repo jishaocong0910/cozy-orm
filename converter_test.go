@@ -99,7 +99,7 @@ func TestConvertArgs(t *testing.T) {
 		"a,b,c", "a,b,c",
 		`{"key1":"a","key2":"b"}`, `{"key1":"a","key2":"b"}`,
 	).WillReturnRows(mock.NewRows([]string{"unused"}))
-	_, err := db.Query[User](nil).BuildSql(func(b *SqlBuilder) {
+	_, err := db.Query[User](nil).BuildSql(func(b *SQLBuilder) {
 		b.AddArgs(nil, (*string)(nil), "test",
 			UserProperties{Source: "a", Country: "b"}, &UserProperties{Source: "a", Country: "b"},
 			UserLevel("1"), new(UserLevel("1")),

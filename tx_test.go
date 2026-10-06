@@ -43,7 +43,7 @@ func TestTx(t *testing.T) {
 			ti := orm.GetTxInfoInner(ctx)
 			r.Equal(ti.Creator, tx)
 			r.NotNil(ti.SqlTx)
-			_, err := db.Mutation(ctx).SqlLogLevel(orm.Level_.Info).BuildSql(func(b *orm.SqlBuilder) {
+			_, err := db.Mutation(ctx).SqlLogLevel(orm.Level_.Info).BuildSql(func(b *orm.SQLBuilder) {
 				b.Write("UPDATE user set status=1 WHERE id=?", 1)
 			}).Do()
 			return err
@@ -63,7 +63,7 @@ func TestTx(t *testing.T) {
 		mock.ExpectPrepare("UPDATE user set status=2 WHERE id=?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
-			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SqlBuilder) {
+			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
 				b.Write("UPDATE user set status=1 WHERE id=?", 1)
 			}).Do()
 			if err != nil {
@@ -71,7 +71,7 @@ func TestTx(t *testing.T) {
 			}
 
 			err = db.Tx(ctx).Do(func(ctx context.Context) error {
-				_, err := db.Mutation(ctx).BuildSql(func(b *orm.SqlBuilder) {
+				_, err := db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
 					b.Write("UPDATE user set status=2 WHERE id=?", 1)
 				}).Do()
 				return err
@@ -92,7 +92,7 @@ func TestTx(t *testing.T) {
 		mock.ExpectPrepare("UPDATE user set status=2 WHERE id=?").ExpectExec().WillReturnError(errors.New("test nested _rollback"))
 		mock.ExpectRollback()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
-			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SqlBuilder) {
+			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
 				b.Write("UPDATE user set status=1 WHERE id=?", 1)
 			}).Do()
 			if err != nil {
@@ -100,7 +100,7 @@ func TestTx(t *testing.T) {
 			}
 
 			err = db.Tx(ctx).Do(func(ctx context.Context) error {
-				_, err := db.Mutation(ctx).BuildSql(func(b *orm.SqlBuilder) {
+				_, err := db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
 					b.Write("UPDATE user set status=2 WHERE id=?", 1)
 				}).Do()
 				return err
@@ -124,7 +124,7 @@ func TestTx(t *testing.T) {
 		mock2.ExpectPrepare("UPDATE user set status=2 WHERE id=?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
 		mock2.ExpectCommit()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
-			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SqlBuilder) {
+			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
 				b.Write("UPDATE user set status=1 WHERE id=?", 1)
 			}).Do()
 			if err != nil {
@@ -132,7 +132,7 @@ func TestTx(t *testing.T) {
 			}
 
 			err = db2.Tx(ctx).Do(func(ctx context.Context) error {
-				_, err := db2.Mutation(ctx).BuildSql(func(b *orm.SqlBuilder) {
+				_, err := db2.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
 					b.Write("UPDATE user set status=2 WHERE id=?", 1)
 				}).Do()
 				return err
@@ -149,7 +149,7 @@ func TestTx(t *testing.T) {
 	{
 		db := orm.DBConfig{}.Build()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
-			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SqlBuilder) {}).Do()
+			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {}).Do()
 			return err
 		})
 		r.EqualError(err, "no available *sql.DB")

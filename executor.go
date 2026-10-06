@@ -42,7 +42,7 @@ func (q *query[E]) SqlLogLevel(level Level) *query[E] {
 	return q
 }
 
-func (q *query[E]) BuildSql(buildSQL func(b *SqlBuilder)) *query[E] {
+func (q *query[E]) BuildSql(buildSQL func(b *SQLBuilder)) *query[E] {
 	q.setBuildSQL(buildSQL)
 	return q
 }
@@ -146,7 +146,7 @@ func (m *mutation) SqlLogLevel(level Level) *mutation {
 	return m
 }
 
-func (m *mutation) BuildSql(buildSQL func(b *SqlBuilder)) *mutation {
+func (m *mutation) BuildSql(buildSQL func(b *SQLBuilder)) *mutation {
 	m.setBuildSQL(buildSQL)
 	return m
 }
@@ -216,8 +216,8 @@ type executor struct {
 	must        bool
 	desc        string
 	sqlLogLevel Level
-	builder     *SqlBuilder
-	buildSQL    func(b *SqlBuilder)
+	builder     *SQLBuilder
+	buildSQL    func(b *SQLBuilder)
 }
 
 func (e *executor) setMust() {
@@ -232,7 +232,7 @@ func (e *executor) setSqlLogLevel(level Level) {
 	e.sqlLogLevel = level
 }
 
-func (e *executor) setBuildSQL(buildSQL func(b *SqlBuilder)) {
+func (e *executor) setBuildSQL(buildSQL func(b *SQLBuilder)) {
 	e.buildSQL = buildSQL
 }
 
@@ -255,7 +255,7 @@ func (e *executor) doQuery() (*sql.Rows, []string, time.Duration, bool, error) {
 	if e.buildSQL == nil {
 		return nil, nil, -1, true, nil
 	}
-	builder := newSqlBuilder(e.db.paramPrefix, e.db.quotedIdentifier)
+	builder := newSQLBuilder(e.db.paramPrefix, e.db.quotedIdentifier)
 	e.builder = builder
 	e.buildSQL(builder)
 	if builder.err != nil {
@@ -292,7 +292,7 @@ func (e *executor) doExec() (sql.Result, time.Duration, bool, error) {
 	if e.buildSQL == nil {
 		return nil, -1, true, nil
 	}
-	builder := newSqlBuilder(e.db.paramPrefix, e.db.quotedIdentifier)
+	builder := newSQLBuilder(e.db.paramPrefix, e.db.quotedIdentifier)
 	e.builder = builder
 	e.buildSQL(builder)
 	if builder.err != nil {

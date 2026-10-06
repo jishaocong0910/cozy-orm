@@ -29,7 +29,7 @@ func TestTuple(t *testing.T) {
 		db, mock := orm.MockDB(r)
 		mock.ExpectPrepare("").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id", "create_at", "level", "tags", "attributes", "category"}).
 			AddRow(1, tm, 5, "aa,bb,cc", `{"key1": "value1","key2": "value2"}`, "{\"organization\": \"none\",\"class\": 1}"))
-		tuples, err := db.Query[orm.Tuple6[*int64, *time.Time, *orm.UserLevel, orm.UserTags, orm.UserAttributes, *orm.UserCategory]](nil).BuildSql(func(b *orm.SqlBuilder) {}).Do()
+		tuples, err := db.Query[orm.Tuple6[*int64, *time.Time, *orm.UserLevel, orm.UserTags, orm.UserAttributes, *orm.UserCategory]](nil).BuildSql(func(b *orm.SQLBuilder) {}).Do()
 		r.NoError(err)
 		r.Equal(new(int64(1)), tuples[0].Field1)
 		r.Equal(new(tm), tuples[0].Field2)
@@ -42,7 +42,7 @@ func TestTuple(t *testing.T) {
 		db, mock := orm.MockDB(r)
 		mock.ExpectPrepare("").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id", "create_at", "level", "tags", "attributes", "category"}).
 			AddRow(1, tm, 5, "aa,bb,cc", `{"key1": "value1","key2": "value2"}`, "{\"organization\": \"none\",\"class\": 1}"))
-		tuples, err := db.Query[orm.Tuple6[int64, time.Time, orm.UserLevel, *orm.UserTags, *orm.UserAttributes, orm.UserCategory]](nil).BuildSql(func(b *orm.SqlBuilder) {}).Do()
+		tuples, err := db.Query[orm.Tuple6[int64, time.Time, orm.UserLevel, *orm.UserTags, *orm.UserAttributes, orm.UserCategory]](nil).BuildSql(func(b *orm.SQLBuilder) {}).Do()
 		r.NoError(err)
 		r.Equal(int64(1), tuples[0].Field1)
 		r.Equal(tm, tuples[0].Field2)
@@ -55,7 +55,7 @@ func TestTuple(t *testing.T) {
 		db, mock := orm.MockDB(r)
 		mock.ExpectPrepare("").ExpectQuery().WillReturnRows(mock.NewRows([]string{"name", "phone", "properties", "tags", "unknown"}).
 			AddRow(nil, nil, nil, nil, nil))
-		tuples, err := db.Query[orm.Tuple5[string, *time.Time, orm.UserProperties, orm.UserCategory, complex64]](nil).BuildSql(func(b *orm.SqlBuilder) {}).Do()
+		tuples, err := db.Query[orm.Tuple5[string, *time.Time, orm.UserProperties, orm.UserCategory, complex64]](nil).BuildSql(func(b *orm.SQLBuilder) {}).Do()
 		r.NoError(err)
 		r.Equal("", tuples[0].Field1)
 		r.Nil(tuples[0].Field2)
