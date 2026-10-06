@@ -53,7 +53,7 @@ func (b *SqlBuilder) AddArgs(args ...any) *SqlBuilder {
 	return b
 }
 
-func (b *SqlBuilder) ForEach[T any](sep separate, items []T, handler func(i int, t T)) *SqlBuilder {
+func (b *SqlBuilder) ForEach[T any](sep separate, items []T, handler func(i int, item T)) *SqlBuilder {
 	total := len(items)
 	if sep.open != "" && (total > 0 || !sep.optional) {
 		b.Write(sep.open)
