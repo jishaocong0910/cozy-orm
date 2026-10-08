@@ -21,8 +21,8 @@ import (
 	"reflect"
 )
 
-func DemandFor[T any]() *Demand {
-	return &Demand{t: reflect.TypeFor[T]()}
+func DemandFor[D any]() *Demand {
+	return &Demand{t: reflect.TypeFor[D]()}
 }
 
 type Demand struct {
