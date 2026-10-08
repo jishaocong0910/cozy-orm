@@ -25,31 +25,31 @@ func TestCond(t *testing.T) {
 	r := require.New(t)
 	{
 		arg := argFetcher()
-		c := Cond().If(func() bool {
-			return false
-		}, func(c *Condition) {
+		c := Cond().Custom(func(c *Condition) {
+			if 1 == 1 {
+				return
+			}
 			c.Eq("c1", arg("c1"))
-		}).If(func() bool {
-			return true
-		}, func(c *Condition) {
+		}).Custom(func(c *Condition) {
 			c.Eq("c1", arg("c1"))
 		}).Raw("c2 = 'c2'").
 			Eq("c3", arg("c3")).Ne("c4", arg("c4")).
 			Gt("c5", arg("c5")).Lt("c6", arg("c6")).
 			Ge("c7", arg("c7")).Le("c8", arg("c8")).
-			Like("c9", arg("c9")).LikeLeft("c10", arg("c10")).LikeRight("c11", arg("c11")).
-			In("c12", []any{arg("c12"), arg("c12")}).Between("c13", arg("c13"), arg("c13")).
-			IsNull("c14").IsNotNull("c15").
-			Not().Eq("c16", arg("c16")).
-			Or().Eq("c17", arg("c17")).Eq("c18", arg("c18"))
+			Like("c9", arg("c9")).LikeLeft("c10", arg("c10")).
+			LikeRight("c11", arg("c11")).LikePattern("c12", arg("c12")).
+			In("c13", []any{arg("c13"), arg("c13")}).Between("c14", arg("c14"), arg("c14")).
+			IsNull("c15").IsNotNull("c16").
+			Not().Eq("c17", arg("c17")).
+			Or().Eq("c18", arg("c18")).Eq("c19", arg("c19"))
 
 		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("c1 = ? AND c2 = 'c2' AND c3 = ? AND c4 <> ? AND c5 > ? AND c6 < ? AND c7 >= ? AND c8 <= ? AND c9 LIKE ? "+
-			"AND c10 LIKE ? AND c11 LIKE ? AND c12 IN(?, ?) AND c13 BETWEEN ? AND ? AND c14 IS NULL AND c15 IS NOT NULL "+
-			"AND NOT c16 = ? OR c17 = ? AND c18 = ?", b.b.String())
+			"AND c10 LIKE ? AND c11 LIKE ? AND c12 LIKE ? AND c13 IN(?, ?) AND c14 BETWEEN ? AND ? AND c15 IS NULL AND c16 IS NOT NULL "+
+			"AND NOT c17 = ? OR c18 = ? AND c19 = ?", b.b.String())
 		r.Equal([]any{"c1_1", "c3_2", "c4_3", "c5_4", "c6_5", "c7_6", "c8_7", "%c9_8%",
-			"c10_9%", "%c11_10", "c12_11", "c12_12", "c13_13", "c13_14", "c16_15", "c17_16", "c18_17"}, b.args)
+			"c10_9%", "%c11_10", "c12_11", "c13_12", "c13_13", "c14_14", "c14_15", "c17_16", "c18_17", "c19_18"}, b.args)
 	}
 }
 

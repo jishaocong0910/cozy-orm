@@ -55,6 +55,21 @@ func (c *Condition) notEmpty() bool {
 	return false
 }
 
+func (c *Condition) setNot() {
+	c.not = true
+	if len(c.items) > 1 {
+		c.condBase.setParen()
+	}
+}
+
+func (c *Condition) canParen() bool {
+	return len(c.items) > 1 && c.hasOr
+}
+
+func (c *Condition) setParen() {
+	c.condBase.setParen()
+}
+
 func (c *Condition) _add(item condItem) *Condition {
 	if c.nextNot {
 		item.setNot()
@@ -79,21 +94,6 @@ func (c *Condition) _add(item condItem) *Condition {
 	return c
 }
 
-func (c *Condition) setNot() {
-	c.not = true
-	if len(c.items) > 1 {
-		c.condBase.setParen()
-	}
-}
-
-func (c *Condition) canParen() bool {
-	return len(c.items) > 1 && c.hasOr
-}
-
-func (c *Condition) setParen() {
-	c.condBase.setParen()
-}
-
 func (c *Condition) Not() *Condition {
 	c.nextNot = true
 	return c
@@ -113,15 +113,13 @@ func (c *Condition) Sub(sub *Condition) *Condition {
 	return c
 }
 
-func (c *Condition) If(check func() bool, do func(c *Condition)) *Condition {
-	if check() {
-		do(c)
-	}
+func (c *Condition) Custom(handler func(c *Condition)) *Condition {
+	handler(c)
 	return c
 }
 
-func (c *Condition) Raw(sql string) *Condition {
-	return c._add(&condRaw{sql: sql})
+func (c *Condition) Raw(expr string) *Condition {
+	return c._add(&condRaw{expr: expr})
 }
 
 func (c *Condition) Eq(column string, arg any) *Condition {
@@ -148,16 +146,20 @@ func (c *Condition) Le(column string, arg any) *Condition {
 	return c._add(&condBinOp{column: column, op: "<=", arg: arg})
 }
 
-func (c *Condition) Like(column string, arg string) *Condition {
-	return c._add(&condBinOp{column: column, op: "LIKE", arg: "%" + arg + "%"})
+func (c *Condition) Like(column string, str string) *Condition {
+	return c._add(&condBinOp{column: column, op: "LIKE", arg: "%" + str + "%"})
 }
 
-func (c *Condition) LikeLeft(column string, arg string) *Condition {
-	return c._add(&condBinOp{column: column, op: "LIKE", arg: arg + "%"})
+func (c *Condition) LikeLeft(column string, str string) *Condition {
+	return c._add(&condBinOp{column: column, op: "LIKE", arg: str + "%"})
 }
 
-func (c *Condition) LikeRight(column string, arg string) *Condition {
-	return c._add(&condBinOp{column: column, op: "LIKE", arg: "%" + arg})
+func (c *Condition) LikeRight(column string, str string) *Condition {
+	return c._add(&condBinOp{column: column, op: "LIKE", arg: "%" + str})
+}
+
+func (c *Condition) LikePattern(column string, pattern string) *Condition {
+	return c._add(&condBinOp{column: column, op: "LIKE", arg: pattern})
 }
 
 func (c *Condition) In(column string, args []any) *Condition {
@@ -227,12 +229,12 @@ func (c *condBase) writeWrap(b *SQLBuilder, write func()) {
 
 type condRaw struct {
 	condBase
-	sql string
+	expr string
 }
 
 func (c condRaw) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
-		b.Write(c.sql)
+		b.Write(c.expr)
 	})
 }
 
