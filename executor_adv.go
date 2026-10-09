@@ -338,8 +338,8 @@ func (u *update[E]) Set(column string, value any) *update[E] {
 	return u
 }
 
-func (u *update[E]) SetRaw(column string, sql string) *update[E] {
-	u.setColumns.add(column, assignedRawSQL{rawSQL: sql})
+func (u *update[E]) SetExpr(column string, expr string) *update[E] {
+	u.setColumns.add(column, assignedExpr{expr: expr})
 	return u
 }
 
@@ -456,8 +456,8 @@ func (u *updateRow[E]) Set(column string, value any) *updateRow[E] {
 	return u
 }
 
-func (u *updateRow[E]) SetRaw(column string, sql string) *updateRow[E] {
-	u.setColumns.add(column, assignedRawSQL{rawSQL: sql})
+func (u *updateRow[E]) SetExpr(column string, expr string) *updateRow[E] {
+	u.setColumns.add(column, assignedExpr{expr: expr})
 	return u
 }
 
@@ -757,7 +757,7 @@ func (a *assignedManager[E]) _getPolicyValueWriter(column string) SQLWriter {
 	var vm SQLWriter
 	p := a.policy.assignedValueMap[column]
 	if p.trueRawSqlFalseValue {
-		vm = assignedRawSQL{rawSQL: p.rawSQL(a.ctx)}
+		vm = assignedExpr{expr: p.rawSQL(a.ctx)}
 	} else {
 		vm = assignedValue{value: p.value(a.ctx)}
 	}
@@ -797,12 +797,12 @@ func (a assignedValue) WriteSQL(b *SQLBuilder) {
 	}
 }
 
-type assignedRawSQL struct {
-	rawSQL string
+type assignedExpr struct {
+	expr string
 }
 
-func (a assignedRawSQL) WriteSQL(b *SQLBuilder) {
-	b.Write(a.rawSQL)
+func (a assignedExpr) WriteSQL(b *SQLBuilder) {
+	b.Write(a.expr)
 }
 
 type assignedCases struct {

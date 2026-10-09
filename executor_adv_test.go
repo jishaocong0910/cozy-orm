@@ -365,7 +365,7 @@ func TestUpdate(t *testing.T) {
 			ExpectExec().WithArgs("abc", 2, 1, 4).WillReturnResult(sqlmock.NewResult(0, 1))
 		affected, err := db.Update[orm.User](ctx).Entity(&orm.User{Id: new(int64(1)), Name: new("abc"), Category: &orm.UserCategory{Organization: "none", Class: 1}}).
 			OnDemand(orm.DemandFor[orm.UserSimple]()).Required("properties").Set("status", orm.UserStatus(2)).Set("tags", "'t1,t2'").Set("tags", nil).
-			SetRaw("level", "'2'").
+			SetExpr("level", "'2'").
 			Condition(func(c *orm.Condition) {
 				c.Eq("status", 4)
 			}).Do()
@@ -444,7 +444,7 @@ func TestUpdateRow(t *testing.T) {
 			WithArgs(1, "a", 2, "b", 1, 2, "email", 2, 1, 2, 5).WillReturnResult(sqlmock.NewResult(1, 1))
 		affected, err := db.UpdateRow[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
 			Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b"), Email: new("email")}).
-			Required("properties").Set("status", orm.UserStatus(2)).Set("tags", nil).SetRaw("level", "'2'").
+			Required("properties").Set("status", orm.UserStatus(2)).Set("tags", nil).SetExpr("level", "'2'").
 			Condition(func(c *orm.Condition) {
 				c.Eq("level", 5)
 			}).Do()
@@ -492,7 +492,7 @@ func TestUpdateRow(t *testing.T) {
 			WithArgs("a", 2, 1, 5).WillReturnResult(sqlmock.NewResult(1, 1))
 		affected, err := db.UpdateRow[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
 			Entities(&orm.User{Id: new(int64(1)), Name: new("a")}).Required("properties").
-			Set("status", orm.UserStatus(2)).Set("tags", nil).SetRaw("level", "'2'").
+			Set("status", orm.UserStatus(2)).Set("tags", nil).SetExpr("level", "'2'").
 			Condition(func(c *orm.Condition) {
 				c.Eq("level", 5)
 			}).Do()
