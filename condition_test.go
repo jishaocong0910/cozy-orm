@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCondition(t *testing.T) {
+func TestCond(t *testing.T) {
 	r := require.New(t)
 	{
 		a := &argFetcher{}
@@ -47,7 +47,7 @@ func TestCondition(t *testing.T) {
 	}
 }
 
-func TestCondition_Expr(t *testing.T) {
+func TestCond_Expr(t *testing.T) {
 	r := require.New(t)
 	{
 		a := &argFetcher{}
@@ -99,7 +99,7 @@ func TestCondition_Expr(t *testing.T) {
 	}
 }
 
-func TestCondition_Sub(t *testing.T) {
+func TestCond_Sub(t *testing.T) {
 	r := require.New(t)
 	{
 		a := &argFetcher{}
