@@ -246,7 +246,7 @@ func (c *columnPolicyConfig) UseUpdateTime() *columnPolicyConfig {
 func (c *columnPolicyConfig) UseRowVersion() *columnPolicyConfig {
 	c.OnInsert().Value(false, true, func(ctx context.Context) any {
 		return 1
-	}).OnUpdate().RawSql(true, true, func(ctx context.Context) string {
+	}).OnUpdate().Expr(true, true, func(ctx context.Context) string {
 		return c.column + " + 1"
 	})
 	return c
@@ -257,13 +257,13 @@ func (c *columnPolicyConfig) isDefault() bool {
 }
 
 type assignedPolicyConfig struct {
-	parent               *columnPolicyConfig
-	force                bool
-	batchReuse           bool
-	never                bool
-	trueRawSqlFalseValue bool
-	value                func(ctx context.Context) any
-	rawSQL               func(ctx context.Context) string
+	parent             *columnPolicyConfig
+	force              bool
+	batchReuse         bool
+	never              bool
+	trueExprFalseValue bool
+	value              func(ctx context.Context) any
+	expr               func(ctx context.Context) string
 }
 
 func (c *assignedPolicyConfig) Never() *columnPolicyConfig {
@@ -278,11 +278,11 @@ func (c *assignedPolicyConfig) Value(force bool, batchReuse bool, value func(ctx
 	return c.parent
 }
 
-func (c *assignedPolicyConfig) RawSql(force bool, batchReuse bool, rawSQL func(ctx context.Context) string) *columnPolicyConfig {
+func (c *assignedPolicyConfig) Expr(force bool, batchReuse bool, expr func(ctx context.Context) string) *columnPolicyConfig {
 	c.force = force
 	c.batchReuse = batchReuse
-	c.trueRawSqlFalseValue = true
-	c.rawSQL = rawSQL
+	c.trueExprFalseValue = true
+	c.expr = expr
 	return c.parent
 }
 

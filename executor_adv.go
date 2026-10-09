@@ -756,8 +756,8 @@ func (a *assignedManager[E]) _getPolicyValueWriter(column string) SQLWriter {
 	}
 	var vm SQLWriter
 	p := a.policy.assignedValueMap[column]
-	if p.trueRawSqlFalseValue {
-		vm = assignedExpr{expr: p.rawSQL(a.ctx)}
+	if p.trueExprFalseValue {
+		vm = assignedExpr{expr: p.expr(a.ctx)}
 	} else {
 		vm = assignedValue{value: p.value(a.ctx)}
 	}
