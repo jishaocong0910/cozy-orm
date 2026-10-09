@@ -113,7 +113,7 @@ func (c *Condition) Sub(sub *Condition) *Condition {
 	return c
 }
 
-func (c *Condition) Custom(handler func(c *Condition)) *Condition {
+func (c *Condition) Determine(handler func(c *Condition)) *Condition {
 	handler(c)
 	return c
 }

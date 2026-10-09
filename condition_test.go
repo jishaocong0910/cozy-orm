@@ -25,12 +25,12 @@ func TestCond(t *testing.T) {
 	r := require.New(t)
 	{
 		arg := argFetcher()
-		c := Cond().Custom(func(c *Condition) {
+		c := Cond().Determine(func(c *Condition) {
 			if 1 == 1 {
 				return
 			}
 			c.Eq("c1", arg("c1"))
-		}).Custom(func(c *Condition) {
+		}).Determine(func(c *Condition) {
 			c.Eq("c1", arg("c1"))
 		}).Raw("c2 = 'c2'").
 			Eq("c3", arg("c3")).Ne("c4", arg("c4")).
