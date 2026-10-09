@@ -21,6 +21,14 @@ import (
 	"reflect"
 )
 
+func OrderBy() *orderBy {
+	return &orderBy{}
+}
+
+func Page(offset, rowCount int) *page {
+	return &page{offset: offset, rowCount: rowCount}
+}
+
 func DemandFor[D any]() *Demand {
 	return &Demand{t: reflect.TypeFor[D]()}
 }
@@ -827,14 +835,6 @@ func (w where) WriteSQL(b *SQLBuilder) {
 	b.Write(" WHERE ").Accept(c)
 }
 
-func OrderBy() *orderBy {
-	return &orderBy{}
-}
-
-func Page(offset, pageSize int) *page {
-	return &page{offset: offset, pageSize: pageSize}
-}
-
 type orderBy struct {
 	items []orderByItem
 }
@@ -868,11 +868,11 @@ func (o orderByItem) WriteSQL(b *SQLBuilder) {
 
 type page struct {
 	pageMode         PageMode
-	offset, pageSize int
+	offset, rowCount int
 }
 
 func (p *page) WriteSQL(b *SQLBuilder) {
 	if p != nil && p.pageMode.IsPresent() {
-		p.pageMode.writeSQL(b, p.offset, p.pageSize)
+		p.pageMode.writeSQL(b, p.offset, p.rowCount)
 	}
 }
