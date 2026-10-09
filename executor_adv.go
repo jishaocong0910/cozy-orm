@@ -35,7 +35,7 @@ type find[E any] struct {
 	demand         *Demand
 	orderBy        *OrderBy
 	page           *page
-	condition      *Condition
+	condition      *Cond
 	includeDeleted bool
 	lastClause     string
 }
@@ -65,9 +65,9 @@ func (f *find[E]) OnDemand(demand *Demand) *find[E] {
 	return f
 }
 
-func (f *find[E]) Condition(handler func(c *Condition)) *find[E] {
+func (f *find[E]) Cond(handler func(c *Cond)) *find[E] {
 	if handler != nil {
-		f.condition = &Condition{}
+		f.condition = &Cond{}
 		handler(f.condition)
 	}
 	return f
@@ -158,8 +158,8 @@ func (f *findOne[E]) OnDemand(demand *Demand) *findOne[E] {
 	return f
 }
 
-func (f *findOne[E]) Condition(handler func(c *Condition)) *findOne[E] {
-	f.find.Condition(handler)
+func (f *findOne[E]) Cond(handler func(c *Cond)) *findOne[E] {
+	f.find.Cond(handler)
 	return f
 }
 
@@ -303,7 +303,7 @@ type update[E any] struct {
 	demand         *Demand
 	setColumns     setColumns
 	requiredSet    set[string]
-	condition      *Condition
+	condition      *Cond
 	includeDeleted bool
 	skipSafety     bool
 }
@@ -348,9 +348,9 @@ func (u *update[E]) Required(columns ...string) *update[E] {
 	return u
 }
 
-func (u *update[E]) Condition(handler func(c *Condition)) *update[E] {
+func (u *update[E]) Cond(handler func(c *Cond)) *update[E] {
 	if handler != nil {
-		u.condition = &Condition{}
+		u.condition = &Cond{}
 		handler(u.condition)
 	}
 	return u
@@ -386,7 +386,7 @@ func (u *update[E]) Do() (int64, error) {
 		}
 		entityValueMap := ei.getValueMap(u.entity, updatedColumns, ei.pkColumns)
 
-		c := &Condition{}
+		c := &Cond{}
 		if len(ei.pkColumns) > 0 && u.entity != nil {
 			for _, column := range ei.pkColumns {
 				if v, ok := entityValueMap[column]; ok {
@@ -416,7 +416,7 @@ type updateRow[E any] struct {
 	demand         *Demand
 	setColumns     setColumns
 	requiredSet    set[string]
-	condition      *Condition
+	condition      *Cond
 	includeDeleted bool
 	skipSafety     bool
 }
@@ -461,9 +461,9 @@ func (u *updateRow[E]) SetExpr(column string, expr string) *updateRow[E] {
 	return u
 }
 
-func (u *updateRow[E]) Condition(handler func(c *Condition)) *updateRow[E] {
+func (u *updateRow[E]) Cond(handler func(c *Cond)) *updateRow[E] {
 	if handler != nil {
-		u.condition = &Condition{}
+		u.condition = &Cond{}
 		handler(u.condition)
 	}
 	return u
@@ -516,7 +516,7 @@ func (u *updateRow[E]) Do() (int64, error) {
 		b.ForEach(b.Sep(", "), updatedColumns, func(i int, column string) {
 			b.Write(column).Write(" = ").Accept(am.getValueWriter(column, -1))
 		})
-		c := &Condition{}
+		c := &Cond{}
 		if len(u.entities) == 1 {
 			c = c.Eq(pkColumn, pkValues[0]).add(u.condition)
 		} else {
@@ -533,7 +533,7 @@ func (u *updateRow[E]) Do() (int64, error) {
 
 type delete[E any] struct {
 	mutation       *mutation
-	condition      *Condition
+	condition      *Cond
 	includeDeleted bool
 	skipSafety     bool
 }
@@ -553,9 +553,9 @@ func (d *delete[E]) SqlLogLevel(level Level) *delete[E] {
 	return d
 }
 
-func (d *delete[E]) Condition(handler func(c *Condition)) *delete[E] {
+func (d *delete[E]) Cond(handler func(c *Cond)) *delete[E] {
 	if handler != nil {
-		d.condition = &Condition{}
+		d.condition = &Cond{}
 		handler(d.condition)
 	}
 	return d
@@ -582,7 +582,7 @@ func (d *delete[E]) Do() (int64, error) {
 
 type deleteSoftly[E any] struct {
 	mutation   *mutation
-	condition  *Condition
+	condition  *Cond
 	skipSafety bool
 }
 
@@ -601,9 +601,9 @@ func (d *deleteSoftly[E]) SqlLogLevel(level Level) *deleteSoftly[E] {
 	return d
 }
 
-func (d *deleteSoftly[E]) Condition(handler func(c *Condition)) *deleteSoftly[E] {
+func (d *deleteSoftly[E]) Cond(handler func(c *Cond)) *deleteSoftly[E] {
 	if handler != nil {
-		d.condition = &Condition{}
+		d.condition = &Cond{}
 		handler(d.condition)
 	}
 	return d
@@ -641,7 +641,7 @@ func (d *deleteSoftly[E]) Do() (int64, error) {
 
 type count[E any] struct {
 	query          *query[Tuple[int64]]
-	condition      *Condition
+	condition      *Cond
 	includeDeleted bool
 }
 
@@ -660,9 +660,9 @@ func (c *count[E]) SqlLogLevel(level Level) *count[E] {
 	return c
 }
 
-func (c *count[E]) Condition(handler func(c *Condition)) *count[E] {
+func (c *count[E]) Cond(handler func(c *Cond)) *count[E] {
 	if handler != nil {
-		c.condition = &Condition{}
+		c.condition = &Cond{}
 		handler(c.condition)
 	}
 	return c
@@ -828,7 +828,7 @@ func (a assignedCaseItem) WriteSQL(b *SQLBuilder) {
 }
 
 type where struct {
-	condition      *Condition
+	condition      *Cond
 	policy         deleteSoftlyPolicy
 	includeDeleted bool
 	safety         bool
@@ -843,7 +843,7 @@ func (w where) WriteSQL(b *SQLBuilder) {
 		return
 	}
 	if w.policy.mode.IsPresent() && !w.includeDeleted {
-		c = (&Condition{}).add(w.condition).Eq(w.policy.deletedColumn, w.policy.normalValue)
+		c = (&Cond{}).add(w.condition).Eq(w.policy.deletedColumn, w.policy.normalValue)
 	}
 	b.Write(" WHERE ").Accept(c)
 }

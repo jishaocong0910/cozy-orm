@@ -25,7 +25,7 @@ func TestCondition(t *testing.T) {
 	r := require.New(t)
 	{
 		a := &argFetcher{}
-		c := (&Condition{}).Eq("Eq", a.next("Eq")).Ne("Ne", a.next("Ne")).
+		c := (&Cond{}).Eq("Eq", a.next("Eq")).Ne("Ne", a.next("Ne")).
 			Gt("Gt", a.next("Gt")).Lt("Lt", a.next("Lt")).
 			Ge("Ge", a.next("Ge")).Le("Le", a.next("Le")).
 			Like("Like", a.next2("Like", func(next string) any { return "%" + next + "%" })).
@@ -51,7 +51,7 @@ func TestCondition_Expr(t *testing.T) {
 	r := require.New(t)
 	{
 		a := &argFetcher{}
-		c := (&Condition{}).Expr(func(c *CondExpr) {
+		c := (&Cond{}).Expr(func(c *CondExpr) {
 			c.Str("c1 = 'c1'").Str(" AND c2 = ").Arg(a.next("c2"))
 		})
 
@@ -62,7 +62,7 @@ func TestCondition_Expr(t *testing.T) {
 	}
 	{
 		a := &argFetcher{}
-		c := (&Condition{}).Expr(func(c *CondExpr) {
+		c := (&Cond{}).Expr(func(c *CondExpr) {
 			c.Str("c1 = 'c1'").Str(" AND c2 = ").Arg(a.next("c2"))
 		}).Eq("c3", a.next("c3"))
 
@@ -73,7 +73,7 @@ func TestCondition_Expr(t *testing.T) {
 	}
 	{
 		a := &argFetcher{}
-		c := (&Condition{}).Sub(func(c *Condition) {
+		c := (&Cond{}).Sub(func(c *Cond) {
 
 		}).Expr(func(c *CondExpr) {
 			c.Str("c1 = 'c1'").Str(" AND c2 = ").Arg(a.next("c2"))
@@ -86,7 +86,7 @@ func TestCondition_Expr(t *testing.T) {
 	}
 	{
 		a := &argFetcher{}
-		c := (&Condition{}).Sub(func(c *Condition) {
+		c := (&Cond{}).Sub(func(c *Cond) {
 			c.Eq("c1", a.next("c1"))
 		}).Expr(func(c *CondExpr) {
 			c.Str("c2 = 'c2'").Str(" AND c3 = ").Arg(a.next("c3"))
@@ -103,7 +103,7 @@ func TestCondition_Sub(t *testing.T) {
 	r := require.New(t)
 	{
 		a := &argFetcher{}
-		c := (&Condition{}).Sub(nil).Sub(func(c *Condition) {
+		c := (&Cond{}).Sub(nil).Sub(func(c *Cond) {
 			c.Eq("c1", a.next("c1")).Or().Eq("c2", a.next("c2"))
 		})
 		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
@@ -113,7 +113,7 @@ func TestCondition_Sub(t *testing.T) {
 	}
 	{
 		a := &argFetcher{}
-		c := (&Condition{}).Sub(func(c *Condition) {
+		c := (&Cond{}).Sub(func(c *Cond) {
 			c.Eq("c1", a.next("c1")).Or().Eq("c2", a.next("c2"))
 		}).Eq("c3", a.next("c3"))
 		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
@@ -123,7 +123,7 @@ func TestCondition_Sub(t *testing.T) {
 	}
 	{
 		a := &argFetcher{}
-		c := (&Condition{}).Eq("c1", a.next("c1")).Sub(func(c *Condition) {
+		c := (&Cond{}).Eq("c1", a.next("c1")).Sub(func(c *Cond) {
 			c.Eq("c2", a.next("c2")).Or().Eq("c3", a.next("c3"))
 		})
 		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
@@ -133,9 +133,9 @@ func TestCondition_Sub(t *testing.T) {
 	}
 	{
 		a := &argFetcher{}
-		c := (&Condition{}).Not().Sub(func(c *Condition) {
+		c := (&Cond{}).Not().Sub(func(c *Cond) {
 			c.Eq("c1", a.next("c1")).Eq("c2", a.next("c2"))
-		}).Not().Sub(func(c *Condition) {
+		}).Not().Sub(func(c *Cond) {
 			c.Eq("c3", a.next("c3")).Eq("c4", a.next("c4"))
 		})
 		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)

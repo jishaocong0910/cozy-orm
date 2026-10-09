@@ -14,7 +14,7 @@
 
 package orm
 
-type Condition struct {
+type Cond struct {
 	condBase
 	isNot   bool
 	hasOr   bool
@@ -23,7 +23,7 @@ type Condition struct {
 	items   []condItem
 }
 
-func (c *Condition) WriteSQL(b *SQLBuilder) {
+func (c *Cond) WriteSQL(b *SQLBuilder) {
 	if c != nil && len(c.items) > 0 {
 		c.writeWrap(b, func() {
 			for i, item := range c.items {
@@ -40,7 +40,7 @@ func (c *Condition) WriteSQL(b *SQLBuilder) {
 	}
 }
 
-func (c *Condition) isEmpty() bool {
+func (c *Cond) isEmpty() bool {
 	if c != nil {
 		for _, item := range c.items {
 			if !item.isEmpty() {
@@ -51,20 +51,20 @@ func (c *Condition) isEmpty() bool {
 	return true
 }
 
-func (c *Condition) setNot() {
+func (c *Cond) setNot() {
 	c.not = true
 	if len(c.items) > 1 {
 		c.paren = true
 	}
 }
 
-func (c *Condition) setParen() {
+func (c *Cond) setParen() {
 	if len(c.items) > 1 && c.hasOr {
 		c.paren = true
 	}
 }
 
-func (c *Condition) add(item condItem) *Condition {
+func (c *Cond) add(item condItem) *Cond {
 	if item.isEmpty() {
 		return c
 	}
@@ -87,28 +87,28 @@ func (c *Condition) add(item condItem) *Condition {
 	return c
 }
 
-func (c *Condition) Not() *Condition {
+func (c *Cond) Not() *Cond {
 	c.nextNot = true
 	return c
 }
 
-func (c *Condition) Or() *Condition {
+func (c *Cond) Or() *Cond {
 	if len(c.items) > 0 {
 		c.nextOr = true
 	}
 	return c
 }
 
-func (c *Condition) Sub(handler func(c *Condition)) *Condition {
+func (c *Cond) Sub(handler func(c *Cond)) *Cond {
 	if handler != nil {
-		c2 := &Condition{}
+		c2 := &Cond{}
 		handler(c2)
 		c.add(c2)
 	}
 	return c
 }
 
-func (c *Condition) Expr(handler func(c *CondExpr)) *Condition {
+func (c *Cond) Expr(handler func(c *CondExpr)) *Cond {
 	if handler != nil {
 		e := &CondExpr{}
 		handler(e)
@@ -117,59 +117,59 @@ func (c *Condition) Expr(handler func(c *CondExpr)) *Condition {
 	return c
 }
 
-func (c *Condition) Eq(column string, arg any) *Condition {
+func (c *Cond) Eq(column string, arg any) *Cond {
 	return c.add(&condBinOp{column: column, op: "=", arg: arg})
 }
 
-func (c *Condition) Ne(column string, arg any) *Condition {
+func (c *Cond) Ne(column string, arg any) *Cond {
 	return c.add(&condBinOp{column: column, op: "<>", arg: arg})
 }
 
-func (c *Condition) Gt(column string, arg any) *Condition {
+func (c *Cond) Gt(column string, arg any) *Cond {
 	return c.add(&condBinOp{column: column, op: ">", arg: arg})
 }
 
-func (c *Condition) Lt(column string, arg any) *Condition {
+func (c *Cond) Lt(column string, arg any) *Cond {
 	return c.add(&condBinOp{column: column, op: "<", arg: arg})
 }
 
-func (c *Condition) Ge(column string, arg any) *Condition {
+func (c *Cond) Ge(column string, arg any) *Cond {
 	return c.add(&condBinOp{column: column, op: ">=", arg: arg})
 }
 
-func (c *Condition) Le(column string, arg any) *Condition {
+func (c *Cond) Le(column string, arg any) *Cond {
 	return c.add(&condBinOp{column: column, op: "<=", arg: arg})
 }
 
-func (c *Condition) Like(column string, str string) *Condition {
+func (c *Cond) Like(column string, str string) *Cond {
 	return c.add(&condBinOp{column: column, op: "LIKE", arg: "%" + str + "%"})
 }
 
-func (c *Condition) LikeLeft(column string, str string) *Condition {
+func (c *Cond) LikeLeft(column string, str string) *Cond {
 	return c.add(&condBinOp{column: column, op: "LIKE", arg: str + "%"})
 }
 
-func (c *Condition) LikeRight(column string, str string) *Condition {
+func (c *Cond) LikeRight(column string, str string) *Cond {
 	return c.add(&condBinOp{column: column, op: "LIKE", arg: "%" + str})
 }
 
-func (c *Condition) LikePattern(column string, pattern string) *Condition {
+func (c *Cond) LikePattern(column string, pattern string) *Cond {
 	return c.add(&condBinOp{column: column, op: "LIKE", arg: pattern})
 }
 
-func (c *Condition) In(column string, args []any) *Condition {
+func (c *Cond) In(column string, args []any) *Cond {
 	return c.add(&condIn{column: column, args: args})
 }
 
-func (c *Condition) Between(column string, min, max any) *Condition {
+func (c *Cond) Between(column string, min, max any) *Cond {
 	return c.add(&condBetween{column: column, min: min, max: max})
 }
 
-func (c *Condition) IsNull(column string) *Condition {
+func (c *Cond) IsNull(column string) *Cond {
 	return c.add(&condIsNull{column: column})
 }
 
-func (c *Condition) IsNotNull(column string) *Condition {
+func (c *Cond) IsNotNull(column string) *Cond {
 	return c.add(&condIsNotNull{column: column})
 }
 

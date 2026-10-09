@@ -40,7 +40,7 @@ func TestFind(t *testing.T) {
 		mock.ExpectPrepare("SELECT id, name, phone, email, level, version FROM user WHERE level = ? ORDER BY id DESC, name ASC LIMIT 1 OFFSET 10 FOR UPDATE").ExpectQuery().WithArgs(1).
 			WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(9, "abc").AddRow(10, "efg"))
 		users, err := db.Find[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Select("id", "version").OnDemand(orm.DemandFor[orm.UserSimple]()).
-			Condition(func(c *orm.Condition) {
+			Cond(func(c *orm.Cond) {
 				c.Eq("level", 1)
 			}).
 			OrderBy(func(o *orm.OrderBy) {
@@ -79,7 +79,7 @@ func TestFind(t *testing.T) {
 		}.Build()
 		mock.ExpectPrepare("SELECT id, name FROM user WHERE level = ? AND deleted = ?").ExpectQuery().WithArgs(1, 0).
 			WillReturnRows(mock.NewRows([]string{}))
-		_, err := db.Find[orm.User](nil).Select("id", "name").Condition(func(c *orm.Condition) {
+		_, err := db.Find[orm.User](nil).Select("id", "name").Cond(func(c *orm.Cond) {
 			c.Eq("level", 1)
 		}).Do()
 		r.NoError(err)
@@ -87,7 +87,7 @@ func TestFind(t *testing.T) {
 
 		mock.ExpectPrepare("SELECT id, name FROM user WHERE level = ?").ExpectQuery().WithArgs(1).
 			WillReturnRows(mock.NewRows([]string{}))
-		_, err = db.Find[orm.User](nil).Select("id", "name").Condition(func(c *orm.Condition) {
+		_, err = db.Find[orm.User](nil).Select("id", "name").Cond(func(c *orm.Cond) {
 			c.Eq("level", 1)
 		}).IncludeDeleted().Do()
 		r.NoError(err)
@@ -121,7 +121,7 @@ func TestFindOne(t *testing.T) {
 			"WHERE level = ? ORDER BY id DESC, name ASC  LIMIT 1 OFFSET 10 FOR UPDATE").ExpectQuery().WithArgs(1).
 			WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(9, "abc").AddRow(10, "efg"))
 		user, err := db.FindOne[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Lenient().Select("id", "version").
-			OnDemand(orm.DemandFor[orm.UserSimple]()).Condition(func(c *orm.Condition) {
+			OnDemand(orm.DemandFor[orm.UserSimple]()).Cond(func(c *orm.Cond) {
 			c.Eq("level", 1)
 		}).OrderBy(func(o *orm.OrderBy) {
 			o.Desc("id").Asc("name")
@@ -145,7 +145,7 @@ func TestFindOne(t *testing.T) {
 		}.Build()
 		mock.ExpectPrepare("SELECT id, name FROM user WHERE level = ? AND deleted = ?").ExpectQuery().WithArgs(1, 0).
 			WillReturnRows(mock.NewRows([]string{}))
-		_, err := db.FindOne[orm.User](nil).Select("id", "name").Condition(func(c *orm.Condition) {
+		_, err := db.FindOne[orm.User](nil).Select("id", "name").Cond(func(c *orm.Cond) {
 			c.Eq("level", 1)
 		}).Do()
 		r.NoError(err)
@@ -153,7 +153,7 @@ func TestFindOne(t *testing.T) {
 
 		mock.ExpectPrepare("SELECT id, name FROM user WHERE level = ?").ExpectQuery().WithArgs(1).
 			WillReturnRows(mock.NewRows([]string{}))
-		_, err = db.FindOne[orm.User](nil).Select("id", "name").Condition(func(c *orm.Condition) {
+		_, err = db.FindOne[orm.User](nil).Select("id", "name").Cond(func(c *orm.Cond) {
 			c.Eq("level", 1)
 		}).IncludeDeleted().Do()
 		r.NoError(err)
@@ -366,7 +366,7 @@ func TestUpdate(t *testing.T) {
 		affected, err := db.Update[orm.User](ctx).Entity(&orm.User{Id: new(int64(1)), Name: new("abc"), Category: &orm.UserCategory{Organization: "none", Class: 1}}).
 			OnDemand(orm.DemandFor[orm.UserSimple]()).Required("properties").Set("status", orm.UserStatus(2)).Set("tags", "'t1,t2'").Set("tags", nil).
 			SetExpr("level", "'2'").
-			Condition(func(c *orm.Condition) {
+			Cond(func(c *orm.Cond) {
 				c.Eq("status", 4)
 			}).Do()
 		r.NoError(err)
@@ -387,7 +387,7 @@ func TestUpdate(t *testing.T) {
 		mock.ExpectPrepare("UPDATE user SET name = ?, update_at = ?, version = version + 1 WHERE id = ? AND deleted = ?").ExpectExec().
 			WithArgs("abc", orm.AnyTime{}, 1, 0).
 			WillReturnResult(sqlmock.NewResult(0, 0))
-		_, err := db.Update[orm.User](nil).Entity(&orm.User{Name: new("abc")}).Condition(func(c *orm.Condition) {
+		_, err := db.Update[orm.User](nil).Entity(&orm.User{Name: new("abc")}).Cond(func(c *orm.Cond) {
 			c.Eq("id", 1)
 		}).Do()
 		r.NoError(err)
@@ -445,7 +445,7 @@ func TestUpdateRow(t *testing.T) {
 		affected, err := db.UpdateRow[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
 			Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b"), Email: new("email")}).
 			Required("properties").Set("status", orm.UserStatus(2)).Set("tags", nil).SetExpr("level", "'2'").
-			Condition(func(c *orm.Condition) {
+			Cond(func(c *orm.Cond) {
 				c.Eq("level", 5)
 			}).Do()
 		r.NoError(err)
@@ -470,7 +470,7 @@ func TestUpdateRow(t *testing.T) {
 			WithArgs(1, "a", 2, "b", orm.AnyTime{}, 1, 2, 5, 0).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		affected, err := db.UpdateRow[orm.User](nil).Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b")}).
-			Condition(func(c *orm.Condition) {
+			Cond(func(c *orm.Cond) {
 				c.Eq("level", 5)
 			}).Do()
 		r.NoError(err)
@@ -493,7 +493,7 @@ func TestUpdateRow(t *testing.T) {
 		affected, err := db.UpdateRow[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
 			Entities(&orm.User{Id: new(int64(1)), Name: new("a")}).Required("properties").
 			Set("status", orm.UserStatus(2)).Set("tags", nil).SetExpr("level", "'2'").
-			Condition(func(c *orm.Condition) {
+			Cond(func(c *orm.Cond) {
 				c.Eq("level", 5)
 			}).Do()
 		r.NoError(err)
@@ -525,7 +525,7 @@ func TestDelete(t *testing.T) {
 		db, mock := orm.MockDB(r)
 		log := orm.MockLogger(db)
 		mock.ExpectPrepare("DELETE FROM user WHERE id = ?").ExpectExec().WithArgs(1).WillReturnResult(sqlmock.NewResult(0, 1))
-		affected, err := db.Delete[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Condition(func(c *orm.Condition) {
+		affected, err := db.Delete[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Cond(func(c *orm.Cond) {
 			c.Eq("id", 1)
 		}).Do()
 		r.NoError(err)
@@ -590,7 +590,7 @@ func TestDeleteSoftly(t *testing.T) {
 		}.Build()
 		log := orm.MockLogger(db)
 		mock.ExpectPrepare("UPDATE user SET deleted = id WHERE id = ? AND deleted = ?").ExpectExec().WithArgs(1, 0).WillReturnResult(sqlmock.NewResult(0, 1))
-		affected, err := db.DeleteSoftly[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Condition(func(c *orm.Condition) {
+		affected, err := db.DeleteSoftly[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Cond(func(c *orm.Cond) {
 			c.Eq("id", 1)
 		}).Do()
 		r.NoError(err)
@@ -610,7 +610,7 @@ func TestDeleteSoftly(t *testing.T) {
 		}.Build()
 		mock.ExpectPrepare("UPDATE user SET deleted = id WHERE id = ? AND deleted = ?").ExpectExec().WithArgs(1, 0).
 			WillReturnResult(sqlmock.NewResult(0, 1))
-		affected, err := db.DeleteSoftly[orm.User](nil).Condition(func(c *orm.Condition) {
+		affected, err := db.DeleteSoftly[orm.User](nil).Cond(func(c *orm.Cond) {
 			c.Eq("id", 1)
 		}).Do()
 		r.NoError(err)
@@ -626,7 +626,7 @@ func TestDeleteSoftly(t *testing.T) {
 		}.Build()
 		mock.ExpectPrepare("UPDATE user SET deleted = NULL WHERE id = ? AND deleted = ?").ExpectExec().WithArgs(1, 0).
 			WillReturnResult(sqlmock.NewResult(0, 1))
-		affected, err := db.DeleteSoftly[orm.User](nil).Condition(func(c *orm.Condition) {
+		affected, err := db.DeleteSoftly[orm.User](nil).Cond(func(c *orm.Cond) {
 			c.Eq("id", 1)
 		}).Do()
 		r.NoError(err)
@@ -648,7 +648,7 @@ func TestCount(t *testing.T) {
 		db, mock := orm.MockDB(r)
 		log := orm.MockLogger(db)
 		mock.ExpectPrepare("SELECT COUNT(*) FROM user WHERE level = ?").ExpectQuery().WithArgs(2).WillReturnRows(mock.NewRows([]string{"count"}).AddRow(10))
-		count, err := db.Count[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Condition(func(c *orm.Condition) {
+		count, err := db.Count[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Cond(func(c *orm.Cond) {
 			c.Eq("level", 2)
 		}).Do()
 		r.NoError(err)
@@ -668,7 +668,7 @@ func TestCount(t *testing.T) {
 		}.Build()
 		mock.ExpectPrepare("SELECT COUNT(*) FROM user WHERE level = ? AND deleted = ?").ExpectQuery().WithArgs(2, 0).
 			WillReturnRows(mock.NewRows([]string{"count"}).AddRow(10))
-		_, err := db.Count[orm.User](nil).SqlLogLevel(orm.Level_.Info).Description("test desc").Condition(func(c *orm.Condition) {
+		_, err := db.Count[orm.User](nil).SqlLogLevel(orm.Level_.Info).Description("test desc").Cond(func(c *orm.Cond) {
 			c.Eq("level", 2)
 		}).Do()
 		r.NoError(err)
@@ -681,7 +681,7 @@ func TestCount(t *testing.T) {
 		}.Build()
 		mock.ExpectPrepare("SELECT COUNT(*) FROM user WHERE level = ?").ExpectQuery().WithArgs(2).
 			WillReturnRows(mock.NewRows([]string{"count"}).AddRow(10))
-		_, err = db.Count[orm.User](nil).SqlLogLevel(orm.Level_.Info).Description("test desc").Condition(func(c *orm.Condition) {
+		_, err = db.Count[orm.User](nil).SqlLogLevel(orm.Level_.Info).Description("test desc").Cond(func(c *orm.Cond) {
 			c.Eq("level", 2)
 		}).IncludeDeleted().Do()
 		r.NoError(err)
