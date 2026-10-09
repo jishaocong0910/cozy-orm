@@ -21,68 +21,123 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCond(t *testing.T) {
+func TestCondition(t *testing.T) {
 	r := require.New(t)
 	{
-		arg := argFetcher()
-		c := Cond().Determine(func(c *Condition) {
-			if 1 == 1 {
-				return
-			}
-			c.Eq("c1", arg("c1"))
-		}).Determine(func(c *Condition) {
-			c.Eq("c1", arg("c1"))
-		}).Raw("c2 = 'c2'").
-			Eq("c3", arg("c3")).Ne("c4", arg("c4")).
-			Gt("c5", arg("c5")).Lt("c6", arg("c6")).
-			Ge("c7", arg("c7")).Le("c8", arg("c8")).
-			Like("c9", arg("c9")).LikeLeft("c10", arg("c10")).
-			LikeRight("c11", arg("c11")).LikePattern("c12", arg("c12")).
-			In("c13", []any{arg("c13"), arg("c13")}).Between("c14", arg("c14"), arg("c14")).
-			IsNull("c15").IsNotNull("c16").
-			Not().Eq("c17", arg("c17")).
-			Or().Eq("c18", arg("c18")).Eq("c19", arg("c19"))
+		a := &argFetcher{}
+		c := (&Condition{}).Eq("Eq", a.next("Eq")).Ne("Ne", a.next("Ne")).
+			Gt("Gt", a.next("Gt")).Lt("Lt", a.next("Lt")).
+			Ge("Ge", a.next("Ge")).Le("Le", a.next("Le")).
+			Like("Like", a.next2("Like", func(next string) any { return "%" + next + "%" })).
+			LikeLeft("LikeLeft", a.next2("LikeLeft", func(next string) any { return next + "%" })).
+			LikeRight("LikeRight", a.next2("LikeRight", func(next string) any { return "%" + next })).
+			LikePattern("LikePattern", a.next("LikePattern")).
+			In("In", []any{a.next("In"), a.next("In")}).
+			Between("Between", a.next("Between"), a.next("Between")).
+			IsNull("IsNull").IsNotNull("IsNull").
+			Not().Eq("Not", a.next("Not")).
+			Or().Eq("OrEq1", a.next("OrEq1")).Eq("OrEq2", a.next("OrEq2"))
 
 		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
 		b.Accept(c)
-		r.Equal("c1 = ? AND c2 = 'c2' AND c3 = ? AND c4 <> ? AND c5 > ? AND c6 < ? AND c7 >= ? AND c8 <= ? AND c9 LIKE ? "+
-			"AND c10 LIKE ? AND c11 LIKE ? AND c12 LIKE ? AND c13 IN(?, ?) AND c14 BETWEEN ? AND ? AND c15 IS NULL AND c16 IS NOT NULL "+
-			"AND NOT c17 = ? OR c18 = ? AND c19 = ?", b.b.String())
-		r.Equal([]any{"c1_1", "c3_2", "c4_3", "c5_4", "c6_5", "c7_6", "c8_7", "%c9_8%",
-			"c10_9%", "%c11_10", "c12_11", "c13_12", "c13_13", "c14_14", "c14_15", "c17_16", "c18_17", "c19_18"}, b.args)
+		r.Equal("Eq = ? AND Ne <> ? AND Gt > ? AND Lt < ? AND Ge >= ? AND Le <= ? AND Like LIKE ? AND LikeLeft LIKE ?"+
+			" AND LikeRight LIKE ? AND LikePattern LIKE ? AND In IN(?, ?) AND Between BETWEEN ? AND ? AND IsNull IS NULL"+
+			" AND IsNull IS NOT NULL AND NOT Not = ? OR OrEq1 = ? AND OrEq2 = ?", b.b.String())
+		r.Equal(a.args, b.args)
 	}
 }
 
-func TestCondSub(t *testing.T) {
+func TestCondition_Expr(t *testing.T) {
 	r := require.New(t)
 	{
-		arg := argFetcher()
-		c := Cond().Sub(Cond()).Sub(Cond().Eq("c1", arg("c1")).Or().Eq("c2", arg("c2")))
+		a := &argFetcher{}
+		c := (&Condition{}).Expr(func(c *CondExpr) {
+			c.Str("c1 = 'c1'").Str(" AND c2 = ").Arg(a.next("c2"))
+		})
+
+		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
+		b.Accept(c)
+		r.Equal("c1 = 'c1' AND c2 = ?", b.b.String())
+		r.Equal(a.args, b.args)
+	}
+	{
+		a := &argFetcher{}
+		c := (&Condition{}).Expr(func(c *CondExpr) {
+			c.Str("c1 = 'c1'").Str(" AND c2 = ").Arg(a.next("c2"))
+		}).Eq("c3", a.next("c3"))
+
+		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
+		b.Accept(c)
+		r.Equal("(c1 = 'c1' AND c2 = ?) AND c3 = ?", b.b.String())
+		r.Equal(a.args, b.args)
+	}
+	{
+		a := &argFetcher{}
+		c := (&Condition{}).Sub(func(c *Condition) {
+
+		}).Expr(func(c *CondExpr) {
+			c.Str("c1 = 'c1'").Str(" AND c2 = ").Arg(a.next("c2"))
+		})
+
+		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
+		b.Accept(c)
+		r.Equal("c1 = 'c1' AND c2 = ?", b.b.String())
+		r.Equal(a.args, b.args)
+	}
+	{
+		a := &argFetcher{}
+		c := (&Condition{}).Sub(func(c *Condition) {
+			c.Eq("c1", a.next("c1"))
+		}).Expr(func(c *CondExpr) {
+			c.Str("c2 = 'c2'").Str(" AND c3 = ").Arg(a.next("c3"))
+		})
+
+		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
+		b.Accept(c)
+		r.Equal("c1 = ? AND (c2 = 'c2' AND c3 = ?)", b.b.String())
+		r.Equal(a.args, b.args)
+	}
+}
+
+func TestCondition_Sub(t *testing.T) {
+	r := require.New(t)
+	{
+		a := &argFetcher{}
+		c := (&Condition{}).Sub(nil).Sub(func(c *Condition) {
+			c.Eq("c1", a.next("c1")).Or().Eq("c2", a.next("c2"))
+		})
 		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("c1 = ? OR c2 = ?", b.b.String())
 		r.Equal([]any{"c1_1", "c2_2"}, b.args)
 	}
 	{
-		arg := argFetcher()
-		c := Cond().Sub(Cond().Eq("c1", arg("c1")).Or().Eq("c2", arg("c2"))).Eq("c3", arg("c3"))
+		a := &argFetcher{}
+		c := (&Condition{}).Sub(func(c *Condition) {
+			c.Eq("c1", a.next("c1")).Or().Eq("c2", a.next("c2"))
+		}).Eq("c3", a.next("c3"))
 		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("(c1 = ? OR c2 = ?) AND c3 = ?", b.b.String())
 		r.Equal([]any{"c1_1", "c2_2", "c3_3"}, b.args)
 	}
 	{
-		arg := argFetcher()
-		c := Cond().Eq("c1", arg("c1")).Sub(Cond().Eq("c2", arg("c2")).Or().Eq("c3", arg("c3")))
+		a := &argFetcher{}
+		c := (&Condition{}).Eq("c1", a.next("c1")).Sub(func(c *Condition) {
+			c.Eq("c2", a.next("c2")).Or().Eq("c3", a.next("c3"))
+		})
 		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("c1 = ? AND (c2 = ? OR c3 = ?)", b.b.String())
 		r.Equal([]any{"c1_1", "c2_2", "c3_3"}, b.args)
 	}
 	{
-		arg := argFetcher()
-		c := Cond().Not().Sub(Cond().Eq("c1", arg("c1")).Eq("c2", arg("c2"))).
-			Not().Sub(Cond().Eq("c3", arg("c3")).Eq("c4", arg("c4")))
+		a := &argFetcher{}
+		c := (&Condition{}).Not().Sub(func(c *Condition) {
+			c.Eq("c1", a.next("c1")).Eq("c2", a.next("c2"))
+		}).Not().Sub(func(c *Condition) {
+			c.Eq("c3", a.next("c3")).Eq("c4", a.next("c4"))
+		})
 		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("NOT (c1 = ? AND c2 = ?) AND NOT (c3 = ? AND c4 = ?)", b.b.String())
@@ -90,10 +145,25 @@ func TestCondSub(t *testing.T) {
 	}
 }
 
-var argFetcher = func() func(string) string {
-	var i int
-	return func(str string) string {
-		i++
-		return str + "_" + strconv.Itoa(i)
+type argFetcher struct {
+	args []any
+	i    int
+}
+
+func (a *argFetcher) next(prefix string) string {
+	a.i++
+	arg := prefix + "_" + strconv.Itoa(a.i)
+	a.args = append(a.args, arg)
+	return arg
+}
+
+func (a *argFetcher) next2(prefix string, actualHandler func(next string) any) string {
+	a.i++
+	arg := prefix + "_" + strconv.Itoa(a.i)
+	if actualHandler != nil {
+		a.args = append(a.args, actualHandler(arg))
+	} else {
+		a.args = append(a.args, arg)
 	}
+	return arg
 }

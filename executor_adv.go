@@ -21,14 +21,6 @@ import (
 	"reflect"
 )
 
-func OrderBy() *orderBy {
-	return &orderBy{}
-}
-
-func Page(offset, rowCount int) *page {
-	return &page{offset: offset, rowCount: rowCount}
-}
-
 func DemandFor[D any]() *Demand {
 	return &Demand{t: reflect.TypeFor[D]()}
 }
@@ -41,7 +33,7 @@ type find[E any] struct {
 	query          *query[E]
 	selectedSet    set[string]
 	demand         *Demand
-	orderBy        *orderBy
+	orderBy        *OrderBy
 	page           *page
 	condition      *Condition
 	includeDeleted bool
@@ -73,18 +65,24 @@ func (f *find[E]) OnDemand(demand *Demand) *find[E] {
 	return f
 }
 
-func (f *find[E]) Condition(cond *Condition) *find[E] {
-	f.condition = cond
+func (f *find[E]) Condition(handler func(c *Condition)) *find[E] {
+	if handler != nil {
+		f.condition = &Condition{}
+		handler(f.condition)
+	}
 	return f
 }
 
-func (f *find[E]) OrderBy(orderBy *orderBy) *find[E] {
-	f.orderBy = orderBy
+func (f *find[E]) OrderBy(handler func(o *OrderBy)) *find[E] {
+	if handler != nil {
+		f.orderBy = &OrderBy{}
+		handler(f.orderBy)
+	}
 	return f
 }
 
-func (f *find[E]) Page(page *page) *find[E] {
-	f.page = page
+func (f *find[E]) Page(offset, rowCount int) *find[E] {
+	f.page = &page{offset: offset, rowCount: rowCount}
 	return f
 }
 
@@ -160,18 +158,18 @@ func (f *findOne[E]) OnDemand(demand *Demand) *findOne[E] {
 	return f
 }
 
-func (f *findOne[E]) Condition(cond *Condition) *findOne[E] {
-	f.find.Condition(cond)
+func (f *findOne[E]) Condition(handler func(c *Condition)) *findOne[E] {
+	f.find.Condition(handler)
 	return f
 }
 
-func (f *findOne[E]) OrderBy(orderBy *orderBy) *findOne[E] {
-	f.find.OrderBy(orderBy)
+func (f *findOne[E]) OrderBy(handler func(o *OrderBy)) *findOne[E] {
+	f.find.OrderBy(handler)
 	return f
 }
 
-func (f *findOne[E]) Page(page *page) *findOne[E] {
-	f.find.Page(page)
+func (f *findOne[E]) Page(offset, rowCount int) *findOne[E] {
+	f.find.Page(offset, rowCount)
 	return f
 }
 
@@ -350,8 +348,11 @@ func (u *update[E]) Required(columns ...string) *update[E] {
 	return u
 }
 
-func (u *update[E]) Condition(cond *Condition) *update[E] {
-	u.condition = cond
+func (u *update[E]) Condition(handler func(c *Condition)) *update[E] {
+	if handler != nil {
+		u.condition = &Condition{}
+		handler(u.condition)
+	}
 	return u
 }
 
@@ -385,7 +386,7 @@ func (u *update[E]) Do() (int64, error) {
 		}
 		entityValueMap := ei.getValueMap(u.entity, updatedColumns, ei.pkColumns)
 
-		c := Cond()
+		c := &Condition{}
 		if len(ei.pkColumns) > 0 && u.entity != nil {
 			for _, column := range ei.pkColumns {
 				if v, ok := entityValueMap[column]; ok {
@@ -393,7 +394,7 @@ func (u *update[E]) Do() (int64, error) {
 				}
 			}
 		}
-		c.Sub(u.condition)
+		c.add(u.condition)
 
 		am := newAssignedManager[E](u.mutation.ctx, ei.updatePolicy, []map[string]any{ei.getValueMap(u.entity, updatedColumns)}, u.setColumns, "")
 		b.Write("UPDATE ").Write(ei.table).Write(" SET ")
@@ -460,8 +461,11 @@ func (u *updateRow[E]) SetRaw(column string, sql string) *updateRow[E] {
 	return u
 }
 
-func (u *updateRow[E]) Condition(cond *Condition) *updateRow[E] {
-	u.condition = cond
+func (u *updateRow[E]) Condition(handler func(c *Condition)) *updateRow[E] {
+	if handler != nil {
+		u.condition = &Condition{}
+		handler(u.condition)
+	}
 	return u
 }
 
@@ -512,11 +516,11 @@ func (u *updateRow[E]) Do() (int64, error) {
 		b.ForEach(b.Sep(", "), updatedColumns, func(i int, column string) {
 			b.Write(column).Write(" = ").Accept(am.getValueWriter(column, -1))
 		})
-		var c *Condition
+		c := &Condition{}
 		if len(u.entities) == 1 {
-			c = Cond().Eq(pkColumn, pkValues[0]).Sub(u.condition)
+			c = c.Eq(pkColumn, pkValues[0]).add(u.condition)
 		} else {
-			c = Cond().In(pkColumn, pkValues).Sub(u.condition)
+			c = c.In(pkColumn, pkValues).add(u.condition)
 		}
 		b.Accept(where{
 			condition:      c,
@@ -549,8 +553,11 @@ func (d *delete[E]) SqlLogLevel(level Level) *delete[E] {
 	return d
 }
 
-func (d *delete[E]) Condition(cond *Condition) *delete[E] {
-	d.condition = cond
+func (d *delete[E]) Condition(handler func(c *Condition)) *delete[E] {
+	if handler != nil {
+		d.condition = &Condition{}
+		handler(d.condition)
+	}
 	return d
 }
 
@@ -594,8 +601,11 @@ func (d *deleteSoftly[E]) SqlLogLevel(level Level) *deleteSoftly[E] {
 	return d
 }
 
-func (d *deleteSoftly[E]) Condition(cond *Condition) *deleteSoftly[E] {
-	d.condition = cond
+func (d *deleteSoftly[E]) Condition(handler func(c *Condition)) *deleteSoftly[E] {
+	if handler != nil {
+		d.condition = &Condition{}
+		handler(d.condition)
+	}
 	return d
 }
 
@@ -650,8 +660,11 @@ func (c *count[E]) SqlLogLevel(level Level) *count[E] {
 	return c
 }
 
-func (c *count[E]) Condition(cond *Condition) *count[E] {
-	c.condition = cond
+func (c *count[E]) Condition(handler func(c *Condition)) *count[E] {
+	if handler != nil {
+		c.condition = &Condition{}
+		handler(c.condition)
+	}
 	return c
 }
 
@@ -823,33 +836,33 @@ type where struct {
 
 func (w where) WriteSQL(b *SQLBuilder) {
 	c := w.condition
-	if !c.notEmpty() {
+	if c.isEmpty() {
 		if w.safety {
 			b.Error(errors.New("full table modification blocked"))
 		}
 		return
 	}
 	if w.policy.mode.IsPresent() && !w.includeDeleted {
-		c = Cond().Sub(w.condition).Eq(w.policy.deletedColumn, w.policy.normalValue)
+		c = (&Condition{}).add(w.condition).Eq(w.policy.deletedColumn, w.policy.normalValue)
 	}
 	b.Write(" WHERE ").Accept(c)
 }
 
-type orderBy struct {
+type OrderBy struct {
 	items []orderByItem
 }
 
-func (o *orderBy) Asc(column string) *orderBy {
+func (o *OrderBy) Asc(column string) *OrderBy {
 	o.items = append(o.items, orderByItem{column: column, seq: "ASC"})
 	return o
 }
 
-func (o *orderBy) Desc(column string) *orderBy {
+func (o *OrderBy) Desc(column string) *OrderBy {
 	o.items = append(o.items, orderByItem{column: column, seq: "DESC"})
 	return o
 }
 
-func (o *orderBy) WriteSQL(b *SQLBuilder) {
+func (o *OrderBy) WriteSQL(b *SQLBuilder) {
 	if o != nil && len(o.items) > 0 {
 		b.Write(" ORDER BY ").ForEach(b.Sep(", "), o.items, func(_ int, item orderByItem) {
 			b.Accept(item)

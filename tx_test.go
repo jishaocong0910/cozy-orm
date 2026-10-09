@@ -214,7 +214,9 @@ func TestTxHook(t *testing.T) {
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectRollback()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
-			_, err := db.Update[orm.User](ctx).Set("email", "a1").Condition(orm.Cond().Eq("id", 1)).Do()
+			_, err := db.Update[orm.User](ctx).Set("email", "a1").Condition(func(c *orm.Condition) {
+				c.Eq("id", 1)
+			}).Do()
 			if err != nil {
 				return err
 			}
@@ -248,14 +250,18 @@ func TestTxHook(t *testing.T) {
 		mock.ExpectCommit()
 		ctx := context.WithValue(context.Background(), "key", "value")
 		err := db.Tx(ctx).Do(func(ctx context.Context) error {
-			_, err := db.Update[orm.User](ctx).Set("email", "a1").Condition(orm.Cond().Eq("id", 1)).Do()
+			_, err := db.Update[orm.User](ctx).Set("email", "a1").Condition(func(c *orm.Condition) {
+				c.Eq("id", 1)
+			}).Do()
 			if err != nil {
 				return err
 			}
 
 			wg.Add(1)
 			b := orm.TxHook().BeforeSync(func(ctx context.Context) error {
-				_, err := db.Update[orm.User](ctx).Set("email", "a2").Condition(orm.Cond().Eq("id", 2)).Do()
+				_, err := db.Update[orm.User](ctx).Set("email", "a2").Condition(func(c *orm.Condition) {
+					c.Eq("id", 2)
+				}).Do()
 				return err
 			}).AfterAsync(func(ctx context.Context, commit bool) {
 				ti := orm.GetTxInfoInner(ctx)

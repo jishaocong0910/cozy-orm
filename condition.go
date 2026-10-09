@@ -14,10 +14,6 @@
 
 package orm
 
-func Cond() *Condition {
-	return &Condition{}
-}
-
 type Condition struct {
 	condBase
 	isNot   bool
@@ -44,33 +40,34 @@ func (c *Condition) WriteSQL(b *SQLBuilder) {
 	}
 }
 
-func (c *Condition) notEmpty() bool {
+func (c *Condition) isEmpty() bool {
 	if c != nil {
 		for _, item := range c.items {
-			if item.notEmpty() {
-				return true
+			if !item.isEmpty() {
+				return false
 			}
 		}
 	}
-	return false
+	return true
 }
 
 func (c *Condition) setNot() {
 	c.not = true
 	if len(c.items) > 1 {
-		c.condBase.setParen()
+		c.paren = true
 	}
 }
 
-func (c *Condition) canParen() bool {
-	return len(c.items) > 1 && c.hasOr
-}
-
 func (c *Condition) setParen() {
-	c.condBase.setParen()
+	if len(c.items) > 1 && c.hasOr {
+		c.paren = true
+	}
 }
 
-func (c *Condition) _add(item condItem) *Condition {
+func (c *Condition) add(item condItem) *Condition {
+	if item.isEmpty() {
+		return c
+	}
 	if c.nextNot {
 		item.setNot()
 		c.nextNot = false
@@ -81,13 +78,9 @@ func (c *Condition) _add(item condItem) *Condition {
 		c.hasOr = true
 	}
 	if len(c.items) > 0 {
-		if item.canParen() {
-			item.setParen()
-		}
+		item.setParen()
 		if len(c.items) == 1 {
-			if c.items[0].canParen() {
-				c.items[0].setParen()
-			}
+			c.items[0].setParen()
 		}
 	}
 	c.items = append(c.items, item)
@@ -106,86 +99,87 @@ func (c *Condition) Or() *Condition {
 	return c
 }
 
-func (c *Condition) Sub(sub *Condition) *Condition {
-	if sub.notEmpty() {
-		c._add(sub)
+func (c *Condition) Sub(handler func(c *Condition)) *Condition {
+	if handler != nil {
+		c2 := &Condition{}
+		handler(c2)
+		c.add(c2)
 	}
 	return c
 }
 
-func (c *Condition) Determine(handler func(c *Condition)) *Condition {
-	handler(c)
+func (c *Condition) Expr(handler func(c *CondExpr)) *Condition {
+	if handler != nil {
+		e := &CondExpr{}
+		handler(e)
+		c.add(e)
+	}
 	return c
 }
 
-func (c *Condition) Raw(expr string) *Condition {
-	return c._add(&condRaw{expr: expr})
-}
-
 func (c *Condition) Eq(column string, arg any) *Condition {
-	return c._add(&condBinOp{column: column, op: "=", arg: arg})
+	return c.add(&condBinOp{column: column, op: "=", arg: arg})
 }
 
 func (c *Condition) Ne(column string, arg any) *Condition {
-	return c._add(&condBinOp{column: column, op: "<>", arg: arg})
+	return c.add(&condBinOp{column: column, op: "<>", arg: arg})
 }
 
 func (c *Condition) Gt(column string, arg any) *Condition {
-	return c._add(&condBinOp{column: column, op: ">", arg: arg})
+	return c.add(&condBinOp{column: column, op: ">", arg: arg})
 }
 
 func (c *Condition) Lt(column string, arg any) *Condition {
-	return c._add(&condBinOp{column: column, op: "<", arg: arg})
+	return c.add(&condBinOp{column: column, op: "<", arg: arg})
 }
 
 func (c *Condition) Ge(column string, arg any) *Condition {
-	return c._add(&condBinOp{column: column, op: ">=", arg: arg})
+	return c.add(&condBinOp{column: column, op: ">=", arg: arg})
 }
 
 func (c *Condition) Le(column string, arg any) *Condition {
-	return c._add(&condBinOp{column: column, op: "<=", arg: arg})
+	return c.add(&condBinOp{column: column, op: "<=", arg: arg})
 }
 
 func (c *Condition) Like(column string, str string) *Condition {
-	return c._add(&condBinOp{column: column, op: "LIKE", arg: "%" + str + "%"})
+	return c.add(&condBinOp{column: column, op: "LIKE", arg: "%" + str + "%"})
 }
 
 func (c *Condition) LikeLeft(column string, str string) *Condition {
-	return c._add(&condBinOp{column: column, op: "LIKE", arg: str + "%"})
+	return c.add(&condBinOp{column: column, op: "LIKE", arg: str + "%"})
 }
 
 func (c *Condition) LikeRight(column string, str string) *Condition {
-	return c._add(&condBinOp{column: column, op: "LIKE", arg: "%" + str})
+	return c.add(&condBinOp{column: column, op: "LIKE", arg: "%" + str})
 }
 
 func (c *Condition) LikePattern(column string, pattern string) *Condition {
-	return c._add(&condBinOp{column: column, op: "LIKE", arg: pattern})
+	return c.add(&condBinOp{column: column, op: "LIKE", arg: pattern})
 }
 
 func (c *Condition) In(column string, args []any) *Condition {
-	return c._add(&condIn{column: column, args: args})
+	return c.add(&condIn{column: column, args: args})
 }
 
 func (c *Condition) Between(column string, min, max any) *Condition {
-	return c._add(&condBetween{column: column, min: min, max: max})
+	return c.add(&condBetween{column: column, min: min, max: max})
 }
 
 func (c *Condition) IsNull(column string) *Condition {
-	return c._add(&condIsNull{column: column})
+	return c.add(&condIsNull{column: column})
 }
 
 func (c *Condition) IsNotNull(column string) *Condition {
-	return c._add(&condIsNotNull{column: column})
+	return c.add(&condIsNotNull{column: column})
 }
 
 type condItem interface {
 	SQLWriter
-	notEmpty() bool
+	isEmpty() bool
 	isOr() bool
 	setNot()
 	setOr()
 	setParen()
-	canParen() bool
 }
 
 type condBase struct {
@@ -194,8 +188,8 @@ type condBase struct {
 	paren bool
 }
 
-func (c *condBase) notEmpty() bool {
-	return true
+func (c *condBase) isEmpty() bool {
+	return false
 }
 
 func (c *condBase) isOr() bool {
@@ -210,9 +204,7 @@ func (c *condBase) setOr() {
 	c.or = true
 }
 
-func (c *condBase) canParen() bool { return false }
-
-func (c *condBase) setParen() { c.paren = true }
+func (c *condBase) setParen() {}
 
 func (c *condBase) writeWrap(b *SQLBuilder, write func()) {
 	if c.not {
@@ -225,17 +217,6 @@ func (c *condBase) writeWrap(b *SQLBuilder, write func()) {
 	if c.paren {
 		b.Write(")")
 	}
-}
-
-type condRaw struct {
-	condBase
-	expr string
-}
-
-func (c condRaw) WriteSQL(b *SQLBuilder) {
-	c.writeWrap(b, func() {
-		b.Write(c.expr)
-	})
 }
 
 type condBinOp struct {
@@ -302,4 +283,41 @@ func (c condIsNotNull) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
 		b.WriteColumn(c.column).Write(" IS NOT NULL")
 	})
+}
+
+type CondExpr struct {
+	condBase
+	items []any
+	args  []any
+}
+
+func (c *CondExpr) isEmpty() bool {
+	return len(c.items) == 0
+}
+
+func (c *CondExpr) setParen() {
+	c.paren = true
+}
+
+func (c *CondExpr) WriteSQL(b *SQLBuilder) {
+	c.writeWrap(b, func() {
+		for _, item := range c.items {
+			if i, ok := item.(int); ok {
+				b.WritePh().AddArgs(c.args[i])
+			} else {
+				b.Write(item.(string))
+			}
+		}
+	})
+}
+
+func (c *CondExpr) Str(str string) *CondExpr {
+	c.items = append(c.items, str)
+	return c
+}
+
+func (c *CondExpr) Arg(a any) *CondExpr {
+	c.args = append(c.args, a)
+	c.items = append(c.items, len(c.args)-1)
+	return c
 }
