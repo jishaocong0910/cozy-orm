@@ -40,7 +40,7 @@ func TestTx(t *testing.T) {
 		err := tx.TxOptions(nil).Do(func(ctx context.Context) error {
 			ctx2 = ctx
 			ti := orm.GetTxInfoInner(ctx)
-			r.Equal(ti.Creator, tx)
+			r.Equal(ti.Owner, tx)
 			r.NotNil(ti.RawTx)
 			_, err := db.Mutation(ctx).SqlLogLevel(orm.Level_.Info).BuildSql(func(b *orm.SQLBuilder) {
 				b.Write("UPDATE user set status=1 WHERE id=?", 1)
@@ -293,4 +293,19 @@ func TestTxHook(t *testing.T) {
 		r.Equal(orm.Level_.Error, logger.Messages[0].Level)
 		r.Contains(logger.Messages[0].Msg, "panic in transaction after-hook after-hook panic")
 	}
+}
+
+func TestTxContext(t *testing.T) {
+	r := require.New(t)
+	tc := orm.NewTxContext(nil)
+	_, ok := tc.Deadline()
+	r.False(ok)
+
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+	tc = orm.NewTxContext(ctx)
+	_, ok = tc.Deadline()
+	r.True(ok)
+
+	cancelFunc()
+	r.Equal(tc.Err(), context.Canceled)
 }

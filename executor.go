@@ -321,12 +321,17 @@ func (e *executor) doExec() (sql.Result, time.Duration, bool, error) {
 }
 
 func (e *executor) _inTx() bool {
-	return cvTx.get(e.ctx).matchingDb(e.db)
+	if tc, ok := e.ctx.(*TxContext); ok && tc.getTxInfoByDB(e.db) != nil {
+		return true
+	}
+	return false
 }
 
 func (e *executor) _prepare(sqlStr string) (*sql.Stmt, error) {
-	if ti := cvTx.get(e.ctx); ti.matchingDb(e.db) {
-		return ti.rawTx.PrepareContext(e.ctx, sqlStr)
+	if tc, ok := e.ctx.(*TxContext); ok {
+		if ti := tc.getTxInfoByDB(e.db); ti != nil {
+			return ti.rawTx.PrepareContext(e.ctx, sqlStr)
+		}
 	}
 	if e.db.rawDB == nil {
 		return nil, errors.New("no available *sql.DB")

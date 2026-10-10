@@ -52,6 +52,8 @@ func MockDBAndLogger(r *require.Assertions, config *DBConfig) (*DB, *MockLogger,
 	return db, logger, mock
 }
 
+var NewTxContext = newTxContext
+
 func convertId[T any](id int64) any {
 	return lastInsertIdConversionMap[reflect.TypeFor[T]()](id).Elem().Interface()
 }
@@ -246,21 +248,22 @@ type DemoDemandAnon struct {
 }
 
 type TxInfoInner struct {
-	Creator *tx
-	RawTx   *sql.Tx
-	TxHook  []*txHook
+	Owner  *tx
+	RawTx  *sql.Tx
+	TxHook []*txHook
 }
 
 func GetTxInfoInner(ctx context.Context) *TxInfoInner {
-	ti := cvTx.get(ctx)
-	if ti == nil || ti.txInfoInner == nil {
-		return nil
+	if tc, ok := ctx.(*TxContext); ok {
+		if ti := tc.getTxInfo(); ti != nil {
+			return &TxInfoInner{
+				Owner:  ti.owner,
+				RawTx:  ti.rawTx,
+				TxHook: ti.txHooks,
+			}
+		}
 	}
-	return &TxInfoInner{
-		Creator: ti.creator,
-		RawTx:   ti.rawTx,
-		TxHook:  ti.txHooks,
-	}
+	return nil
 }
 
 type AnyTime struct{}
