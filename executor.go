@@ -326,7 +326,7 @@ func (e *executor) _inTx() bool {
 
 func (e *executor) _prepare(sqlStr string) (*sql.Stmt, error) {
 	if ti := cvTx.get(e.ctx); ti.matchingDb(e.db) {
-		return ti.sqlTx.PrepareContext(e.ctx, sqlStr)
+		return ti.rawTx.PrepareContext(e.ctx, sqlStr)
 	}
 	if e.db.rawDB == nil {
 		return nil, errors.New("no available *sql.DB")

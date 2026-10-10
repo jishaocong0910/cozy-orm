@@ -83,12 +83,12 @@ func (t *tx) _open() error {
 			return checkMust(t.must, errors.New("no available *sql.DB"))
 		}
 
-		sqlTx, err := t.db.rawDB.BeginTx(t.ctx, t.txOptions)
+		rawTx, err := t.db.rawDB.BeginTx(t.ctx, t.txOptions)
 		if err != nil {
 			return checkMust(t.must, err)
 		}
 
-		t.ti = &txInfo{&txInfoInner{sqlTx: sqlTx, creator: t}}
+		t.ti = &txInfo{&txInfoInner{rawTx: rawTx, creator: t}}
 		t.ctx = cvTx.set(t.ctx, t.ti)
 	}
 	return nil
@@ -96,7 +96,7 @@ func (t *tx) _open() error {
 
 func (t *tx) _commit() error {
 	if t.ti.creator == t {
-		err := t.ti.sqlTx.Commit()
+		err := t.ti.rawTx.Commit()
 		if err == nil {
 			t._runAfterHook(true)
 		}
@@ -108,7 +108,7 @@ func (t *tx) _commit() error {
 
 func (t *tx) _rollback() error {
 	if t.ti.creator == t {
-		err := t.ti.sqlTx.Rollback()
+		err := t.ti.rawTx.Rollback()
 		if err == nil {
 			t._runAfterHook(false)
 		}
@@ -142,7 +142,7 @@ func (t *tx) _runAfterHook(commit bool) {
 
 type txInfoInner struct {
 	creator *tx
-	sqlTx   *sql.Tx
+	rawTx   *sql.Tx
 	txHooks []*txHook
 }
 

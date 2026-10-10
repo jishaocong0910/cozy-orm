@@ -26,7 +26,7 @@ type SQLBuilder struct {
 	cancel bool
 	err    error
 	ph     SQLWriter
-	qit    IdentifierDelimiter
+	delim  IdentifierDelimiter
 }
 
 func (b *SQLBuilder) Write(str string, args ...any) *SQLBuilder {
@@ -41,8 +41,8 @@ func (b *SQLBuilder) WritePh() *SQLBuilder {
 }
 
 func (b *SQLBuilder) WriteColumn(column string) *SQLBuilder {
-	if b.qit.addQuotes != nil {
-		column = b.qit.addQuotes(column)
+	if b.delim.addQuotes != nil {
+		column = b.delim.addQuotes(column)
 	}
 	b.Write(column)
 	return b
@@ -139,5 +139,5 @@ func newSQLBuilder(paramPrefix string, qit IdentifierDelimiter) *SQLBuilder {
 	} else {
 		ph = defaultPh{}
 	}
-	return &SQLBuilder{ph: ph, qit: qit}
+	return &SQLBuilder{ph: ph, delim: qit}
 }

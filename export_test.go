@@ -247,7 +247,7 @@ type DemoDemandAnon struct {
 
 type TxInfoInner struct {
 	Creator *tx
-	SqlTx   *sql.Tx
+	RawTx   *sql.Tx
 	TxHook  []*txHook
 }
 
@@ -258,7 +258,7 @@ func GetTxInfoInner(ctx context.Context) *TxInfoInner {
 	}
 	return &TxInfoInner{
 		Creator: ti.creator,
-		SqlTx:   ti.sqlTx,
+		RawTx:   ti.rawTx,
 		TxHook:  ti.txHooks,
 	}
 }

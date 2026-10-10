@@ -41,7 +41,7 @@ func TestTx(t *testing.T) {
 			ctx2 = ctx
 			ti := orm.GetTxInfoInner(ctx)
 			r.Equal(ti.Creator, tx)
-			r.NotNil(ti.SqlTx)
+			r.NotNil(ti.RawTx)
 			_, err := db.Mutation(ctx).SqlLogLevel(orm.Level_.Info).BuildSql(func(b *orm.SQLBuilder) {
 				b.Write("UPDATE user set status=1 WHERE id=?", 1)
 			}).Do()
