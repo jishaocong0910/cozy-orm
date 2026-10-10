@@ -399,7 +399,7 @@ func (u *update[E]) Do() (int64, error) {
 		am := newAssignedManager[E](u.mutation.ctx, ei.updatePolicy, []map[string]any{ei.getValueMap(u.entity, updatedColumns)}, u.setColumns, "")
 		b.Write("UPDATE ").Write(ei.table).Write(" SET ")
 		b.ForEach(b.Sep(", "), updatedColumns, func(_ int, column string) {
-			b.Write(column).Write(" = ").Accept(am.getValueWriter(column, 0))
+			b.WriteColumn(column).Write(" = ").Accept(am.getValueWriter(column, 0))
 		})
 		b.Accept(where{
 			condition:      c,
@@ -514,7 +514,7 @@ func (u *updateRow[E]) Do() (int64, error) {
 		am := newAssignedManager[E](u.mutation.ctx, ei.updatePolicy, entityValueMaps, u.setColumns, pkColumn)
 		b.Write("UPDATE ").Write(ei.table).Write(" SET ")
 		b.ForEach(b.Sep(", "), updatedColumns, func(i int, column string) {
-			b.Write(column).Write(" = ").Accept(am.getValueWriter(column, -1))
+			b.WriteColumn(column).Write(" = ").Accept(am.getValueWriter(column, -1))
 		})
 		c := &Cond{}
 		if len(u.entities) == 1 {
@@ -621,10 +621,10 @@ func (d *deleteSoftly[E]) Do() (int64, error) {
 			b.Error(err)
 			return
 		}
-		b.Write("UPDATE ").Write(ei.table).Write(" SET ").Write(ei.deleteSoftlyPolicy.deletedColumn).Write(" = ")
+		b.Write("UPDATE ").Write(ei.table).Write(" SET ").WriteColumn(ei.deleteSoftlyPolicy.deletedColumn).Write(" = ")
 		switch ei.deleteSoftlyPolicy.mode.ID {
 		case deleteSoftlyMode_.assignedPk.ID:
-			b.Write(ei.deleteSoftlyPolicy.pkColumn)
+			b.WriteColumn(ei.deleteSoftlyPolicy.pkColumn)
 		case deleteSoftlyMode_.assignedNull.ID:
 			b.Write("NULL")
 		default:
@@ -876,7 +876,7 @@ type orderByItem struct {
 }
 
 func (o orderByItem) WriteSQL(b *SQLBuilder) {
-	b.Write(o.column).Write(" ").Write(o.seq)
+	b.WriteColumn(o.column).Write(" ").Write(o.seq)
 }
 
 type page struct {

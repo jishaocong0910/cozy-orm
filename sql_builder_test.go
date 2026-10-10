@@ -24,7 +24,7 @@ import (
 func TestSQLBuilder_Write(t *testing.T) {
 	r := require.New(t)
 	{
-		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
+		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
 		b.Write("a", 1, 2)
 		b.Write(" ").WritePh()
 		b.Write(" ").Accept(WriterTest{})
@@ -52,22 +52,22 @@ func TestSQLBuilder_Write(t *testing.T) {
 		r.EqualError(b.err, "test error")
 	}
 	{
-		b := newSQLBuilder("", QuotedIdentifier_.Backtick)
+		b := newSQLBuilder("", IdentifierDelimiter_.Backtick)
 		b.WriteColumn("col")
 		r.Equal("`col`", b.b.String())
 	}
 	{
-		b := newSQLBuilder("", QuotedIdentifier_.DoubleQuote)
+		b := newSQLBuilder("", IdentifierDelimiter_.DoubleQuote)
 		b.WriteColumn("col")
 		r.Equal("\"col\"", b.b.String())
 	}
 	{
-		b := newSQLBuilder("", QuotedIdentifier_.Bracket)
+		b := newSQLBuilder("", IdentifierDelimiter_.Bracket)
 		b.WriteColumn("col")
 		r.Equal("[col]", b.b.String())
 	}
 	{
-		b := newSQLBuilder("$", QuotedIdentifier_.UNDEFINED)
+		b := newSQLBuilder("$", IdentifierDelimiter_.UNDEFINED)
 		b.WritePh().Write(" ").WritePh().Write(" ").WritePh()
 		r.Equal("$1 $2 $3", b.b.String())
 	}

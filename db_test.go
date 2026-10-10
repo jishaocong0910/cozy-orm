@@ -23,23 +23,20 @@ import (
 func TestDB(t *testing.T) {
 	r := require.New(t)
 	{
-		log := &mockLogger{}
-		sqlDB, mock := MockSqlDB(r)
-		db := DBConfig{SqlDB: sqlDB, Logger: log}.Build()
+		db, logger, mock := MockDBAndLogger(r, nil)
 		mock.ExpectPrepare("test").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}))
 		_, err := db.Query[User](nil).SqlLogLevel(Level_.Info).BuildSql(func(b *SQLBuilder) {
 			b.Write("test")
 		}).Do()
 		r.NoError(err)
-		r.Equal(sqlDB, db.Native())
-		r.Len(log.Msgs, 1)
-		lm := log.Msgs[0]
+		r.NotNil(db.RawDB())
+		r.Len(logger.Messages, 1)
+		lm := logger.Messages[0]
 		r.Equal(Level_.Info, lm.Level)
 		r.Contains(lm.Msg, "test")
 	}
 	{
-		sqlDB, mock := MockSqlDB(r)
-		db := DBConfig{SqlDB: sqlDB, ParamPrefix: ":"}.Build()
+		db, mock := MockDB(r, &DBConfig{ParamPrefix: ":"})
 		mock.ExpectPrepare(":1:2:3").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}))
 		_, err := db.Query[User](nil).BuildSql(func(b *SQLBuilder) {
 			b.WritePh().WritePh().WritePh()
@@ -50,35 +47,35 @@ func TestDB(t *testing.T) {
 	{
 		db := DBConfig{DBType: DBType_.MySQL}.Build()
 		r.Equal("", db.paramPrefix)
-		r.Equal(QuotedIdentifier_.Backtick.ID, db.quotedIdentifier.ID)
+		r.Equal(IdentifierDelimiter_.Backtick.ID, db.identifierDelimiter.ID)
 		r.Equal(GetGeneratedKeyMode_.FirstInsertId.ID, db.getGeneratedKeyMode.ID)
 		r.Equal(PageMode_.LimitOffset.ID, db.pageMode.ID)
 	}
 	{
 		db := DBConfig{DBType: DBType_.Oracle}.Build()
 		r.Equal(":", db.paramPrefix)
-		r.Equal(QuotedIdentifier_.DoubleQuote.ID, db.quotedIdentifier.ID)
+		r.Equal(IdentifierDelimiter_.DoubleQuote.ID, db.identifierDelimiter.ID)
 		r.Equal(GetGeneratedKeyMode_.Oracle.ID, db.getGeneratedKeyMode.ID)
 		r.Equal(PageMode_.OffsetFetch.ID, db.pageMode.ID)
 	}
 	{
 		db := DBConfig{DBType: DBType_.Postgres}.Build()
 		r.Equal("$", db.paramPrefix)
-		r.Equal(QuotedIdentifier_.DoubleQuote.ID, db.quotedIdentifier.ID)
+		r.Equal(IdentifierDelimiter_.DoubleQuote.ID, db.identifierDelimiter.ID)
 		r.Equal(GetGeneratedKeyMode_.InsertReturning.ID, db.getGeneratedKeyMode.ID)
 		r.Equal(PageMode_.LimitOffset.ID, db.pageMode.ID)
 	}
 	{
 		db := DBConfig{DBType: DBType_.SQLServer}.Build()
 		r.Equal(":", db.paramPrefix)
-		r.Equal(QuotedIdentifier_.Bracket.ID, db.quotedIdentifier.ID)
+		r.Equal(IdentifierDelimiter_.Bracket.ID, db.identifierDelimiter.ID)
 		r.Equal(GetGeneratedKeyMode_.SQLServer.ID, db.getGeneratedKeyMode.ID)
 		r.Equal(PageMode_.OffsetFetch.ID, db.pageMode.ID)
 	}
 	{
 		db := DBConfig{DBType: DBType_.SQLite}.Build()
 		r.Equal("", db.paramPrefix)
-		r.Equal(QuotedIdentifier_.Backtick.ID, db.quotedIdentifier.ID)
+		r.Equal(IdentifierDelimiter_.Backtick.ID, db.identifierDelimiter.ID)
 		r.Equal(GetGeneratedKeyMode_.LastInsertId.ID, db.getGeneratedKeyMode.ID)
 		r.Equal(PageMode_.LimitOffset.ID, db.pageMode.ID)
 	}

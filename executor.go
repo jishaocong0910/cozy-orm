@@ -255,7 +255,7 @@ func (e *executor) doQuery() (*sql.Rows, []string, time.Duration, bool, error) {
 	if e.buildSQL == nil {
 		return nil, nil, -1, true, nil
 	}
-	builder := newSQLBuilder(e.db.paramPrefix, e.db.quotedIdentifier)
+	builder := newSQLBuilder(e.db.paramPrefix, e.db.identifierDelimiter)
 	e.builder = builder
 	e.buildSQL(builder)
 	if builder.err != nil {
@@ -292,7 +292,7 @@ func (e *executor) doExec() (sql.Result, time.Duration, bool, error) {
 	if e.buildSQL == nil {
 		return nil, -1, true, nil
 	}
-	builder := newSQLBuilder(e.db.paramPrefix, e.db.quotedIdentifier)
+	builder := newSQLBuilder(e.db.paramPrefix, e.db.identifierDelimiter)
 	e.builder = builder
 	e.buildSQL(builder)
 	if builder.err != nil {
@@ -328,10 +328,10 @@ func (e *executor) _prepare(sqlStr string) (*sql.Stmt, error) {
 	if ti := cvTx.get(e.ctx); ti.matchingDb(e.db) {
 		return ti.sqlTx.PrepareContext(e.ctx, sqlStr)
 	}
-	if e.db.sqlDB == nil {
+	if e.db.rawDB == nil {
 		return nil, errors.New("no available *sql.DB")
 	}
-	return e.db.sqlDB.PrepareContext(e.ctx, sqlStr)
+	return e.db.rawDB.PrepareContext(e.ctx, sqlStr)
 }
 
 func newExecutor(ctx context.Context, db *DB) *executor {

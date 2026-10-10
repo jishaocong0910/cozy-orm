@@ -30,8 +30,7 @@ import (
 func TestTx(t *testing.T) {
 	r := require.New(t)
 	{
-		db, mock := orm.MockDB(r)
-		log := orm.MockLogger(db)
+		db, logger, mock := orm.MockDBAndLogger(r, nil)
 		mock.ExpectBegin()
 		mock.ExpectPrepare("UPDATE user set status=1 WHERE id=?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
@@ -50,14 +49,14 @@ func TestTx(t *testing.T) {
 		})
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
-		l := log.Msgs[0]
+		l := logger.Messages[0]
 		r.Equal("SQL: UPDATE user set status=1 WHERE id=?; args: 1(int), tx: true, affected: 1, cost: 0ms", l.Msg)
 
 		ti := orm.GetTxInfoInner(ctx2)
 		r.Nil(ti)
 	}
 	{
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectBegin()
 		mock.ExpectPrepare("UPDATE user set status=1 WHERE id=?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectPrepare("UPDATE user set status=2 WHERE id=?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
@@ -86,7 +85,7 @@ func TestTx(t *testing.T) {
 		r.NoError(mock.ExpectationsWereMet())
 	}
 	{
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectBegin()
 		mock.ExpectPrepare("UPDATE user set status=1 WHERE id=?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectPrepare("UPDATE user set status=2 WHERE id=?").ExpectExec().WillReturnError(errors.New("test nested _rollback"))
@@ -115,8 +114,8 @@ func TestTx(t *testing.T) {
 		r.NoError(mock.ExpectationsWereMet())
 	}
 	{
-		db, mock := orm.MockDB(r)
-		db2, mock2 := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
+		db2, mock2 := orm.MockDB(r, nil)
 		mock.ExpectBegin()
 		mock.ExpectPrepare("UPDATE user set status=1 WHERE id=?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
@@ -155,7 +154,7 @@ func TestTx(t *testing.T) {
 		r.EqualError(err, "no available *sql.DB")
 	}
 	{
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectBegin()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			return errors.New("error")
@@ -163,7 +162,7 @@ func TestTx(t *testing.T) {
 		r.EqualError(err, "error")
 	}
 	{
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectBegin().WillReturnError(errors.New("begin error"))
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			return nil
@@ -171,7 +170,7 @@ func TestTx(t *testing.T) {
 		r.EqualError(err, "begin error")
 	}
 	{
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectBegin()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			panic(errors.New("panic error"))
@@ -179,7 +178,7 @@ func TestTx(t *testing.T) {
 		r.ErrorContains(err, "panic error")
 	}
 	{
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectBegin()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			panic(123)
@@ -187,7 +186,7 @@ func TestTx(t *testing.T) {
 		r.ErrorContains(err, "123")
 	}
 	{
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectBegin()
 		r.Panics(func() {
 			db.Tx(nil).Must().Do(func(ctx context.Context) error {
@@ -208,9 +207,9 @@ func TestTxHook(t *testing.T) {
 	}
 	{
 		var wg sync.WaitGroup
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectBegin()
-		mock.ExpectPrepare("UPDATE user SET email = ? WHERE id = ?").ExpectExec().WithArgs("a1", 1).
+		mock.ExpectPrepare("UPDATE user SET `email` = ? WHERE `id` = ?").ExpectExec().WithArgs("a1", 1).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectRollback()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
@@ -241,11 +240,11 @@ func TestTxHook(t *testing.T) {
 	}
 	{
 		var wg sync.WaitGroup
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectBegin()
-		mock.ExpectPrepare("UPDATE user SET email = ? WHERE id = ?").ExpectExec().WithArgs("a1", 1).
+		mock.ExpectPrepare("UPDATE user SET `email` = ? WHERE `id` = ?").ExpectExec().WithArgs("a1", 1).
 			WillReturnResult(sqlmock.NewResult(1, 1))
-		mock.ExpectPrepare("UPDATE user SET email = ? WHERE id = ?").ExpectExec().WithArgs("a2", 2).
+		mock.ExpectPrepare("UPDATE user SET `email` = ? WHERE `id` = ?").ExpectExec().WithArgs("a2", 2).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 		ctx := context.WithValue(context.Background(), "key", "value")
@@ -278,8 +277,7 @@ func TestTxHook(t *testing.T) {
 		wg.Wait()
 	}
 	{
-		db, mock := orm.MockDB(r)
-		log := orm.MockLogger(db)
+		db, logger, mock := orm.MockDBAndLogger(r, nil)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
@@ -291,8 +289,8 @@ func TestTxHook(t *testing.T) {
 		})
 		r.NoError(err)
 		time.Sleep(time.Second * 1)
-		r.Len(log.Msgs, 1)
-		r.Equal(orm.Level_.Error, log.Msgs[0].Level)
-		r.Contains(log.Msgs[0].Msg, "panic in transaction after-hook after-hook panic")
+		r.Len(logger.Messages, 1)
+		r.Equal(orm.Level_.Error, logger.Messages[0].Level)
+		r.Contains(logger.Messages[0].Msg, "panic in transaction after-hook after-hook panic")
 	}
 }

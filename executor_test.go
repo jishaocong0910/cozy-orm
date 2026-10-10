@@ -35,20 +35,20 @@ func TestQuery(t *testing.T) {
 		r.EqualError(err, "no available *sql.DB")
 	}
 	{
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectPrepare("").ExpectQuery().WillReturnRows(mock.NewRows([]string{"unused"}))
 		_, err := db.Query[int](nil).BuildSql(func(b *orm.SQLBuilder) {}).Do()
 		r.EqualError(err, "unsupported mapping type")
 	}
 	{
-		db, _ := orm.MockDB(r)
+		db, _ := orm.MockDB(r, nil)
 		_, err := db.Query[orm.User](nil).BuildSql(func(b *orm.SQLBuilder) {
 			b.Error(errors.New("build sql cause an error"))
 		}).Do()
 		r.EqualError(err, "build sql cause an error")
 	}
 	{
-		db, _ := orm.MockDB(r)
+		db, _ := orm.MockDB(r, nil)
 		r.PanicsWithError("build sql cause an error", func() {
 			db.Query[orm.User](nil).Must().BuildSql(func(b *orm.SQLBuilder) {
 				b.Error(errors.New("build sql cause an error"))
@@ -56,26 +56,26 @@ func TestQuery(t *testing.T) {
 		})
 	}
 	{
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectPrepare("").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}).AddRow("abc"))
 		_, err := db.Query[orm.User](nil).BuildSql(func(b *orm.SQLBuilder) {}).Do()
 		r.EqualError(err, "sql: Scan error on column index 0, name \"id\": converting driver.Value type string (\"abc\") to a int64: invalid syntax")
 	}
 	{
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectPrepare("").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}).AddRow("abc"))
 		_, err := db.Query[orm.User](nil).MapTo(&orm.User{}).BuildSql(func(b *orm.SQLBuilder) {}).Do()
 		r.EqualError(err, "sql: Scan error on column index 0, name \"id\": converting driver.Value type string (\"abc\") to a int64: invalid syntax")
 	}
 	{
-		db, _ := orm.MockDB(r)
+		db, _ := orm.MockDB(r, nil)
 		entities, err := db.Query[orm.User](nil).Do()
 		r.NoError(err)
 		r.NotNil(entities)
 		r.Len(entities, 0)
 	}
 	{
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectPrepare("")
 		_, err := db.Query[orm.User](nil).BuildSql(func(b *orm.SQLBuilder) {
 			b.Write("SELECT * FROM user WHERE id = 1")
@@ -85,35 +85,34 @@ func TestQuery(t *testing.T) {
 	}
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")
-		db, mock := orm.MockDB(r)
-		log := orm.MockLogger(db)
+		db, logger, mock := orm.MockDBAndLogger(r, nil)
 		mock.ExpectPrepare("sql").ExpectQuery().WillReturnRows(mock.NewRows([]string{"unused"}))
 		_, err := db.Query[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").BuildSql(func(b *orm.SQLBuilder) {
 			b.Write("sql")
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
-		lm := log.Msgs[0]
+		lm := logger.Messages[0]
 		r.Equal(ctx, lm.Ctx)
 		r.Equal(orm.Level_.Info, lm.Level)
 		r.Contains(lm.Msg, "SQL: sql; args: , tx: false, desc: test desc")
 	}
 	{
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectPrepare("").ExpectQuery().WillReturnError(errors.New("_prepare error"))
 		_, err := db.Query[orm.User](nil).BuildSql(func(b *orm.SQLBuilder) {}).Do()
 		r.EqualError(err, "_prepare error")
 		r.NoError(mock.ExpectationsWereMet())
 	}
 	{
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectPrepare("").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1).RowError(0, errors.New("rows error")))
 		_, err := db.Query[orm.User](nil).BuildSql(func(b *orm.SQLBuilder) {}).Do()
 		r.EqualError(err, "rows error")
 		r.NoError(mock.ExpectationsWereMet())
 	}
 	{
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectPrepare("").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1).RowError(0, errors.New("rows error")))
 		_, err := db.Query[orm.User](nil).MapTo(&orm.User{}).BuildSql(func(b *orm.SQLBuilder) {}).Do()
 		r.EqualError(err, "rows error")
@@ -121,7 +120,7 @@ func TestQuery(t *testing.T) {
 	}
 	{
 		createAt := time.UnixMilli(1703659380000)
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectPrepare("SELECT * FROM user WHERE id = ? AND level = ? AND phone = ?").
 			ExpectQuery().WithArgs(1, nil, nil).WillReturnRows(mock.NewRows([]string{"id", "name", "phone",
 			"email", "unused", "avatar_url", "status", "level", "properties", "category", "tags", "attributes", "create_at"}).
@@ -151,7 +150,7 @@ func TestQuery(t *testing.T) {
 	}
 	{
 		targets := []*orm.User{{}, {}}
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectPrepare("").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}).
 			AddRow(1).AddRow(2))
 		users, err := db.Query[orm.User](nil).BuildSql(func(b *orm.SQLBuilder) {}).MapTo(targets...).Do()
@@ -172,20 +171,20 @@ func TestMutation(t *testing.T) {
 		r.EqualError(err, "no available *sql.DB")
 	}
 	{
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectPrepare("").ExpectExec().WillReturnError(errors.New("exec error"))
 		_, err := db.Mutation(nil).BuildSql(func(b *orm.SQLBuilder) {}).Do()
 		r.EqualError(err, "exec error")
 	}
 	{
-		db, _ := orm.MockDB(r)
+		db, _ := orm.MockDB(r, nil)
 		_, err := db.Mutation(nil).BuildSql(func(b *orm.SQLBuilder) {
 			b.Error(errors.New("build sql cause an error"))
 		}).Do()
 		r.EqualError(err, "build sql cause an error")
 	}
 	{
-		db, _ := orm.MockDB(r)
+		db, _ := orm.MockDB(r, nil)
 		r.PanicsWithError("build sql cause an error", func() {
 			db.Mutation(nil).Must().BuildSql(func(b *orm.SQLBuilder) {
 				b.Error(errors.New("build sql cause an error"))
@@ -193,13 +192,13 @@ func TestMutation(t *testing.T) {
 		})
 	}
 	{
-		db, _ := orm.MockDB(r)
+		db, _ := orm.MockDB(r, nil)
 		affected, err := db.Mutation(nil).Do()
 		r.NoError(err)
 		r.Equal(int64(0), affected)
 	}
 	{
-		db, _ := orm.MockDB(r)
+		db, _ := orm.MockDB(r, nil)
 		affected, err := db.Mutation(nil).BuildSql(func(b *orm.SQLBuilder) {
 			b.Cancel()
 		}).Do()
@@ -208,21 +207,20 @@ func TestMutation(t *testing.T) {
 	}
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")
-		db, mock := orm.MockDB(r)
-		log := orm.MockLogger(db)
+		db, logger, mock := orm.MockDBAndLogger(r, nil)
 		mock.ExpectPrepare("sql").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
 		_, err := db.Mutation(ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").BuildSql(func(b *orm.SQLBuilder) {
 			b.Write("sql")
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
-		lm := log.Msgs[0]
+		lm := logger.Messages[0]
 		r.Equal(ctx, lm.Ctx)
 		r.Equal(orm.Level_.Info, lm.Level)
 		r.Contains(lm.Msg, "SQL: sql; args: , tx: false, desc: test desc")
 	}
 	{
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectPrepare("UPDATE user SET status = ?, level = ? WHERE id = ?").
 			ExpectExec().WithArgs(1, 2, 1).WillReturnResult(sqlmock.NewResult(0, 1))
 		affected, err := db.Mutation(nil).BuildSql(func(b *orm.SQLBuilder) {
@@ -235,8 +233,7 @@ func TestMutation(t *testing.T) {
 	}
 	{
 		users := []*orm.User{{}, {}}
-		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DBConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId}.Build()
+		db, mock := orm.MockDB(r, &orm.DBConfig{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId})
 		mock.ExpectPrepare("").ExpectExec().WillReturnResult(sqlmock.NewResult(1, 1))
 		affected, err := db.Mutation(nil).MapTo(users...).BuildSql(func(b *orm.SQLBuilder) {
 		}).Do()
@@ -248,8 +245,7 @@ func TestMutation(t *testing.T) {
 	}
 	{
 		users := []*orm.User{{}, {}}
-		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DBConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.LastInsertId}.Build()
+		db, mock := orm.MockDB(r, &orm.DBConfig{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.LastInsertId})
 		mock.ExpectPrepare("").ExpectExec().WillReturnResult(sqlmock.NewResult(2, 1))
 		affected, err := db.Mutation(nil).MapTo(users...).BuildSql(func(b *orm.SQLBuilder) {
 		}).Do()
@@ -260,43 +256,37 @@ func TestMutation(t *testing.T) {
 		r.Equal(int64(2), *users[1].Id)
 	}
 	{
-		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DBConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId}.Build()
-		log := orm.MockLogger(db)
+		db, logger, mock := orm.MockDBAndLogger(r, &orm.DBConfig{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId})
 		mock.ExpectPrepare("").ExpectExec().WillReturnResult(sqlmock.NewResult(2, 1))
 		affected, err := db.Mutation(nil).MapTo(new(1), new(1)).BuildSql(func(b *orm.SQLBuilder) {
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
 		r.Equal(int64(1), affected)
-		lm := log.Msgs[0]
+		lm := logger.Messages[0]
 		r.Equal(orm.Level_.Warn, lm.Level)
 		r.Equal("get generated key fail, not a valid entity type", lm.Msg)
 	}
 	{
-		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DBConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId}.Build()
-		log := orm.MockLogger(db)
+		db, logger, mock := orm.MockDBAndLogger(r, &orm.DBConfig{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId})
 		mock.ExpectPrepare("").ExpectExec().WillReturnResult(orm.UnsupportedLastInsertIdResult{})
 		_, err := db.Mutation(nil).MapTo(new(1), new(1)).BuildSql(func(b *orm.SQLBuilder) {
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
-		lm := log.Msgs[0]
+		lm := logger.Messages[0]
 		r.Equal(orm.Level_.Warn, lm.Level)
 		r.Equal("get generated key fail, lastInsertId is not supported", lm.Msg)
 	}
 	{
-		sqlDB, mock := orm.MockSqlDB(r)
-		db := orm.DBConfig{SqlDB: sqlDB, GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId}.Build()
-		log := orm.MockLogger(db)
+		db, logger, mock := orm.MockDBAndLogger(r, &orm.DBConfig{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId})
 		mock.ExpectPrepare("").ExpectExec().WillReturnResult(sqlmock.NewResult(2, 1))
 		affected, err := db.Mutation(nil).MapTo(&orm.DemoMulPk{}, &orm.DemoMulPk{}).BuildSql(func(b *orm.SQLBuilder) {
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
 		r.Equal(int64(1), affected)
-		lm := log.Msgs[0]
+		lm := logger.Messages[0]
 		r.Equal(orm.Level_.Warn, lm.Level)
 		r.Equal(`get generated key fail, the entity "orm.DemoMulPk" must have exactly one field with "auto" tag`, lm.Msg)
 	}

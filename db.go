@@ -23,7 +23,7 @@ import (
 )
 
 type DB struct {
-	sqlDB               *sql.DB
+	rawDB               *sql.DB
 	logger              Logger
 	sqlLogLevel         Level
 	tabNameMapper       *NameMapper
@@ -31,7 +31,7 @@ type DB struct {
 	paramPrefix         string
 	getGeneratedKeyMode GetGeneratedKeyMode
 	pageMode            PageMode
-	quotedIdentifier    QuotedIdentifier
+	identifierDelimiter IdentifierDelimiter
 	columnPolicyConfigs []*columnPolicyConfig
 
 	entities           sync.Map
@@ -40,8 +40,8 @@ type DB struct {
 	registerMapperLock sync.Mutex
 }
 
-func (d *DB) Native() *sql.DB {
-	return d.sqlDB
+func (d *DB) RawDB() *sql.DB {
+	return d.rawDB
 }
 
 func (d *DB) Query[E any](ctx context.Context) *query[E] {
@@ -128,7 +128,7 @@ func (d *DB) getMapper(t reflect.Type) (mapper, error) {
 }
 
 type DBConfig struct {
-	SqlDB               *sql.DB
+	RawDB               *sql.DB
 	Logger              Logger
 	SqlLogLevel         Level
 	TabNameMapper       *NameMapper
@@ -137,33 +137,33 @@ type DBConfig struct {
 	ParamPrefix         string
 	GetGeneratedKeyMode GetGeneratedKeyMode
 	PageMode            PageMode
-	QuotedIdentifier    QuotedIdentifier
+	IdentifierDelimiter IdentifierDelimiter
 	ColumnPolicyConfigs ColumnPolicyConfigs
 }
 
 func (c DBConfig) Build() *DB {
 	switch c.DBType.ID {
 	case DBType_.MySQL.ID:
-		c.QuotedIdentifier = QuotedIdentifier_.Backtick
+		c.IdentifierDelimiter = IdentifierDelimiter_.Backtick
 		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.FirstInsertId
 		c.PageMode = PageMode_.LimitOffset
 	case DBType_.Oracle.ID:
 		c.ParamPrefix = ":"
-		c.QuotedIdentifier = QuotedIdentifier_.DoubleQuote
+		c.IdentifierDelimiter = IdentifierDelimiter_.DoubleQuote
 		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.Oracle
 		c.PageMode = PageMode_.OffsetFetch
 	case DBType_.Postgres.ID:
 		c.ParamPrefix = "$"
-		c.QuotedIdentifier = QuotedIdentifier_.DoubleQuote
+		c.IdentifierDelimiter = IdentifierDelimiter_.DoubleQuote
 		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.InsertReturning
 		c.PageMode = PageMode_.LimitOffset
 	case DBType_.SQLServer.ID:
-		c.QuotedIdentifier = QuotedIdentifier_.Bracket
+		c.IdentifierDelimiter = IdentifierDelimiter_.Bracket
 		c.ParamPrefix = ":"
 		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.SQLServer
 		c.PageMode = PageMode_.OffsetFetch
 	case DBType_.SQLite.ID:
-		c.QuotedIdentifier = QuotedIdentifier_.Backtick
+		c.IdentifierDelimiter = IdentifierDelimiter_.Backtick
 		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.LastInsertId
 		c.PageMode = PageMode_.LimitOffset
 	}
@@ -174,7 +174,7 @@ func (c DBConfig) Build() *DB {
 		c.ColNameMapper = defaultNameMapper
 	}
 	return &DB{
-		sqlDB:               c.SqlDB,
+		rawDB:               c.RawDB,
 		logger:              c.Logger,
 		sqlLogLevel:         c.SqlLogLevel,
 		tabNameMapper:       c.TabNameMapper,
@@ -182,7 +182,7 @@ func (c DBConfig) Build() *DB {
 		paramPrefix:         c.ParamPrefix,
 		getGeneratedKeyMode: c.GetGeneratedKeyMode,
 		pageMode:            c.PageMode,
-		quotedIdentifier:    c.QuotedIdentifier,
+		identifierDelimiter: c.IdentifierDelimiter,
 		columnPolicyConfigs: c.ColumnPolicyConfigs,
 	}
 }

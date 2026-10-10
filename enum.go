@@ -50,26 +50,26 @@ type _Level struct {
 
 var Level_ = e.NewEnum(_Level{})
 
-type QuotedIdentifier struct {
+type IdentifierDelimiter struct {
 	e.EnumElem
 	addQuotes func(string) string
 }
 
-type _QuotedIdentifier struct {
-	e.Enum[QuotedIdentifier]
+type _IdentifierDelimiter struct {
+	e.Enum[IdentifierDelimiter]
 	Backtick,
 	DoubleQuote,
-	Bracket QuotedIdentifier
+	Bracket IdentifierDelimiter
 }
 
-var QuotedIdentifier_ = e.NewEnum(_QuotedIdentifier{
-	Backtick: QuotedIdentifier{addQuotes: func(s string) string {
+var IdentifierDelimiter_ = e.NewEnum(_IdentifierDelimiter{
+	Backtick: IdentifierDelimiter{addQuotes: func(s string) string {
 		return "`" + s + "`"
 	}},
-	DoubleQuote: QuotedIdentifier{addQuotes: func(s string) string {
+	DoubleQuote: IdentifierDelimiter{addQuotes: func(s string) string {
 		return "\"" + s + "\""
 	}},
-	Bracket: QuotedIdentifier{addQuotes: func(s string) string {
+	Bracket: IdentifierDelimiter{addQuotes: func(s string) string {
 		return "[" + s + "]"
 	}},
 })

@@ -26,7 +26,7 @@ type SQLBuilder struct {
 	cancel bool
 	err    error
 	ph     SQLWriter
-	qit    QuotedIdentifier
+	qit    IdentifierDelimiter
 }
 
 func (b *SQLBuilder) Write(str string, args ...any) *SQLBuilder {
@@ -132,7 +132,7 @@ func (p *prefixPh) WriteSQL(b *SQLBuilder) {
 	b.Write(ph)
 }
 
-func newSQLBuilder(paramPrefix string, qit QuotedIdentifier) *SQLBuilder {
+func newSQLBuilder(paramPrefix string, qit IdentifierDelimiter) *SQLBuilder {
 	var ph SQLWriter
 	if paramPrefix != "" {
 		ph = &prefixPh{prefix: paramPrefix}

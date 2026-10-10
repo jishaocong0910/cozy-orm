@@ -38,7 +38,7 @@ func TestCond(t *testing.T) {
 			Not().Eq("Not", a.next("Not")).
 			Or().Eq("OrEq1", a.next("OrEq1")).Eq("OrEq2", a.next("OrEq2"))
 
-		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
+		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("Eq = ? AND Ne <> ? AND Gt > ? AND Lt < ? AND Ge >= ? AND Le <= ? AND Like LIKE ? AND LikeLeft LIKE ?"+
 			" AND LikeRight LIKE ? AND LikePattern LIKE ? AND In IN(?, ?) AND Between BETWEEN ? AND ? AND IsNull IS NULL"+
@@ -55,7 +55,7 @@ func TestCond_Expr(t *testing.T) {
 			c.Str("c1 = 'c1'").Str(" AND c2 = ").Arg(a.next("c2"))
 		})
 
-		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
+		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("c1 = 'c1' AND c2 = ?", b.b.String())
 		r.Equal(a.args, b.args)
@@ -66,7 +66,7 @@ func TestCond_Expr(t *testing.T) {
 			c.Str("c1 = 'c1'").Str(" AND c2 = ").Arg(a.next("c2"))
 		}).Eq("c3", a.next("c3"))
 
-		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
+		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("(c1 = 'c1' AND c2 = ?) AND c3 = ?", b.b.String())
 		r.Equal(a.args, b.args)
@@ -79,7 +79,7 @@ func TestCond_Expr(t *testing.T) {
 			c.Str("c1 = 'c1'").Str(" AND c2 = ").Arg(a.next("c2"))
 		})
 
-		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
+		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("c1 = 'c1' AND c2 = ?", b.b.String())
 		r.Equal(a.args, b.args)
@@ -92,7 +92,7 @@ func TestCond_Expr(t *testing.T) {
 			c.Str("c2 = 'c2'").Str(" AND c3 = ").Arg(a.next("c3"))
 		})
 
-		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
+		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("c1 = ? AND (c2 = 'c2' AND c3 = ?)", b.b.String())
 		r.Equal(a.args, b.args)
@@ -106,7 +106,7 @@ func TestCond_Sub(t *testing.T) {
 		c := (&Cond{}).Sub(nil).Sub(func(c *Cond) {
 			c.Eq("c1", a.next("c1")).Or().Eq("c2", a.next("c2"))
 		})
-		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
+		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("c1 = ? OR c2 = ?", b.b.String())
 		r.Equal([]any{"c1_1", "c2_2"}, b.args)
@@ -116,7 +116,7 @@ func TestCond_Sub(t *testing.T) {
 		c := (&Cond{}).Sub(func(c *Cond) {
 			c.Eq("c1", a.next("c1")).Or().Eq("c2", a.next("c2"))
 		}).Eq("c3", a.next("c3"))
-		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
+		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("(c1 = ? OR c2 = ?) AND c3 = ?", b.b.String())
 		r.Equal([]any{"c1_1", "c2_2", "c3_3"}, b.args)
@@ -126,7 +126,7 @@ func TestCond_Sub(t *testing.T) {
 		c := (&Cond{}).Eq("c1", a.next("c1")).Sub(func(c *Cond) {
 			c.Eq("c2", a.next("c2")).Or().Eq("c3", a.next("c3"))
 		})
-		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
+		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("c1 = ? AND (c2 = ? OR c3 = ?)", b.b.String())
 		r.Equal([]any{"c1_1", "c2_2", "c3_3"}, b.args)
@@ -138,7 +138,7 @@ func TestCond_Sub(t *testing.T) {
 		}).Not().Sub(func(c *Cond) {
 			c.Eq("c3", a.next("c3")).Eq("c4", a.next("c4"))
 		})
-		b := newSQLBuilder("", QuotedIdentifier_.UNDEFINED)
+		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
 		b.Accept(c)
 		r.Equal("NOT (c1 = ? AND c2 = ?) AND NOT (c3 = ? AND c4 = ?)", b.b.String())
 		r.Equal([]any{"c1_1", "c2_2", "c3_3", "c4_4"}, b.args)

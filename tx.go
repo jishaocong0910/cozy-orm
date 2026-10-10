@@ -79,11 +79,11 @@ func (t *tx) _safeDo(do func(ctx context.Context) error) (err error) {
 
 func (t *tx) _open() error {
 	if t.ti = cvTx.get(t.ctx); !t.ti.matchingDb(t.db) {
-		if t.db.sqlDB == nil {
+		if t.db.rawDB == nil {
 			return checkMust(t.must, errors.New("no available *sql.DB"))
 		}
 
-		sqlTx, err := t.db.sqlDB.BeginTx(t.ctx, t.txOptions)
+		sqlTx, err := t.db.rawDB.BeginTx(t.ctx, t.txOptions)
 		if err != nil {
 			return checkMust(t.must, err)
 		}

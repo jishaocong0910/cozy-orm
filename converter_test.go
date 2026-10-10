@@ -92,7 +92,7 @@ func TestFieldConv(t *testing.T) {
 
 func TestConvertArgs(t *testing.T) {
 	r := require.New(t)
-	db, mock := MockDB(r)
+	db, mock := MockDB(r, nil)
 	mock.ExpectPrepare("").ExpectQuery().WithArgs(nil, (*string)(nil), "test",
 		`{"source":"a","country":"b"}`, `{"source":"a","country":"b"}`,
 		1, 1,

@@ -26,7 +26,7 @@ func TestTuple(t *testing.T) {
 	r := require.New(t)
 	tm := time.UnixMilli(1749198596000)
 	{
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectPrepare("").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id", "create_at", "level", "tags", "attributes", "category"}).
 			AddRow(1, tm, 5, "aa,bb,cc", `{"key1": "value1","key2": "value2"}`, "{\"organization\": \"none\",\"class\": 1}"))
 		tuples, err := db.Query[orm.Tuple6[*int64, *time.Time, *orm.UserLevel, orm.UserTags, orm.UserAttributes, *orm.UserCategory]](nil).BuildSql(func(b *orm.SQLBuilder) {}).Do()
@@ -39,7 +39,7 @@ func TestTuple(t *testing.T) {
 		r.Equal(new(orm.UserCategory{Organization: "none", Class: 1}), tuples[0].Field6)
 	}
 	{
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectPrepare("").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id", "create_at", "level", "tags", "attributes", "category"}).
 			AddRow(1, tm, 5, "aa,bb,cc", `{"key1": "value1","key2": "value2"}`, "{\"organization\": \"none\",\"class\": 1}"))
 		tuples, err := db.Query[orm.Tuple6[int64, time.Time, orm.UserLevel, *orm.UserTags, *orm.UserAttributes, orm.UserCategory]](nil).BuildSql(func(b *orm.SQLBuilder) {}).Do()
@@ -52,7 +52,7 @@ func TestTuple(t *testing.T) {
 		r.Equal(orm.UserCategory{Organization: "none", Class: 1}, tuples[0].Field6)
 	}
 	{
-		db, mock := orm.MockDB(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectPrepare("").ExpectQuery().WillReturnRows(mock.NewRows([]string{"name", "phone", "properties", "tags", "unknown"}).
 			AddRow(nil, nil, nil, nil, nil))
 		tuples, err := db.Query[orm.Tuple5[string, *time.Time, orm.UserProperties, orm.UserCategory, complex64]](nil).BuildSql(func(b *orm.SQLBuilder) {}).Do()

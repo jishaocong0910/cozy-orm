@@ -30,24 +30,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func MockDB(r *require.Assertions) (db *DB, mock sqlmock.Sqlmock) {
-	d, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+func MockDB(r *require.Assertions, config *DBConfig) (*DB, sqlmock.Sqlmock) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	r.NoError(err)
-	return DBConfig{SqlDB: d}.Build(), mock
-}
 
-func MockSqlDB(r *require.Assertions) (d *sql.DB, mock sqlmock.Sqlmock) {
-	d, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
-	r.NoError(err)
-	return
-}
-
-func MockLogger(db *DB) *mockLogger {
-	log := &mockLogger{}
-	if db != nil {
-		db.logger = log
+	if config == nil {
+		config = &DBConfig{}
 	}
-	return log
+
+	config.RawDB = db
+	if config.IdentifierDelimiter.IsUndefined() {
+		config.IdentifierDelimiter = IdentifierDelimiter_.Backtick
+	}
+	return config.Build(), mock
+}
+
+func MockDBAndLogger(r *require.Assertions, config *DBConfig) (*DB, *MockLogger, sqlmock.Sqlmock) {
+	db, mock := MockDB(r, config)
+	logger := &MockLogger{}
+	db.logger = logger
+	return db, logger, mock
 }
 
 func convertId[T any](id int64) any {
@@ -76,24 +78,24 @@ type logMsg struct {
 	Msg   string
 }
 
-type mockLogger struct {
-	Msgs []logMsg
+type MockLogger struct {
+	Messages []logMsg
 }
 
-func (d *mockLogger) Debug(ctx context.Context, msg string) {
-	d.Msgs = append(d.Msgs, logMsg{Ctx: ctx, Level: Level_.Debug, Msg: msg})
+func (d *MockLogger) Debug(ctx context.Context, msg string) {
+	d.Messages = append(d.Messages, logMsg{Ctx: ctx, Level: Level_.Debug, Msg: msg})
 }
 
-func (d *mockLogger) Info(ctx context.Context, msg string) {
-	d.Msgs = append(d.Msgs, logMsg{Ctx: ctx, Level: Level_.Info, Msg: msg})
+func (d *MockLogger) Info(ctx context.Context, msg string) {
+	d.Messages = append(d.Messages, logMsg{Ctx: ctx, Level: Level_.Info, Msg: msg})
 }
 
-func (d *mockLogger) Warn(ctx context.Context, msg string) {
-	d.Msgs = append(d.Msgs, logMsg{Ctx: ctx, Level: Level_.Warn, Msg: msg})
+func (d *MockLogger) Warn(ctx context.Context, msg string) {
+	d.Messages = append(d.Messages, logMsg{Ctx: ctx, Level: Level_.Warn, Msg: msg})
 }
 
-func (d *mockLogger) Error(ctx context.Context, msg string) {
-	d.Msgs = append(d.Msgs, logMsg{Ctx: ctx, Level: Level_.Error, Msg: msg})
+func (d *MockLogger) Error(ctx context.Context, msg string) {
+	d.Messages = append(d.Messages, logMsg{Ctx: ctx, Level: Level_.Error, Msg: msg})
 }
 
 type UnsupportedLastInsertIdResult struct {

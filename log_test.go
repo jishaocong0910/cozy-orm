@@ -25,42 +25,42 @@ import (
 func TestPrintSql(t *testing.T) {
 	r := require.New(t)
 	{
-		log := MockLogger(nil)
+		log := &MockLogger{}
 		printSql(nil, log, Level_.UNDEFINED, true, "update a user", `  
 SELECT *
   FROM
 user`,
 			[]any{2, nil, (*int)(nil), new("abc"), time.UnixMilli(1703659380000).In(time.UTC)},
 			100, 20, 15*time.Millisecond, errors.New("error"))
-		r.True(Level_.Error.Is(log.Msgs[0].Level))
+		r.True(Level_.Error.Is(log.Messages[0].Level))
 		r.Equal(`SQL:   
 SELECT *
   FROM
-user; args: 2(int) <nil> <nil> abc(string) 2023-12-27 06:43:00 +0000 UTC(time.Time), tx: true, desc: update a user, rows: 100, affected: 20, cost: 15ms, error: error`, log.Msgs[0].Msg)
+user; args: 2(int) <nil> <nil> abc(string) 2023-12-27 06:43:00 +0000 UTC(time.Time), tx: true, desc: update a user, rows: 100, affected: 20, cost: 15ms, error: error`, log.Messages[0].Msg)
 	}
 	{
-		log := MockLogger(nil)
+		log := &MockLogger{}
 		printSql(nil, log, Level_.UNDEFINED, false, "test", "test", nil, -1, -1, -1, nil)
-		r.Empty(log.Msgs)
+		r.Empty(log.Messages)
 	}
 	{
-		log := MockLogger(nil)
+		log := &MockLogger{}
 		printSql(nil, log, Level_.Debug, false, "test", "", nil, -1, -1, -1, nil)
-		r.True(log.Msgs[0].Level.Is(Level_.Debug))
-		r.Equal("SQL: ; args: , tx: false, desc: test", log.Msgs[0].Msg)
+		r.True(log.Messages[0].Level.Is(Level_.Debug))
+		r.Equal("SQL: ; args: , tx: false, desc: test", log.Messages[0].Msg)
 	}
 	{
-		log := MockLogger(nil)
+		log := &MockLogger{}
 		printSql(nil, log, Level_.Info, false, "test", "", nil, -1, -1, -1, nil)
-		r.True(log.Msgs[0].Level.Is(Level_.Info))
-		r.Equal("SQL: ; args: , tx: false, desc: test", log.Msgs[0].Msg)
+		r.True(log.Messages[0].Level.Is(Level_.Info))
+		r.Equal("SQL: ; args: , tx: false, desc: test", log.Messages[0].Msg)
 	}
 }
 
 func TestPrintWarn(t *testing.T) {
 	r := require.New(t)
-	log := MockLogger(nil)
+	log := &MockLogger{}
 	printWarn(nil, log, errors.New("warn"))
-	r.True(log.Msgs[0].Level.Is(Level_.Warn))
-	r.Equal("warn", log.Msgs[0].Msg)
+	r.True(log.Messages[0].Level.Is(Level_.Warn))
+	r.Equal("warn", log.Messages[0].Msg)
 }
