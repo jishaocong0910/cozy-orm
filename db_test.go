@@ -31,7 +31,7 @@ func TestDB(t *testing.T) {
 			b.Write("test")
 		}).Do()
 		r.NoError(err)
-		r.Equal(sqlDB, db.Raw())
+		r.Equal(sqlDB, db.Native())
 		r.Len(log.Msgs, 1)
 		lm := log.Msgs[0]
 		r.Equal(Level_.Info, lm.Level)

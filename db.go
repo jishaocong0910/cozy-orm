@@ -40,7 +40,7 @@ type DB struct {
 	registerMapperLock sync.Mutex
 }
 
-func (d *DB) Raw() *sql.DB {
+func (d *DB) Native() *sql.DB {
 	return d.sqlDB
 }
 
