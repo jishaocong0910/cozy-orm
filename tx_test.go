@@ -39,7 +39,7 @@ func TestTx(t *testing.T) {
 		tx := db.Tx(ctx)
 		err := tx.TxOptions(nil).Do(func(ctx context.Context) error {
 			ctx2 = ctx
-			ti := orm.GetTxInfoInner(ctx)
+			ti := orm.GetTxInfoInner(ctx, db)
 			r.Equal(ti.Owner, tx)
 			r.NotNil(ti.RawTx)
 			_, err := db.Mutation(ctx).SqlLogLevel(orm.Level_.Info).BuildSql(func(b *orm.SQLBuilder) {
@@ -52,7 +52,7 @@ func TestTx(t *testing.T) {
 		l := logger.Messages[0]
 		r.Equal("SQL: UPDATE user set status=1 WHERE id=?; args: 1(int), tx: true, affected: 1, cost: 0ms", l.Msg)
 
-		ti := orm.GetTxInfoInner(ctx2)
+		ti := orm.GetTxInfoInner(ctx2, db)
 		r.Nil(ti)
 	}
 	{
@@ -117,22 +117,33 @@ func TestTx(t *testing.T) {
 		db, mock := orm.MockDB(r, nil)
 		db2, mock2 := orm.MockDB(r, nil)
 		mock.ExpectBegin()
-		mock.ExpectPrepare("UPDATE user set status=1 WHERE id=?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectPrepare("UPDATE user set status = 1 WHERE id = ?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectPrepare("UPDATE user set status = 2 WHERE id = ?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 		mock2.ExpectBegin()
-		mock2.ExpectPrepare("UPDATE user set status=2 WHERE id=?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
+		mock2.ExpectPrepare("UPDATE user set status = 3 WHERE id = ?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
 		mock2.ExpectCommit()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
-				b.Write("UPDATE user set status=1 WHERE id=?", 1)
+				b.Write("UPDATE user set status = 1 WHERE id = ?", 1)
 			}).Do()
 			if err != nil {
 				return err
 			}
 
 			err = db2.Tx(ctx).Do(func(ctx context.Context) error {
+				err = db.Tx(ctx).Do(func(ctx context.Context) error {
+					_, err = db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
+						b.Write("UPDATE user set status = 2 WHERE id = ?", 1)
+					}).Do()
+					return err
+				})
+				if err != nil {
+					return err
+				}
+
 				_, err := db2.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
-					b.Write("UPDATE user set status=2 WHERE id=?", 1)
+					b.Write("UPDATE user set status = 3 WHERE id = ?", 1)
 				}).Do()
 				return err
 			})
@@ -200,10 +211,11 @@ func TestTx(t *testing.T) {
 func TestTxHook(t *testing.T) {
 	r := require.New(t)
 	{
-		b := orm.TxHook().Bind(context.Background())
-		r.False(b)
-		b = orm.TxHook().Bind(nil)
-		r.False(b)
+		db, _ := orm.MockDB(r, nil)
+		b := db.TxHook(context.Background())
+		r.Nil(b)
+		b = db.TxHook(context.Background())
+		r.Nil(b)
 	}
 	{
 		var wg sync.WaitGroup
@@ -219,17 +231,17 @@ func TestTxHook(t *testing.T) {
 			if err != nil {
 				return err
 			}
-			hook := orm.TxHook()
+			hook := db.TxHook(ctx)
+			r.NotNil(hook)
 
 			wg.Add(1)
-			b := hook.BeforeSync(func(ctx context.Context) error {
+			hook.BeforeSync(func(ctx context.Context) error {
 				return errors.New("before hook error")
 			}).AfterAsync(func(ctx context.Context, commit bool) {
 				r.False(commit)
 				wg.Done()
-			}).Bind(ctx)
-			r.True(b)
-			ti := orm.GetTxInfoInner(ctx)
+			})
+			ti := orm.GetTxInfoInner(ctx, db)
 			r.Len(ti.TxHook, 1)
 			r.Equal(ti.TxHook[0], hook)
 			return nil
@@ -257,20 +269,20 @@ func TestTxHook(t *testing.T) {
 			}
 
 			wg.Add(1)
-			b := orm.TxHook().BeforeSync(func(ctx context.Context) error {
+			hook := db.TxHook(ctx).BeforeSync(func(ctx context.Context) error {
 				_, err := db.Update[orm.User](ctx).Set("email", "a2").Cond(func(c *orm.Cond) {
 					c.Eq("id", 2)
 				}).Do()
 				return err
 			}).AfterAsync(func(ctx context.Context, commit bool) {
-				ti := orm.GetTxInfoInner(ctx)
+				ti := orm.GetTxInfoInner(ctx, db)
 				val := ctx.Value("key").(string)
 				r.True(commit)
 				r.Nil(ti)
 				r.Equal(val, "value")
 				wg.Done()
-			}, "key").Bind(ctx)
-			r.True(b)
+			}, "key")
+			r.NotNil(hook)
 			return nil
 		})
 		r.NoError(err)
@@ -281,10 +293,10 @@ func TestTxHook(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
-			b := orm.TxHook().AfterAsync(func(ctx context.Context, commit bool) {
+			hook := db.TxHook(ctx).AfterAsync(func(ctx context.Context, commit bool) {
 				panic("after-hook panic")
-			}).Bind(ctx)
-			r.True(b)
+			})
+			r.NotNil(hook)
 			return nil
 		})
 		r.NoError(err)

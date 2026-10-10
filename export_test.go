@@ -253,9 +253,9 @@ type TxInfoInner struct {
 	TxHook []*txHook
 }
 
-func GetTxInfoInner(ctx context.Context) *TxInfoInner {
+func GetTxInfoInner(ctx context.Context, db *DB) *TxInfoInner {
 	if tc, ok := ctx.(*TxContext); ok {
-		if ti := tc.getTxInfo(); ti != nil {
+		if ti := tc.getTxInfo(db); ti != nil {
 			return &TxInfoInner{
 				Owner:  ti.owner,
 				RawTx:  ti.rawTx,

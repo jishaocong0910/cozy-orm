@@ -321,7 +321,7 @@ func (e *executor) doExec() (sql.Result, time.Duration, bool, error) {
 }
 
 func (e *executor) _inTx() bool {
-	if tc, ok := e.ctx.(*TxContext); ok && tc.getTxInfoByDB(e.db) != nil {
+	if tc, ok := e.ctx.(*TxContext); ok && tc.getTxInfo(e.db) != nil {
 		return true
 	}
 	return false
@@ -329,7 +329,7 @@ func (e *executor) _inTx() bool {
 
 func (e *executor) _prepare(sqlStr string) (*sql.Stmt, error) {
 	if tc, ok := e.ctx.(*TxContext); ok {
-		if ti := tc.getTxInfoByDB(e.db); ti != nil {
+		if ti := tc.getTxInfo(e.db); ti != nil {
 			return ti.rawTx.PrepareContext(e.ctx, sqlStr)
 		}
 	}
