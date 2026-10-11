@@ -149,14 +149,14 @@ type txHook struct {
 	inheritCtxKeys []any
 }
 
-func (t *txHook) BeforeSync(handler func(ctx context.Context) error) *txHook {
+func (t *txHook) BeforeCommitSync(handler func(ctx context.Context) error) *txHook {
 	if t != nil {
 		t.beforeHandler = handler
 	}
 	return t
 }
 
-func (t *txHook) AfterAsync(handler func(ctx context.Context, commit bool), inheritCtxKeys ...any) *txHook {
+func (t *txHook) AfterCompleteAsync(handler func(ctx context.Context, commit bool), inheritCtxKeys ...any) *txHook {
 	if t != nil {
 		t.afterHandler = handler
 		t.inheritCtxKeys = inheritCtxKeys

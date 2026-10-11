@@ -235,9 +235,9 @@ func TestTxHook(t *testing.T) {
 			r.NotNil(hook)
 
 			wg.Add(1)
-			hook.BeforeSync(func(ctx context.Context) error {
+			hook.BeforeCommitSync(func(ctx context.Context) error {
 				return errors.New("before hook error")
-			}).AfterAsync(func(ctx context.Context, commit bool) {
+			}).AfterCompleteAsync(func(ctx context.Context, commit bool) {
 				r.False(commit)
 				wg.Done()
 			})
@@ -269,12 +269,12 @@ func TestTxHook(t *testing.T) {
 			}
 
 			wg.Add(1)
-			hook := db.TxHook(ctx).BeforeSync(func(ctx context.Context) error {
+			hook := db.TxHook(ctx).BeforeCommitSync(func(ctx context.Context) error {
 				_, err := db.Update[orm.User](ctx).Set("email", "a2").Cond(func(c *orm.Cond) {
 					c.Eq("id", 2)
 				}).Do()
 				return err
-			}).AfterAsync(func(ctx context.Context, commit bool) {
+			}).AfterCompleteAsync(func(ctx context.Context, commit bool) {
 				ti := orm.GetTxInfoInner(ctx, db)
 				val := ctx.Value("key").(string)
 				r.True(commit)
@@ -293,7 +293,7 @@ func TestTxHook(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
-			hook := db.TxHook(ctx).AfterAsync(func(ctx context.Context, commit bool) {
+			hook := db.TxHook(ctx).AfterCompleteAsync(func(ctx context.Context, commit bool) {
 				panic("after-hook panic")
 			})
 			r.NotNil(hook)
