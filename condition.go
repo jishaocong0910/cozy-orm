@@ -311,7 +311,7 @@ func (c *CondExpr) WriteSQL(b *SQLBuilder) {
 	})
 }
 
-func (c *CondExpr) Str(str string) *CondExpr {
+func (c *CondExpr) Text(str string) *CondExpr {
 	c.items = append(c.items, str)
 	return c
 }

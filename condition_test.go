@@ -52,7 +52,7 @@ func TestCond_Expr(t *testing.T) {
 	{
 		a := &argFetcher{}
 		c := (&Cond{}).Expr(func(c *CondExpr) {
-			c.Str("c1 = 'c1'").Str(" AND c2 = ").Arg(a.next("c2"))
+			c.Text("c1 = 'c1'").Text(" AND c2 = ").Arg(a.next("c2"))
 		})
 
 		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
@@ -63,7 +63,7 @@ func TestCond_Expr(t *testing.T) {
 	{
 		a := &argFetcher{}
 		c := (&Cond{}).Expr(func(c *CondExpr) {
-			c.Str("c1 = 'c1'").Str(" AND c2 = ").Arg(a.next("c2"))
+			c.Text("c1 = 'c1'").Text(" AND c2 = ").Arg(a.next("c2"))
 		}).Eq("c3", a.next("c3"))
 
 		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
@@ -76,7 +76,7 @@ func TestCond_Expr(t *testing.T) {
 		c := (&Cond{}).Sub(func(c *Cond) {
 
 		}).Expr(func(c *CondExpr) {
-			c.Str("c1 = 'c1'").Str(" AND c2 = ").Arg(a.next("c2"))
+			c.Text("c1 = 'c1'").Text(" AND c2 = ").Arg(a.next("c2"))
 		})
 
 		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
@@ -89,7 +89,7 @@ func TestCond_Expr(t *testing.T) {
 		c := (&Cond{}).Sub(func(c *Cond) {
 			c.Eq("c1", a.next("c1"))
 		}).Expr(func(c *CondExpr) {
-			c.Str("c2 = 'c2'").Str(" AND c3 = ").Arg(a.next("c3"))
+			c.Text("c2 = 'c2'").Text(" AND c3 = ").Arg(a.next("c3"))
 		})
 
 		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
