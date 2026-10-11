@@ -88,7 +88,7 @@ func (t *tx) _open() error {
 			return checkMust(t.must, err)
 		}
 
-		t.ctx.setTxInfo(&txInfo{&txInfoInner{rawTx: rawTx, owner: t}})
+		t.ctx.setTxInfo(&txInfo{&txInfoData{rawTx: rawTx, owner: t}})
 	}
 	return nil
 }
@@ -190,7 +190,7 @@ func (t *TxContext) setTxInfo(ti *txInfo) {
 
 func (t *TxContext) getTxInfo(db *DB) *txInfo {
 	ti, _ := t.ctx.Value(db).(*txInfo)
-	if ti != nil && ti.txInfoInner != nil {
+	if ti != nil && ti.txInfoData != nil {
 		return ti
 	}
 	return nil
@@ -209,12 +209,12 @@ func newTxContext(ctx context.Context) *TxContext {
 	return &TxContext{ctx: ctx}
 }
 
-type txInfoInner struct {
+type txInfo struct {
+	*txInfoData
+}
+
+type txInfoData struct {
 	owner   *tx
 	rawTx   *sql.Tx
 	txHooks []*txHook
-}
-
-type txInfo struct {
-	*txInfoInner
 }
