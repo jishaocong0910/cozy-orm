@@ -121,7 +121,7 @@ func (t *tx) _runAfterHook(commit bool) {
 	for _, hook := range t.ctx.getTxInfo(t.db).txHooks {
 		if hook.afterHandler != nil {
 			ctx := context.Background()
-			for _, key := range hook.inheritCtxKeys {
+			for _, key := range hook.copyCtxKeys {
 				val := t.ctx.Value(key)
 				if val != nil {
 					ctx = context.WithValue(ctx, key, val)
@@ -144,9 +144,9 @@ func newTx(ctx context.Context, db *DB) *tx {
 }
 
 type txHook struct {
-	beforeHandler  func(ctx context.Context) error
-	afterHandler   func(ctx context.Context, commit bool)
-	inheritCtxKeys []any
+	beforeHandler func(ctx context.Context) error
+	afterHandler  func(ctx context.Context, commit bool)
+	copyCtxKeys   []any
 }
 
 func (t *txHook) BeforeCommitSync(handler func(ctx context.Context) error) *txHook {
@@ -156,10 +156,10 @@ func (t *txHook) BeforeCommitSync(handler func(ctx context.Context) error) *txHo
 	return t
 }
 
-func (t *txHook) AfterCompleteAsync(handler func(ctx context.Context, commit bool), inheritCtxKeys ...any) *txHook {
+func (t *txHook) AfterCompleteAsync(handler func(ctx context.Context, commit bool), copyCtxKeys ...any) *txHook {
 	if t != nil {
 		t.afterHandler = handler
-		t.inheritCtxKeys = inheritCtxKeys
+		t.copyCtxKeys = copyCtxKeys
 	}
 	return t
 }
