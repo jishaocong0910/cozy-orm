@@ -29,9 +29,8 @@ type SQLBuilder struct {
 	delim  IdentifierDelimiter
 }
 
-func (b *SQLBuilder) Text(str string, args ...any) *SQLBuilder {
+func (b *SQLBuilder) Text(str string) *SQLBuilder {
 	b.b.WriteString(str)
-	b.Args(args...)
 	return b
 }
 

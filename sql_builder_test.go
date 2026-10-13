@@ -25,7 +25,7 @@ func TestSQLBuilder_Text(t *testing.T) {
 	r := require.New(t)
 	{
 		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
-		b.Text("a", 1, 2)
+		b.Text("a")
 		b.Text(" ").Accept(AcceptDemo{})
 		b.Text(" ").ForEach(b.Sep(","), []string{"s1", "s2", "s3"}, func(_ int, t string) {
 			b.Text(t)
@@ -46,7 +46,6 @@ func TestSQLBuilder_Text(t *testing.T) {
 		b.Error(errors.New("test error"))
 
 		r.Equal("a test accept s1,s2,s3 (s1,s2,s3) () (s1,s2,s3) col", b.b.String())
-		r.Equal([]any{1, 2}, b.args)
 		r.EqualError(b.err, "test error")
 	}
 	{

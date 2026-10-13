@@ -128,7 +128,7 @@ func TestQuery(t *testing.T) {
 				"{\"organization\": \"none\",\"class\": 1}", "a,b,c", "{\"key1\": \"value1\",\"key2\": \"value2\"}", createAt))
 		users, err := db.Query[orm.User](nil).BuildSql(func(b *orm.SQLBuilder) {
 			b.Text("SELECT * FROM user")
-			b.Text(" WHERE id = ? AND level = ? AND phone = ?", new(1), nil, (*string)(nil))
+			b.Text(" WHERE id = ? AND level = ? AND phone = ?").Args(new(1), nil, (*string)(nil))
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
@@ -224,7 +224,7 @@ func TestMutation(t *testing.T) {
 		mock.ExpectPrepare("UPDATE user SET status = ?, level = ? WHERE id = ?").
 			ExpectExec().WithArgs(1, 2, 1).WillReturnResult(sqlmock.NewResult(0, 1))
 		affected, err := db.Mutation(nil).BuildSql(func(b *orm.SQLBuilder) {
-			b.Text("UPDATE user SET status = ?, level = ? WHERE id = ?", new(orm.UserLevel("1")), 2, 1)
+			b.Text("UPDATE user SET status = ?, level = ? WHERE id = ?").Args(new(orm.UserLevel("1")), 2, 1)
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
