@@ -108,11 +108,11 @@ func (f *find[E]) Do() ([]*E, error) {
 		if len(columns) == 0 {
 			columns = ei.columns
 		}
-		b.Write("SELECT ")
+		b.Text("SELECT ")
 		b.ForEach(b.Sep(", "), columns, func(_ int, column string) {
-			b.WriteColumn(column)
+			b.Column(column)
 		})
-		b.Write(" FROM ").Write(ei.table).Accept(where{
+		b.Text(" FROM ").Text(ei.table).Accept(where{
 			condition:      f.condition,
 			policy:         ei.deleteSoftlyPolicy,
 			includeDeleted: f.includeDeleted,
@@ -122,7 +122,7 @@ func (f *find[E]) Do() ([]*E, error) {
 			b.Accept(f.page)
 		}
 		if f.lastClause != "" {
-			b.Write(" ").Write(f.lastClause)
+			b.Text(" ").Text(f.lastClause)
 		}
 	}).Do()
 	return es, err
@@ -265,9 +265,9 @@ func (i *insert[E]) buildSql(b *SQLBuilder) {
 	insertedColumns := ei.getColumns(i.entities[0], nil,
 		i.requiredSet.concat(ei.insertPolicy.forceColumnSet, ei.insertPolicy.defaultColumnSet),
 		ei.insertPolicy.ignoredColumnSet)
-	b.Write("INSERT INTO ").Write(ei.table)
+	b.Text("INSERT INTO ").Text(ei.table)
 	b.ForEach(b.SepWrap("(", ", ", ")"), insertedColumns, func(_ int, column string) {
-		b.WriteColumn(column)
+		b.Column(column)
 	})
 	if len(ei.autoColumns) > 0 && i.executor.db.getGeneratedKeyMode.IsPresent() {
 		if i.executor.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.SQLServer) {
@@ -290,7 +290,7 @@ func (i *insert[E]) _writeValuesClause(b *SQLBuilder, ei *entityInfo, insertedCo
 		entityValueMaps = append(entityValueMaps, ei.getValueMap(entity, insertedColumns))
 	}
 	am := newAssignedManager[E](i.executor.ctx, ei.insertPolicy, entityValueMaps, setColumns{}, "")
-	b.Write(" VALUES ").ForEach(b.Sep(", "), i.entities, func(i int, entity *E) {
+	b.Text(" VALUES ").ForEach(b.Sep(", "), i.entities, func(i int, entity *E) {
 		b.ForEach(b.SepWrap("(", ", ", ")"), insertedColumns, func(_ int, column string) {
 			b.Accept(am.getValueWriter(column, i))
 		})
@@ -397,9 +397,9 @@ func (u *update[E]) Do() (int64, error) {
 		c.add(u.condition)
 
 		am := newAssignedManager[E](u.mutation.ctx, ei.updatePolicy, []map[string]any{ei.getValueMap(u.entity, updatedColumns)}, u.setColumns, "")
-		b.Write("UPDATE ").Write(ei.table).Write(" SET ")
+		b.Text("UPDATE ").Text(ei.table).Text(" SET ")
 		b.ForEach(b.Sep(", "), updatedColumns, func(_ int, column string) {
-			b.WriteColumn(column).Write(" = ").Accept(am.getValueWriter(column, 0))
+			b.Column(column).Text(" = ").Accept(am.getValueWriter(column, 0))
 		})
 		b.Accept(where{
 			condition:      c,
@@ -512,9 +512,9 @@ func (u *updateRow[E]) Do() (int64, error) {
 		}
 
 		am := newAssignedManager[E](u.mutation.ctx, ei.updatePolicy, entityValueMaps, u.setColumns, pkColumn)
-		b.Write("UPDATE ").Write(ei.table).Write(" SET ")
+		b.Text("UPDATE ").Text(ei.table).Text(" SET ")
 		b.ForEach(b.Sep(", "), updatedColumns, func(i int, column string) {
-			b.WriteColumn(column).Write(" = ").Accept(am.getValueWriter(column, -1))
+			b.Column(column).Text(" = ").Accept(am.getValueWriter(column, -1))
 		})
 		c := &Cond{}
 		if len(u.entities) == 1 {
@@ -573,7 +573,7 @@ func (d *delete[E]) Do() (int64, error) {
 			b.Error(err)
 			return
 		}
-		b.Write("DELETE FROM ").Write(ei.table).Accept(where{
+		b.Text("DELETE FROM ").Text(ei.table).Accept(where{
 			condition: d.condition,
 			safety:    !d.skipSafety,
 		})
@@ -621,12 +621,12 @@ func (d *deleteSoftly[E]) Do() (int64, error) {
 			b.Error(err)
 			return
 		}
-		b.Write("UPDATE ").Write(ei.table).Write(" SET ").WriteColumn(ei.deleteSoftlyPolicy.deletedColumn).Write(" = ")
+		b.Text("UPDATE ").Text(ei.table).Text(" SET ").Column(ei.deleteSoftlyPolicy.deletedColumn).Text(" = ")
 		switch ei.deleteSoftlyPolicy.mode.ID {
 		case deleteSoftlyMode_.assignedPk.ID:
-			b.WriteColumn(ei.deleteSoftlyPolicy.pkColumn)
+			b.Column(ei.deleteSoftlyPolicy.pkColumn)
 		case deleteSoftlyMode_.assignedNull.ID:
-			b.Write("NULL")
+			b.Text("NULL")
 		default:
 			b.Error(errors.New("delete softly mode is undefined"))
 			return
@@ -680,7 +680,7 @@ func (c *count[E]) Do() (i int64, err error) {
 			b.Error(err)
 			return
 		}
-		b.Write("SELECT COUNT(*) FROM ").Write(ei.table).Accept(where{
+		b.Text("SELECT COUNT(*) FROM ").Text(ei.table).Accept(where{
 			condition:      c.condition,
 			policy:         ei.deleteSoftlyPolicy,
 			includeDeleted: c.includeDeleted,
@@ -791,9 +791,9 @@ type assignedValue struct {
 
 func (a assignedValue) WriteSQL(b *SQLBuilder) {
 	if a.value == nil {
-		b.Write("NULL")
+		b.Text("NULL")
 	} else {
-		b.WriteArg(a.value)
+		b.Arg(a.value)
 	}
 }
 
@@ -802,7 +802,7 @@ type assignedExpr struct {
 }
 
 func (a assignedExpr) WriteSQL(b *SQLBuilder) {
-	b.Write(a.expr)
+	b.Text(a.expr)
 }
 
 type assignedCases struct {
@@ -811,11 +811,11 @@ type assignedCases struct {
 }
 
 func (a assignedCases) WriteSQL(b *SQLBuilder) {
-	b.Write("CASE ").WriteColumn(a.pkColumn)
+	b.Text("CASE ").Column(a.pkColumn)
 	for _, item := range a.caseItems {
 		b.Accept(item)
 	}
-	b.Write(" END")
+	b.Text(" END")
 }
 
 type assignedCaseItem struct {
@@ -824,7 +824,7 @@ type assignedCaseItem struct {
 }
 
 func (a assignedCaseItem) WriteSQL(b *SQLBuilder) {
-	b.Write(" WHEN ").WriteArg(a.caseValue).Write(" THEN ").Accept(a.thenValue)
+	b.Text(" WHEN ").Arg(a.caseValue).Text(" THEN ").Accept(a.thenValue)
 }
 
 type where struct {
@@ -845,7 +845,7 @@ func (w where) WriteSQL(b *SQLBuilder) {
 	if w.policy.mode.IsPresent() && !w.includeDeleted {
 		c = (&Cond{}).add(w.condition).Eq(w.policy.deletedColumn, w.policy.normalValue)
 	}
-	b.Write(" WHERE ").Accept(c)
+	b.Text(" WHERE ").Accept(c)
 }
 
 type OrderBy struct {
@@ -864,7 +864,7 @@ func (o *OrderBy) Desc(column string) *OrderBy {
 
 func (o *OrderBy) WriteSQL(b *SQLBuilder) {
 	if o != nil && len(o.items) > 0 {
-		b.Write(" ORDER BY ").ForEach(b.Sep(", "), o.items, func(_ int, item orderByItem) {
+		b.Text(" ORDER BY ").ForEach(b.Sep(", "), o.items, func(_ int, item orderByItem) {
 			b.Accept(item)
 		})
 	}
@@ -876,7 +876,7 @@ type orderByItem struct {
 }
 
 func (o orderByItem) WriteSQL(b *SQLBuilder) {
-	b.WriteColumn(o.column).Write(" ").Write(o.seq)
+	b.Column(o.column).Text(" ").Text(o.seq)
 }
 
 type page struct {

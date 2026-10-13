@@ -25,24 +25,24 @@ func TestSQLBuilder_Write(t *testing.T) {
 	r := require.New(t)
 	{
 		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
-		b.Write("a", 1, 2)
-		b.Write(" ").Accept(WriterTest{})
-		b.Write(" ").ForEach(b.Sep(","), []string{"s1", "s2", "s3"}, func(_ int, t string) {
-			b.Write(t)
+		b.Text("a", 1, 2)
+		b.Text(" ").Accept(WriterTest{})
+		b.Text(" ").ForEach(b.Sep(","), []string{"s1", "s2", "s3"}, func(_ int, t string) {
+			b.Text(t)
 		})
 		b.ForEach(b.SepWrap(" (", ",", ")"), []string{"s1", "s2", "s3"}, func(_ int, t string) {
-			b.Write(t)
+			b.Text(t)
 		})
 		b.ForEach(b.SepWrap(" (", ",", ")"), nil, func(_ int, t string) {
-			b.Write(t)
+			b.Text(t)
 		})
 		b.ForEach(b.SepWrapOpt(" (", ",", ")"), []string{"s1", "s2", "s3"}, func(_ int, t string) {
-			b.Write(t)
+			b.Text(t)
 		})
 		b.ForEach(b.SepWrapOpt(" (", ",", ")"), nil, func(_ int, t string) {
-			b.Write(t)
+			b.Text(t)
 		})
-		b.Write(" ").WriteColumn("col")
+		b.Text(" ").Column("col")
 		b.Error(errors.New("test error"))
 
 		r.Equal("a test writer s1,s2,s3 (s1,s2,s3) () (s1,s2,s3) col", b.b.String())
@@ -51,22 +51,22 @@ func TestSQLBuilder_Write(t *testing.T) {
 	}
 	{
 		b := newSQLBuilder("", IdentifierDelimiter_.Backtick)
-		b.WriteColumn("col")
+		b.Column("col")
 		r.Equal("`col`", b.b.String())
 	}
 	{
 		b := newSQLBuilder("", IdentifierDelimiter_.DoubleQuote)
-		b.WriteColumn("col")
+		b.Column("col")
 		r.Equal("\"col\"", b.b.String())
 	}
 	{
 		b := newSQLBuilder("", IdentifierDelimiter_.Bracket)
-		b.WriteColumn("col")
+		b.Column("col")
 		r.Equal("[col]", b.b.String())
 	}
 	{
 		b := newSQLBuilder("$", IdentifierDelimiter_.UNDEFINED)
-		b.WriteArg(nil).WriteArg(nil).WriteArg(nil)
+		b.Arg(nil).Arg(nil).Arg(nil)
 		r.Equal("$1$2$3", b.b.String())
 	}
 }
@@ -74,5 +74,5 @@ func TestSQLBuilder_Write(t *testing.T) {
 type WriterTest struct{}
 
 func (w WriterTest) WriteSQL(b *SQLBuilder) {
-	b.Write("test writer")
+	b.Text("test writer")
 }

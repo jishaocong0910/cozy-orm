@@ -92,14 +92,14 @@ var GetGeneratedKeyMode_ = e.NewEnum(_GetGeneratedKeyMode{
 	InsertReturning: GetGeneratedKeyMode{
 		writeSQL: func(b *SQLBuilder, autoColumns []string) {
 			b.ForEach(b.SepWrapOpt(" RETURNING ", ", ", ""), autoColumns, func(_ int, column string) {
-				b.WriteColumn(column)
+				b.Column(column)
 			})
 		},
 	},
 	SQLServer: GetGeneratedKeyMode{
 		writeSQL: func(b *SQLBuilder, autoColumns []string) {
 			b.ForEach(b.SepWrapOpt(" OUTPUT ", ", ", ""), autoColumns, func(_ int, column string) {
-				b.Write("INSERTED.").WriteColumn(column)
+				b.Text("INSERTED.").Column(column)
 			})
 		},
 	},
@@ -119,16 +119,16 @@ type _PageMode struct {
 var PageMode_ = e.NewEnum(_PageMode{
 	LimitOffset: PageMode{
 		writeSQL: func(b *SQLBuilder, offset, count int) {
-			b.Write(" LIMIT ").Write(strconv.FormatInt(int64(count), 10))
+			b.Text(" LIMIT ").Text(strconv.FormatInt(int64(count), 10))
 			if offset > 0 {
-				b.Write(" OFFSET ").Write(strconv.FormatInt(int64(offset), 10))
+				b.Text(" OFFSET ").Text(strconv.FormatInt(int64(offset), 10))
 			}
 		},
 	},
 	OffsetFetch: PageMode{
 		writeSQL: func(b *SQLBuilder, offset, count int) {
-			b.Write(" OFFSET ").Write(strconv.FormatInt(int64(offset), 10)).Write(" ROWS")
-			b.Write(" FETCH NEXT ").Write(strconv.FormatInt(int64(count), 10)).Write(" ROWS ONLY")
+			b.Text(" OFFSET ").Text(strconv.FormatInt(int64(offset), 10)).Text(" ROWS")
+			b.Text(" FETCH NEXT ").Text(strconv.FormatInt(int64(count), 10)).Text(" ROWS ONLY")
 		},
 	},
 })

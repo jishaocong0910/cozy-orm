@@ -29,9 +29,9 @@ func (c *Cond) WriteSQL(b *SQLBuilder) {
 			for i, item := range c.items {
 				if i != 0 {
 					if item.isOr() {
-						b.Write(" OR ")
+						b.Text(" OR ")
 					} else {
-						b.Write(" AND ")
+						b.Text(" AND ")
 					}
 				}
 				b.Accept(item)
@@ -208,14 +208,14 @@ func (c *condBase) setParen() {}
 
 func (c *condBase) writeWrap(b *SQLBuilder, write func()) {
 	if c.not {
-		b.Write("NOT ")
+		b.Text("NOT ")
 	}
 	if c.paren {
-		b.Write("(")
+		b.Text("(")
 	}
 	write()
 	if c.paren {
-		b.Write(")")
+		b.Text(")")
 	}
 }
 
@@ -228,7 +228,7 @@ type condBinOp struct {
 
 func (c condBinOp) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
-		b.WriteColumn(c.column).Write(" ").Write(c.op).Write(" ").WriteArg(c.arg)
+		b.Column(c.column).Text(" ").Text(c.op).Text(" ").Arg(c.arg)
 	})
 }
 
@@ -240,14 +240,14 @@ type condIn struct {
 
 func (c condIn) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
-		b.WriteColumn(c.column).Write(" IN(")
+		b.Column(c.column).Text(" IN(")
 		for i := 0; i < len(c.args); i++ {
 			if i != 0 {
-				b.Write(", ")
+				b.Text(", ")
 			}
-			b.WriteArg(c.args[i])
+			b.Arg(c.args[i])
 		}
-		b.Write(")")
+		b.Text(")")
 	})
 }
 
@@ -259,7 +259,7 @@ type condBetween struct {
 
 func (c condBetween) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
-		b.WriteColumn(c.column).Write(" BETWEEN ").WriteArg(c.min).Write(" AND ").WriteArg(c.max)
+		b.Column(c.column).Text(" BETWEEN ").Arg(c.min).Text(" AND ").Arg(c.max)
 	})
 }
 
@@ -270,7 +270,7 @@ type condIsNull struct {
 
 func (c condIsNull) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
-		b.WriteColumn(c.column).Write(" IS NULL")
+		b.Column(c.column).Text(" IS NULL")
 	})
 }
 
@@ -281,7 +281,7 @@ type condIsNotNull struct {
 
 func (c condIsNotNull) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
-		b.WriteColumn(c.column).Write(" IS NOT NULL")
+		b.Column(c.column).Text(" IS NOT NULL")
 	})
 }
 
@@ -303,9 +303,9 @@ func (c *CondExpr) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
 		for _, item := range c.items {
 			if i, ok := item.(int); ok {
-				b.WriteArg(c.args[i])
+				b.Arg(c.args[i])
 			} else {
-				b.Write(item.(string))
+				b.Text(item.(string))
 			}
 		}
 	})

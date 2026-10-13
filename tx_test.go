@@ -43,7 +43,7 @@ func TestTx(t *testing.T) {
 			r.Equal(ti.Owner, tx)
 			r.NotNil(ti.RawTx)
 			_, err := db.Mutation(ctx).SqlLogLevel(orm.Level_.Info).BuildSql(func(b *orm.SQLBuilder) {
-				b.Write("UPDATE user set status=1 WHERE id=?", 1)
+				b.Text("UPDATE user set status=1 WHERE id=?", 1)
 			}).Do()
 			return err
 		})
@@ -63,7 +63,7 @@ func TestTx(t *testing.T) {
 		mock.ExpectCommit()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
-				b.Write("UPDATE user set status=1 WHERE id=?", 1)
+				b.Text("UPDATE user set status=1 WHERE id=?", 1)
 			}).Do()
 			if err != nil {
 				return err
@@ -71,7 +71,7 @@ func TestTx(t *testing.T) {
 
 			err = db.Tx(ctx).Do(func(ctx context.Context) error {
 				_, err := db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
-					b.Write("UPDATE user set status=2 WHERE id=?", 1)
+					b.Text("UPDATE user set status=2 WHERE id=?", 1)
 				}).Do()
 				return err
 			})
@@ -92,7 +92,7 @@ func TestTx(t *testing.T) {
 		mock.ExpectRollback()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
-				b.Write("UPDATE user set status=1 WHERE id=?", 1)
+				b.Text("UPDATE user set status=1 WHERE id=?", 1)
 			}).Do()
 			if err != nil {
 				return err
@@ -100,7 +100,7 @@ func TestTx(t *testing.T) {
 
 			err = db.Tx(ctx).Do(func(ctx context.Context) error {
 				_, err := db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
-					b.Write("UPDATE user set status=2 WHERE id=?", 1)
+					b.Text("UPDATE user set status=2 WHERE id=?", 1)
 				}).Do()
 				return err
 			})
@@ -125,7 +125,7 @@ func TestTx(t *testing.T) {
 		mock2.ExpectCommit()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
-				b.Write("UPDATE user set status = 1 WHERE id = ?", 1)
+				b.Text("UPDATE user set status = 1 WHERE id = ?", 1)
 			}).Do()
 			if err != nil {
 				return err
@@ -134,7 +134,7 @@ func TestTx(t *testing.T) {
 			err = db2.Tx(ctx).Do(func(ctx context.Context) error {
 				err = db.Tx(ctx).Do(func(ctx context.Context) error {
 					_, err = db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
-						b.Write("UPDATE user set status = 2 WHERE id = ?", 1)
+						b.Text("UPDATE user set status = 2 WHERE id = ?", 1)
 					}).Do()
 					return err
 				})
@@ -143,7 +143,7 @@ func TestTx(t *testing.T) {
 				}
 
 				_, err := db2.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
-					b.Write("UPDATE user set status = 3 WHERE id = ?", 1)
+					b.Text("UPDATE user set status = 3 WHERE id = ?", 1)
 				}).Do()
 				return err
 			})

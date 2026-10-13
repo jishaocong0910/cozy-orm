@@ -29,21 +29,21 @@ type SQLBuilder struct {
 	delim  IdentifierDelimiter
 }
 
-func (b *SQLBuilder) Write(str string, args ...any) *SQLBuilder {
+func (b *SQLBuilder) Text(str string, args ...any) *SQLBuilder {
 	b.b.WriteString(str)
 	b.args = append(b.args, args...)
 	return b
 }
 
-func (b *SQLBuilder) WriteColumn(column string) *SQLBuilder {
+func (b *SQLBuilder) Column(column string) *SQLBuilder {
 	if b.delim.addQuotes != nil {
 		column = b.delim.addQuotes(column)
 	}
-	b.Write(column)
+	b.Text(column)
 	return b
 }
 
-func (b *SQLBuilder) WriteArg(arg any) *SQLBuilder {
+func (b *SQLBuilder) Arg(arg any) *SQLBuilder {
 	b.Accept(b.ph)
 	b.args = append(b.args, arg)
 	return b
@@ -52,17 +52,17 @@ func (b *SQLBuilder) WriteArg(arg any) *SQLBuilder {
 func (b *SQLBuilder) ForEach[T any](sep separate, items []T, handler func(i int, item T)) *SQLBuilder {
 	total := len(items)
 	if sep.open != "" && (total > 0 || !sep.optional) {
-		b.Write(sep.open)
+		b.Text(sep.open)
 	}
 	if total > 0 {
 		handler(0, items[0])
 	}
 	for i := 1; i < total; i++ {
-		b.Write(sep.separator)
+		b.Text(sep.separator)
 		handler(i, items[i])
 	}
 	if sep.close != "" && (total > 0 || !sep.optional) {
-		b.Write(sep.close)
+		b.Text(sep.close)
 	}
 	return b
 }
@@ -114,7 +114,7 @@ type SQLWriter interface {
 type defaultPh struct{}
 
 func (d defaultPh) WriteSQL(b *SQLBuilder) {
-	b.Write("?")
+	b.Text("?")
 }
 
 type prefixPh struct {
@@ -125,7 +125,7 @@ type prefixPh struct {
 func (p *prefixPh) WriteSQL(b *SQLBuilder) {
 	p.argNum++
 	ph := p.prefix + strconv.Itoa(p.argNum)
-	b.Write(ph)
+	b.Text(ph)
 }
 
 func newSQLBuilder(paramPrefix string, qit IdentifierDelimiter) *SQLBuilder {

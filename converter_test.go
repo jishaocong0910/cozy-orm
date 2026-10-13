@@ -100,17 +100,17 @@ func TestConvertArgs(t *testing.T) {
 		`{"key1":"a","key2":"b"}`, `{"key1":"a","key2":"b"}`,
 	).WillReturnRows(mock.NewRows([]string{"unused"}))
 	_, err := db.Query[User](nil).BuildSql(func(b *SQLBuilder) {
-		b.WriteArg(nil).
-			WriteArg((*string)(nil)).
-			WriteArg("test").
-			WriteArg(UserProperties{Source: "a", Country: "b"}).
-			WriteArg(&UserProperties{Source: "a", Country: "b"}).
-			WriteArg(UserLevel("1")).
-			WriteArg(new(UserLevel("1"))).
-			WriteArg(UserTags{"a", "b", "c"}).
-			WriteArg(&UserTags{"a", "b", "c"}).
-			WriteArg(UserAttributes{"key1": "a", "key2": "b"}).
-			WriteArg(&UserAttributes{"key1": "a", "key2": "b"})
+		b.Arg(nil).
+			Arg((*string)(nil)).
+			Arg("test").
+			Arg(UserProperties{Source: "a", Country: "b"}).
+			Arg(&UserProperties{Source: "a", Country: "b"}).
+			Arg(UserLevel("1")).
+			Arg(new(UserLevel("1"))).
+			Arg(UserTags{"a", "b", "c"}).
+			Arg(&UserTags{"a", "b", "c"}).
+			Arg(UserAttributes{"key1": "a", "key2": "b"}).
+			Arg(&UserAttributes{"key1": "a", "key2": "b"})
 	}).Do()
 	r.NoError(err)
 	r.NoError(mock.ExpectationsWereMet())

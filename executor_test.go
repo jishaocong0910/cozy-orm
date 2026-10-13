@@ -78,7 +78,7 @@ func TestQuery(t *testing.T) {
 		db, mock := orm.MockDB(r, nil)
 		mock.ExpectPrepare("")
 		_, err := db.Query[orm.User](nil).BuildSql(func(b *orm.SQLBuilder) {
-			b.Write("SELECT * FROM user WHERE id = 1")
+			b.Text("SELECT * FROM user WHERE id = 1")
 			b.Cancel()
 		}).Do()
 		r.NoError(err)
@@ -88,7 +88,7 @@ func TestQuery(t *testing.T) {
 		db, logger, mock := orm.MockDBAndLogger(r, nil)
 		mock.ExpectPrepare("sql").ExpectQuery().WillReturnRows(mock.NewRows([]string{"unused"}))
 		_, err := db.Query[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").BuildSql(func(b *orm.SQLBuilder) {
-			b.Write("sql")
+			b.Text("sql")
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
@@ -127,8 +127,8 @@ func TestQuery(t *testing.T) {
 			AddRow(1, "a", "123456", "example@gmail", "unused", []byte("jpg"), 2, 3, "{\"source\": \"web\",\"Country\": \"CN\"}",
 				"{\"organization\": \"none\",\"class\": 1}", "a,b,c", "{\"key1\": \"value1\",\"key2\": \"value2\"}", createAt))
 		users, err := db.Query[orm.User](nil).BuildSql(func(b *orm.SQLBuilder) {
-			b.Write("SELECT * FROM user")
-			b.Write(" WHERE id = ? AND level = ? AND phone = ?", new(1), nil, (*string)(nil))
+			b.Text("SELECT * FROM user")
+			b.Text(" WHERE id = ? AND level = ? AND phone = ?", new(1), nil, (*string)(nil))
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
@@ -210,7 +210,7 @@ func TestMutation(t *testing.T) {
 		db, logger, mock := orm.MockDBAndLogger(r, nil)
 		mock.ExpectPrepare("sql").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
 		_, err := db.Mutation(ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").BuildSql(func(b *orm.SQLBuilder) {
-			b.Write("sql")
+			b.Text("sql")
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
@@ -224,7 +224,7 @@ func TestMutation(t *testing.T) {
 		mock.ExpectPrepare("UPDATE user SET status = ?, level = ? WHERE id = ?").
 			ExpectExec().WithArgs(1, 2, 1).WillReturnResult(sqlmock.NewResult(0, 1))
 		affected, err := db.Mutation(nil).BuildSql(func(b *orm.SQLBuilder) {
-			b.Write("UPDATE user SET status = ?, level = ? WHERE id = ?", new(orm.UserLevel("1")), 2, 1)
+			b.Text("UPDATE user SET status = ?, level = ? WHERE id = ?", new(orm.UserLevel("1")), 2, 1)
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
