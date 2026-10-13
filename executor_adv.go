@@ -16,6 +16,7 @@ package orm
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"reflect"
@@ -297,12 +298,14 @@ func (i *insert[E]) doOracle(ei *entityInfo, insertedColumns []string) (int64, e
 	if len(i.entities) > 1000 {
 		return 0, checkMust(i.executor.must, errors.New("entity count cannot exceed 1000 in Oracle"))
 	}
-	_, err := newQuery[E](i.executor).MapTo(i.entities...).BuildSql(func(b *SQLBuilder) {
+	var identities string
+	affected, err := newMutation(i.executor).MapTo[E](i.entities...).BuildSql(func(b *SQLBuilder) {
 		i._buildInsertColumnsClause(b, ei, insertedColumns)
-		i.executor.db.getGeneratedKeyMode.writeSQL(b, ei.autoColumns)
 		i._buildValuesClause(b, ei, insertedColumns)
+		b.Args(sql.Out{Dest: &identities})
 	}).Do()
-	return int64(len(i.entities)), err
+
+	return affected, err
 }
 
 func (i *insert[E]) _buildInsertColumnsClause(b *SQLBuilder, ei *entityInfo, insertedColumns []string) {

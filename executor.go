@@ -189,7 +189,7 @@ func (m *mutation) _getGenKey(result sql.Result) {
 		if err != nil {
 			return
 		}
-		if len(ei.autoColumns) != 1 {
+		if ei.lastInsertIdHandler == nil {
 			return
 		}
 		fieldIndex := ei.columnToFieldIndexMap[ei.autoColumns[0]]
@@ -199,7 +199,7 @@ func (m *mutation) _getGenKey(result sql.Result) {
 		for _, et := range m.mapTargets {
 			v := reflect.ValueOf(et).Elem()
 			field := v.Field(fieldIndex)
-			field.Set(ei.lastInsertIdConversion(id))
+			field.Set(ei.lastInsertIdHandler(id))
 			id += ei.lastInsertIdStep
 		}
 	}

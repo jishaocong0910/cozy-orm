@@ -25,12 +25,12 @@ import (
 func TestGetEntity(t *testing.T) {
 	r := require.New(t)
 	{
-		ei, err := newEntityInfo(reflect.TypeFor[int](), defaultNameMapper, defaultNameMapper, nil)
+		ei, err := newEntityInfo(reflect.TypeFor[int](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, nil)
 		r.Nil(ei)
 		r.EqualError(err, "not a valid entity type")
 	}
 	{
-		ei, err := newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, ColumnPolicyConfigs{
+		ei, err := newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, ColumnPolicyConfigs{
 			NewColumnPolicyConfig("create_at").UseCreateTime(),
 			NewColumnPolicyConfig("update_at").UseUpdateTime(),
 			NewColumnPolicyConfig("version").UseRowVersion(),
@@ -52,7 +52,7 @@ func TestGetEntity(t *testing.T) {
 		r.Equal([]string{"id"}, ei.pkColumns)
 		r.Equal([]string{"id"}, ei.autoColumns)
 		r.Equal(int64(1), ei.lastInsertIdStep)
-		r.NotNil(ei.lastInsertIdConversion)
+		r.NotNil(ei.lastInsertIdHandler)
 
 		r.Nil(ei.insertPolicy.ignoredColumnSet)
 		r.Equal(newSet[string]("create_at", "update_at", "version"), ei.insertPolicy.reusedColumnSet)
@@ -84,7 +84,7 @@ func TestGetEntity(t *testing.T) {
 		r.Equal(0, ei.deleteSoftlyPolicy.normalValue)
 	}
 	{
-		ei, err := newEntityInfo(reflect.TypeFor[DemoIgnoreField](), defaultNameMapper, defaultNameMapper, nil)
+		ei, err := newEntityInfo(reflect.TypeFor[DemoIgnoreField](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, nil)
 		r.NoError(err)
 		r.Equal("demo_ignore_field", ei.table)
 		r.Equal([]string{"id"}, ei.columns)
@@ -94,15 +94,15 @@ func TestGetEntity(t *testing.T) {
 		r.Empty(ei.pkColumns)
 		r.Equal([]string{"id"}, ei.autoColumns)
 		r.Equal(int64(2), ei.lastInsertIdStep)
-		r.NotNil(ei.lastInsertIdConversion)
+		r.NotNil(ei.lastInsertIdHandler)
 	}
 	{
-		ei, err := newEntityInfo(reflect.TypeFor[DemoEntityTag](), defaultNameMapper, defaultNameMapper, nil)
+		ei, err := newEntityInfo(reflect.TypeFor[DemoEntityTag](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, nil)
 		r.NoError(err)
 		r.Equal("demo", ei.table)
 	}
 	{
-		ei, err := newEntityInfo(reflect.TypeFor[DemoMulPk](), defaultNameMapper, defaultNameMapper, nil)
+		ei, err := newEntityInfo(reflect.TypeFor[DemoMulPk](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, nil)
 		r.NoError(err)
 		r.Equal("demo_mul_pk", ei.table)
 		r.Equal([]string{"id1", "id2"}, ei.columns)
@@ -111,7 +111,7 @@ func TestGetEntity(t *testing.T) {
 		r.Equal([]string{"id1", "id2"}, ei.pkColumns)
 		r.Equal([]string{"id1", "id2"}, ei.autoColumns)
 		r.Equal(int64(0), ei.lastInsertIdStep)
-		r.Nil(ei.lastInsertIdConversion)
+		r.Nil(ei.lastInsertIdHandler)
 	}
 	{
 		c1 := NewColumnPolicyConfig("name").ForTable("product").OnInsert().Value(false, false, func(context.Context) any { return nil })
@@ -128,7 +128,7 @@ func TestGetEntity(t *testing.T) {
 			OnUpdate().Value(false, false, func(context.Context) any { return nil })
 		c8 := NewColumnPolicyConfig("update").IgnoreTable("user").OnInsert().Value(false, false, func(context.Context) any { return nil }).
 			OnUpdate().Value(false, false, func(context.Context) any { return nil })
-		ei, err := newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, ColumnPolicyConfigs{c1, c2, c3, c4, c5, c6, c7, c8})
+		ei, err := newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, ColumnPolicyConfigs{c1, c2, c3, c4, c5, c6, c7, c8})
 		r.NoError(err)
 		checkEqualFunc(r, c3.onInsert.value, ei.insertPolicy.assignedValueMap["name"].value)
 		checkEqualFunc(r, c3.onUpdate.value, ei.updatePolicy.assignedValueMap["name"].value)
@@ -142,13 +142,13 @@ func TestGetEntity(t *testing.T) {
 	{
 		c1 := NewColumnPolicyConfig("deleted").ForTable("user").OnDeleteSoftly().AssignedNullMode(0)
 		c2 := NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0)
-		ei, err := newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, ColumnPolicyConfigs{c1, c2})
+		ei, err := newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, ColumnPolicyConfigs{c1, c2})
 		r.NoError(err)
 		r.Equal(deleteSoftlyMode_.assignedNull, ei.deleteSoftlyPolicy.mode)
 
 		c1 = NewColumnPolicyConfig("deleted").ForTable("user").OnDeleteSoftly().AssignedNullMode(0)
 		c2 = NewColumnPolicyConfig("deleted").ForTable("user").OnDeleteSoftly().AssignedPkMode(0)
-		ei, err = newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, ColumnPolicyConfigs{c1, c2})
+		ei, err = newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, ColumnPolicyConfigs{c1, c2})
 		r.NoError(err)
 		r.Equal(deleteSoftlyMode_.assignedPk, ei.deleteSoftlyPolicy.mode)
 	}
@@ -156,7 +156,7 @@ func TestGetEntity(t *testing.T) {
 
 func TestEntity_getOnDemandColumnSet(t *testing.T) {
 	r := require.New(t)
-	ei, err := newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, nil)
+	ei, err := newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, nil)
 	r.NoError(err)
 	{
 		r.Nil(ei._getDemandColumnSet(nil))
@@ -170,7 +170,7 @@ func TestEntity_getOnDemandColumnSet(t *testing.T) {
 
 func TestEntity_getColumns(t *testing.T) {
 	r := require.New(t)
-	ei, err := newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, nil)
+	ei, err := newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, nil)
 	r.NoError(err)
 	{
 		columns := ei.getColumns(&User{
@@ -194,7 +194,7 @@ func TestEntity_getColumns(t *testing.T) {
 
 func TestEntity_getValueMap(t *testing.T) {
 	r := require.New(t)
-	ei, err := newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, nil)
+	ei, err := newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, nil)
 	r.NoError(err)
 	r.Equal(map[string]any{
 		"name":   new("name"),

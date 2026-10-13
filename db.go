@@ -111,7 +111,7 @@ func (d *DB) getEntityInfo(t reflect.Type) (*entityInfo, error) {
 		return val.(*entityInfo), nil
 	}
 
-	ei, err := newEntityInfo(t, d.tabNameMapper, d.colNameMapper, d.columnPolicyConfigs)
+	ei, err := newEntityInfo(t, d.tabNameMapper, d.colNameMapper, d.getGeneratedKeyMode, d.columnPolicyConfigs)
 	if ei != nil {
 		d.entities.Store(t, ei)
 	}

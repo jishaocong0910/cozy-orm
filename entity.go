@@ -23,7 +23,7 @@ import (
 	"sync"
 )
 
-func newEntityInfo(t reflect.Type, tableNameMapper, columnNameMapper *NameMapper, columnPolicyConfigs []*columnPolicyConfig) (*entityInfo, error) {
+func newEntityInfo(t reflect.Type, tableNameMapper, columnNameMapper *NameMapper, getGeneratedKeyMode GetGeneratedKeyMode, columnPolicyConfigs []*columnPolicyConfig) (*entityInfo, error) {
 	if !isEntityType(t) {
 		return nil, errors.New("not a valid entity type")
 	}
@@ -57,7 +57,7 @@ func newEntityInfo(t reflect.Type, tableNameMapper, columnNameMapper *NameMapper
 		if !isValidFieldType(tf.Type) {
 			continue
 		}
-		ei._registerField(tf, tag, columnNameMapper)
+		ei._registerField(tf, tag, columnNameMapper, getGeneratedKeyMode)
 	}
 	if ei.table == "" {
 		ei.table = tableNameMapper.Convert(t.Name())
@@ -68,19 +68,19 @@ func newEntityInfo(t reflect.Type, tableNameMapper, columnNameMapper *NameMapper
 }
 
 type entityInfo struct {
-	typ                    reflect.Type
-	table                  string
-	columns                []string
-	columnToFieldIndexMap  map[string]int
-	columnToFieldNameMap   map[string]string
-	fieldToColumnMap       map[string]string
-	pkColumns              []string
-	autoColumns            []string
-	lastInsertIdStep       int64
-	lastInsertIdConversion func(id int64) reflect.Value
-	insertPolicy           assignedPolicy
-	updatePolicy           assignedPolicy
-	deleteSoftlyPolicy     deleteSoftlyPolicy
+	typ                   reflect.Type
+	table                 string
+	columns               []string
+	columnToFieldIndexMap map[string]int
+	columnToFieldNameMap  map[string]string
+	fieldToColumnMap      map[string]string
+	pkColumns             []string
+	autoColumns           []string
+	lastInsertIdStep      int64
+	lastInsertIdHandler   func(id int64) reflect.Value
+	insertPolicy          assignedPolicy
+	updatePolicy          assignedPolicy
+	deleteSoftlyPolicy    deleteSoftlyPolicy
 
 	demandColumns               sync.Map
 	registerOnDemandColumnsLock sync.Mutex
@@ -188,7 +188,7 @@ func (e *entityInfo) _getDemandColumnSet(demand *Demand) set[string] {
 	return columnSet
 }
 
-func (e *entityInfo) _registerField(tf reflect.StructField, tag fieldTag, columnNameMapper *NameMapper) {
+func (e *entityInfo) _registerField(tf reflect.StructField, tag fieldTag, columnNameMapper *NameMapper, getGeneratedKeyMode GetGeneratedKeyMode) {
 	column := tag.column
 	if column == "" {
 		column = columnNameMapper.Convert(tf.Name)
@@ -202,12 +202,14 @@ func (e *entityInfo) _registerField(tf reflect.StructField, tag fieldTag, column
 	}
 	if tag.auto > 0 {
 		e.autoColumns = append(e.autoColumns, column)
-		if len(e.autoColumns) > 1 {
-			e.lastInsertIdStep = 0
-			e.lastInsertIdConversion = nil
-		} else if a, ok := lastInsertIdConversionMap[tf.Type]; ok {
-			e.lastInsertIdStep = tag.auto
-			e.lastInsertIdConversion = a
+		if getGeneratedKeyMode.Is(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) {
+			if len(e.autoColumns) > 1 {
+				e.lastInsertIdStep = 0
+				e.lastInsertIdHandler = nil
+			} else if a, ok := lastInsertIdHandlerMap[tf.Type]; ok {
+				e.lastInsertIdStep = tag.auto
+				e.lastInsertIdHandler = a
+			}
 		}
 	}
 }
@@ -333,7 +335,7 @@ func (p *deleteSoftlyPolicy) loadConfig(config *deleteSoftlyPolicyConfig, pkColu
 }
 
 var (
-	lastInsertIdConversionMap = map[reflect.Type]func(id int64) reflect.Value{
+	lastInsertIdHandlerMap = map[reflect.Type]func(id int64) reflect.Value{
 		reflect.TypeFor[*int]():     func(id int64) reflect.Value { return reflect.ValueOf(new(int(id))) },
 		reflect.TypeFor[*int8]():    func(id int64) reflect.Value { return reflect.ValueOf(new(int8(id))) },
 		reflect.TypeFor[*int16]():   func(id int64) reflect.Value { return reflect.ValueOf(new(int16(id))) },

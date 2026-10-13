@@ -55,7 +55,7 @@ func MockDBAndLogger(r *require.Assertions, config *DBConfig) (*DB, *MockLogger,
 var NewTxContext = newTxContext
 
 func convertId[T any](id int64) any {
-	return lastInsertIdConversionMap[reflect.TypeFor[T]()](id).Elem().Interface()
+	return lastInsertIdHandlerMap[reflect.TypeFor[T]()](id).Elem().Interface()
 }
 
 func checkMapKeys[K comparable, V any](r *require.Assertions, keys []K, actual map[K]V) {
