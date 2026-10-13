@@ -93,24 +93,16 @@ func TestFieldConv(t *testing.T) {
 func TestConvertArgs(t *testing.T) {
 	r := require.New(t)
 	db, mock := MockDB(r, nil)
-	mock.ExpectPrepare("???????????").ExpectQuery().WithArgs(nil, (*string)(nil), "test",
+	mock.ExpectPrepare("").ExpectQuery().WithArgs(nil, (*string)(nil), "test",
 		`{"source":"a","country":"b"}`, `{"source":"a","country":"b"}`,
 		1, 1,
 		"a,b,c", "a,b,c",
 		`{"key1":"a","key2":"b"}`, `{"key1":"a","key2":"b"}`,
 	).WillReturnRows(mock.NewRows([]string{"unused"}))
 	_, err := db.Query[User](nil).BuildSql(func(b *SQLBuilder) {
-		b.Arg(nil).
-			Arg((*string)(nil)).
-			Arg("test").
-			Arg(UserProperties{Source: "a", Country: "b"}).
-			Arg(&UserProperties{Source: "a", Country: "b"}).
-			Arg(UserLevel("1")).
-			Arg(new(UserLevel("1"))).
-			Arg(UserTags{"a", "b", "c"}).
-			Arg(&UserTags{"a", "b", "c"}).
-			Arg(UserAttributes{"key1": "a", "key2": "b"}).
-			Arg(&UserAttributes{"key1": "a", "key2": "b"})
+		b.Args(nil, (*string)(nil), "test", UserProperties{Source: "a", Country: "b"},
+			&UserProperties{Source: "a", Country: "b"}, UserLevel("1"), new(UserLevel("1")), UserTags{"a", "b", "c"},
+			&UserTags{"a", "b", "c"}, UserAttributes{"key1": "a", "key2": "b"}, &UserAttributes{"key1": "a", "key2": "b"})
 	}).Do()
 	r.NoError(err)
 	r.NoError(mock.ExpectationsWereMet())

@@ -31,7 +31,7 @@ type SQLBuilder struct {
 
 func (b *SQLBuilder) Text(str string, args ...any) *SQLBuilder {
 	b.b.WriteString(str)
-	b.args = append(b.args, args...)
+	b.Args(args...)
 	return b
 }
 
@@ -45,7 +45,12 @@ func (b *SQLBuilder) Column(column string) *SQLBuilder {
 
 func (b *SQLBuilder) Arg(arg any) *SQLBuilder {
 	b.Accept(b.ph)
-	b.args = append(b.args, arg)
+	b.Args(arg)
+	return b
+}
+
+func (b *SQLBuilder) Args(args ...any) *SQLBuilder {
+	b.args = append(b.args, args...)
 	return b
 }
 

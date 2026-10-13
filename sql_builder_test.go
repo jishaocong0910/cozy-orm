@@ -45,7 +45,7 @@ func TestSQLBuilder_Text(t *testing.T) {
 		b.Text(" ").Column("col")
 		b.Error(errors.New("test error"))
 
-		r.Equal("a test writer s1,s2,s3 (s1,s2,s3) () (s1,s2,s3) col", b.b.String())
+		r.Equal("a test accept s1,s2,s3 (s1,s2,s3) () (s1,s2,s3) col", b.b.String())
 		r.Equal([]any{1, 2}, b.args)
 		r.EqualError(b.err, "test error")
 	}
