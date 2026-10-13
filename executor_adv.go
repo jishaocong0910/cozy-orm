@@ -108,6 +108,7 @@ func (f *find[E]) Do() ([]*E, error) {
 		if len(columns) == 0 {
 			columns = ei.columns
 		}
+
 		b.Text("SELECT ")
 		b.ForEach(b.Sep(", "), columns, func(_ int, column string) {
 			b.Column(column)
@@ -269,6 +270,7 @@ func (i *insert[E]) buildSql(b *SQLBuilder) {
 	b.ForEach(b.SepWrap("(", ", ", ")"), insertedColumns, func(_ int, column string) {
 		b.Column(column)
 	})
+
 	if len(ei.autoColumns) > 0 && i.executor.db.getGeneratedKeyMode.IsPresent() {
 		if i.executor.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.SQLServer) {
 			i.executor.db.getGeneratedKeyMode.writeSQL(b, ei.autoColumns)
@@ -384,8 +386,8 @@ func (u *update[E]) Do() (int64, error) {
 			b.Cancel()
 			return
 		}
-		entityValueMap := ei.getValueMap(u.entity, updatedColumns, ei.pkColumns)
 
+		entityValueMap := ei.getValueMap(u.entity, updatedColumns, ei.pkColumns)
 		c := &Cond{}
 		if len(ei.pkColumns) > 0 && u.entity != nil {
 			for _, column := range ei.pkColumns {
@@ -401,6 +403,7 @@ func (u *update[E]) Do() (int64, error) {
 		b.ForEach(b.Sep(", "), updatedColumns, func(_ int, column string) {
 			b.Column(column).Text(" = ").Accept(am.getValueWriter(column, 0))
 		})
+
 		b.Accept(where{
 			condition:      c,
 			policy:         ei.deleteSoftlyPolicy,
@@ -488,8 +491,8 @@ func (u *updateRow[E]) Do() (int64, error) {
 			b.Error(errors.New(ei.typ.String() + "\" must have exactly one field with the \"pk\" tag"))
 			return
 		}
-		pkColumn := ei.pkColumns[0]
 
+		pkColumn := ei.pkColumns[0]
 		updatedColumns := ei.getColumns(u.entities[0], u.demand,
 			u.requiredSet.concat(u.setColumns.columnSet, ei.updatePolicy.forceColumnSet, ei.updatePolicy.defaultColumnSet),
 			ei.updatePolicy.ignoredColumnSet)
@@ -516,12 +519,14 @@ func (u *updateRow[E]) Do() (int64, error) {
 		b.ForEach(b.Sep(", "), updatedColumns, func(i int, column string) {
 			b.Column(column).Text(" = ").Accept(am.getValueWriter(column, -1))
 		})
+
 		c := &Cond{}
 		if len(u.entities) == 1 {
 			c = c.Eq(pkColumn, pkValues[0]).add(u.condition)
 		} else {
 			c = c.In(pkColumn, pkValues).add(u.condition)
 		}
+
 		b.Accept(where{
 			condition:      c,
 			policy:         ei.deleteSoftlyPolicy,
