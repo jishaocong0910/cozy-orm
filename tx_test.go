@@ -233,20 +233,21 @@ func TestTxHook(t *testing.T) {
 			if err != nil {
 				return err
 			}
-			hook, ok := db.TxHook(ctx)
-			r.NotNil(hook)
+			h, ok := db.TxHook(ctx)
+			r.NotNil(h)
 			r.True(ok)
 
 			wg.Add(1)
-			hook.BeforeCommitSync(func(ctx context.Context) error {
+			h.BeforeCommitSync(func(ctx context.Context) error {
 				return errors.New("before hook error")
-			}).AfterCompleteAsync(func(ctx context.Context, commit bool) {
+			})
+			h.AfterCompleteAsync(func(ctx context.Context, commit bool) {
 				r.False(commit)
 				wg.Done()
 			})
 			ti := orm.GetTxInfoInner(ctx, db)
 			r.Len(ti.TxHook, 1)
-			r.Equal(ti.TxHook[0], hook)
+			r.Equal(ti.TxHook[0], h)
 			return nil
 		})
 		fmt.Println(err)
@@ -279,7 +280,8 @@ func TestTxHook(t *testing.T) {
 						c.Eq("id", 2)
 					}).Do()
 					return err
-				}).AfterCompleteAsync(func(ctx context.Context, commit bool) {
+				})
+				h.AfterCompleteAsync(func(ctx context.Context, commit bool) {
 					ti := orm.GetTxInfoInner(ctx, db)
 					val := ctx.Value("key").(string)
 					r.True(commit)
