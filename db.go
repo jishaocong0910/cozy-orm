@@ -88,15 +88,15 @@ func (d *DB) Tx(ctx context.Context) *tx {
 	return newTx(ctx, d)
 }
 
-func (d *DB) TxHook(ctx context.Context) *txHook {
+func (d *DB) TxHook(ctx context.Context) (*txHook, bool) {
 	if tc, ok := ctx.(*TxContext); ok {
 		if ti := tc.getTxInfo(d); ti != nil {
 			th := &txHook{}
 			ti.txHooks = append(ti.txHooks, th)
-			return th
+			return th, true
 		}
 	}
-	return nil
+	return nil, false
 }
 
 func (d *DB) getEntityInfo(t reflect.Type) (*entityInfo, error) {

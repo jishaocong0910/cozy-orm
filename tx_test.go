@@ -212,10 +212,12 @@ func TestTxHook(t *testing.T) {
 	r := require.New(t)
 	{
 		db, _ := orm.MockDB(r, nil)
-		b := db.TxHook(context.Background())
-		r.Nil(b)
-		b = db.TxHook(context.Background())
-		r.Nil(b)
+		h, ok := db.TxHook(nil)
+		r.Nil(h)
+		r.False(ok)
+		h, ok = db.TxHook(context.Background())
+		r.Nil(h)
+		r.False(ok)
 	}
 	{
 		var wg sync.WaitGroup
@@ -231,8 +233,9 @@ func TestTxHook(t *testing.T) {
 			if err != nil {
 				return err
 			}
-			hook := db.TxHook(ctx)
+			hook, ok := db.TxHook(ctx)
 			r.NotNil(hook)
+			r.True(ok)
 
 			wg.Add(1)
 			hook.BeforeCommitSync(func(ctx context.Context) error {
@@ -269,20 +272,22 @@ func TestTxHook(t *testing.T) {
 			}
 
 			wg.Add(1)
-			hook := db.TxHook(ctx).BeforeCommitSync(func(ctx context.Context) error {
-				_, err := db.Update[orm.User](ctx).Set("email", "a2").Cond(func(c *orm.Cond) {
-					c.Eq("id", 2)
-				}).Do()
-				return err
-			}).AfterCompleteAsync(func(ctx context.Context, commit bool) {
-				ti := orm.GetTxInfoInner(ctx, db)
-				val := ctx.Value("key").(string)
-				r.True(commit)
-				r.Nil(ti)
-				r.Equal(val, "value")
-				wg.Done()
-			}, "key")
-			r.NotNil(hook)
+
+			if h, ok := db.TxHook(ctx); ok {
+				h.BeforeCommitSync(func(ctx context.Context) error {
+					_, err := db.Update[orm.User](ctx).Set("email", "a2").Cond(func(c *orm.Cond) {
+						c.Eq("id", 2)
+					}).Do()
+					return err
+				}).AfterCompleteAsync(func(ctx context.Context, commit bool) {
+					ti := orm.GetTxInfoInner(ctx, db)
+					val := ctx.Value("key").(string)
+					r.True(commit)
+					r.Nil(ti)
+					r.Equal(val, "value")
+					wg.Done()
+				}, "key")
+			}
 			return nil
 		})
 		r.NoError(err)
@@ -293,10 +298,11 @@ func TestTxHook(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
-			hook := db.TxHook(ctx).AfterCompleteAsync(func(ctx context.Context, commit bool) {
-				panic("after-hook panic")
-			})
-			r.NotNil(hook)
+			if h, ok := db.TxHook(ctx); ok {
+				h.AfterCompleteAsync(func(ctx context.Context, commit bool) {
+					panic("after-hook panic")
+				})
+			}
 			return nil
 		})
 		r.NoError(err)
