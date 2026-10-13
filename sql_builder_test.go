@@ -21,12 +21,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSQLBuilder_Write(t *testing.T) {
+func TestSQLBuilder_Text(t *testing.T) {
 	r := require.New(t)
 	{
 		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
 		b.Text("a", 1, 2)
-		b.Text(" ").Accept(WriterTest{})
+		b.Text(" ").Accept(AcceptDemo{})
 		b.Text(" ").ForEach(b.Sep(","), []string{"s1", "s2", "s3"}, func(_ int, t string) {
 			b.Text(t)
 		})
@@ -71,8 +71,8 @@ func TestSQLBuilder_Write(t *testing.T) {
 	}
 }
 
-type WriterTest struct{}
+type AcceptDemo struct{}
 
-func (w WriterTest) WriteSQL(b *SQLBuilder) {
-	b.Text("test writer")
+func (a AcceptDemo) WriteSQL(b *SQLBuilder) {
+	b.Text("test accept")
 }
