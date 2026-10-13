@@ -320,15 +320,6 @@ func (e *executor) doExec() (sql.Result, time.Duration, bool, error) {
 	return result, cost, false, nil
 }
 
-func (e *executor) _getTi() *txInfo {
-	if tc, ok := e.ctx.(*TxContext); ok {
-		if ti := tc.getTxInfo(e.db); ti != nil {
-			return ti
-		}
-	}
-	return nil
-}
-
 func (e *executor) _prepare(sqlStr string) (*sql.Stmt, error) {
 	if tc, ok := e.ctx.(*TxContext); ok {
 		if ti := tc.getTxInfo(e.db); ti != nil {
