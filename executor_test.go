@@ -95,7 +95,7 @@ func TestQuery(t *testing.T) {
 		lm := logger.Messages[0]
 		r.Equal(ctx, lm.Ctx)
 		r.Equal(orm.Level_.Info, lm.Level)
-		r.Contains(lm.Msg, "SQL: sql; args: , tx: false, desc: test desc")
+		r.Contains(lm.Msg, "SQL: sql; args: , desc: test desc")
 	}
 	{
 		db, mock := orm.MockDB(r, nil)
@@ -217,7 +217,7 @@ func TestMutation(t *testing.T) {
 		lm := logger.Messages[0]
 		r.Equal(ctx, lm.Ctx)
 		r.Equal(orm.Level_.Info, lm.Level)
-		r.Contains(lm.Msg, "SQL: sql; args: , tx: false, desc: test desc")
+		r.Contains(lm.Msg, "SQL: sql; args: , desc: test desc")
 	}
 	{
 		db, mock := orm.MockDB(r, nil)

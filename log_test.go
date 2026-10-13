@@ -26,7 +26,7 @@ func TestPrintSql(t *testing.T) {
 	r := require.New(t)
 	{
 		log := &MockLogger{}
-		printSql(nil, log, Level_.UNDEFINED, true, "update a user", `  
+		printSql(nil, log, Level_.UNDEFINED, "update a user", `  
 SELECT *
   FROM
 user`,
@@ -36,24 +36,24 @@ user`,
 		r.Equal(`SQL:   
 SELECT *
   FROM
-user; args: 2(int) <nil> <nil> abc(string) 2023-12-27 06:43:00 +0000 UTC(time.Time), tx: true, desc: update a user, rows: 100, affected: 20, cost: 15ms, error: error`, log.Messages[0].Msg)
+user; args: 2(int) <nil> <nil> abc(string) 2023-12-27 06:43:00 +0000 UTC(time.Time), desc: update a user, rows: 100, affected: 20, cost: 15ms, error: error`, log.Messages[0].Msg)
 	}
 	{
 		log := &MockLogger{}
-		printSql(nil, log, Level_.UNDEFINED, false, "test", "test", nil, -1, -1, -1, nil)
+		printSql(nil, log, Level_.UNDEFINED, "test", "test", nil, -1, -1, -1, nil)
 		r.Empty(log.Messages)
 	}
 	{
 		log := &MockLogger{}
-		printSql(nil, log, Level_.Debug, false, "test", "", nil, -1, -1, -1, nil)
+		printSql(nil, log, Level_.Debug, "test", "", nil, -1, -1, -1, nil)
 		r.True(log.Messages[0].Level.Is(Level_.Debug))
-		r.Equal("SQL: ; args: , tx: false, desc: test", log.Messages[0].Msg)
+		r.Equal("SQL: ; args: , desc: test", log.Messages[0].Msg)
 	}
 	{
 		log := &MockLogger{}
-		printSql(nil, log, Level_.Info, false, "test", "", nil, -1, -1, -1, nil)
+		printSql(nil, log, Level_.Info, "test", "", nil, -1, -1, -1, nil)
 		r.True(log.Messages[0].Level.Is(Level_.Info))
-		r.Equal("SQL: ; args: , tx: false, desc: test", log.Messages[0].Msg)
+		r.Equal("SQL: ; args: , desc: test", log.Messages[0].Msg)
 	}
 }
 

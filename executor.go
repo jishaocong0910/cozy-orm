@@ -238,17 +238,17 @@ func (e *executor) setBuildSQL(buildSQL func(b *SQLBuilder)) {
 
 func (e *executor) printSqlRowCount(rowCount int64, cost time.Duration) {
 	s, a := e.builder.sqlAndArgs()
-	printSql(e.ctx, e.db.logger, e.sqlLogLevel, e._inTx(), e.desc, s, a, rowCount, -1, cost, nil)
+	printSql(e.ctx, e.db.logger, e.sqlLogLevel, e.desc, s, a, rowCount, -1, cost, nil)
 }
 
 func (e *executor) printSqlAffected(affected int64, cost time.Duration) {
 	s, a := e.builder.sqlAndArgs()
-	printSql(e.ctx, e.db.logger, e.sqlLogLevel, e._inTx(), e.desc, s, a, -1, affected, cost, nil)
+	printSql(e.ctx, e.db.logger, e.sqlLogLevel, e.desc, s, a, -1, affected, cost, nil)
 }
 
 func (e *executor) printSqlError(err error) {
 	s, a := e.builder.sqlAndArgs()
-	printSql(e.ctx, e.db.logger, e.sqlLogLevel, e._inTx(), e.desc, s, a, -1, -1, -1, err)
+	printSql(e.ctx, e.db.logger, e.sqlLogLevel, e.desc, s, a, -1, -1, -1, err)
 }
 
 func (e *executor) doQuery() (*sql.Rows, []string, time.Duration, bool, error) {
@@ -320,11 +320,13 @@ func (e *executor) doExec() (sql.Result, time.Duration, bool, error) {
 	return result, cost, false, nil
 }
 
-func (e *executor) _inTx() bool {
-	if tc, ok := e.ctx.(*TxContext); ok && tc.getTxInfo(e.db) != nil {
-		return true
+func (e *executor) _getTi() *txInfo {
+	if tc, ok := e.ctx.(*TxContext); ok {
+		if ti := tc.getTxInfo(e.db); ti != nil {
+			return ti
+		}
 	}
-	return false
+	return nil
 }
 
 func (e *executor) _prepare(sqlStr string) (*sql.Stmt, error) {

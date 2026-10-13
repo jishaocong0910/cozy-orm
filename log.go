@@ -36,7 +36,7 @@ func printWarn(ctx context.Context, logger Logger, err error) {
 	}
 }
 
-func printSql(ctx context.Context, logger Logger, level Level, tx bool, desc string, sql string, args []any,
+func printSql(ctx context.Context, logger Logger, level Level, desc string, sql string, args []any,
 	rowCount int64, affected int64, cost time.Duration, err error) {
 	if err != nil {
 		level = Level_.Error
@@ -49,8 +49,6 @@ func printSql(ctx context.Context, logger Logger, level Level, tx bool, desc str
 	builder.WriteString(sql)
 	builder.WriteString("; args:")
 	builder.WriteString(formatArg(args))
-	builder.WriteString(", tx: ")
-	builder.WriteString(strconv.FormatBool(tx))
 	if desc != "" {
 		builder.WriteString(", desc: ")
 		builder.WriteString(desc)

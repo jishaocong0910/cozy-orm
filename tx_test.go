@@ -50,7 +50,7 @@ func TestTx(t *testing.T) {
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
 		l := logger.Messages[0]
-		r.Equal("SQL: UPDATE user set status=1 WHERE id=?; args: 1(int), tx: true, affected: 1, cost: 0ms", l.Msg)
+		r.Equal("SQL: UPDATE user set status=1 WHERE id=?; args: 1(int), affected: 1, cost: 0ms", l.Msg)
 
 		ti := orm.GetTxInfoInner(ctx2, db)
 		r.Nil(ti)
