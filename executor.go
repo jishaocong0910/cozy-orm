@@ -177,20 +177,19 @@ func (m *mutation) Do() (affected int64, err error) {
 }
 
 func (m *mutation) _getGenKey(result sql.Result) {
-	if m.executor.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) && len(m.mapTargets) > 0 {
-		id, warn := result.LastInsertId()
-		if warn != nil {
-			printWarn(m.ctx, m.db.logger, errors.New("get generated key fail, "+warn.Error()))
+	if m.executor.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) {
+		if len(m.mapTargets) == 0 {
 			return
 		}
-		ei, warn := m.db.getEntityInfo(m.mapTargetType)
-		if warn != nil {
-			printWarn(m.ctx, m.db.logger, errors.New("get generated key fail, "+warn.Error()))
+		id, err := result.LastInsertId()
+		if err != nil {
+			return
+		}
+		ei, err := m.db.getEntityInfo(m.mapTargetType)
+		if err != nil {
 			return
 		}
 		if len(ei.autoColumns) != 1 {
-			printWarn(m.ctx, m.db.logger, errors.New("get generated key fail, the entity \""+
-				m.mapTargetType.String()+"\" must have exactly one field with \"auto\" tag"))
 			return
 		}
 		fieldIndex := ei.columnToFieldIndexMap[ei.autoColumns[0]]
@@ -237,17 +236,17 @@ func (e *executor) setBuildSQL(buildSQL func(b *SQLBuilder)) {
 }
 
 func (e *executor) printSqlRowCount(rowCount int64, cost time.Duration) {
-	s, a := e.builder.sqlAndArgs()
+	s, a := e.builder.info()
 	printSql(e.ctx, e.db.logger, e.sqlLogLevel, e.desc, s, a, rowCount, -1, cost, nil)
 }
 
 func (e *executor) printSqlAffected(affected int64, cost time.Duration) {
-	s, a := e.builder.sqlAndArgs()
+	s, a := e.builder.info()
 	printSql(e.ctx, e.db.logger, e.sqlLogLevel, e.desc, s, a, -1, affected, cost, nil)
 }
 
 func (e *executor) printSqlError(err error) {
-	s, a := e.builder.sqlAndArgs()
+	s, a := e.builder.info()
 	printSql(e.ctx, e.db.logger, e.sqlLogLevel, e.desc, s, a, -1, -1, -1, err)
 }
 

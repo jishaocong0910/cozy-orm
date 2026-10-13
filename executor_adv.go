@@ -233,60 +233,86 @@ func (i *insert[E]) Required(columns ...string) *insert[E] {
 }
 
 func (i *insert[E]) Do() (int64, error) {
-	switch i.executor.db.getGeneratedKeyMode.ID {
-	case GetGeneratedKeyMode_.InsertReturning.ID, GetGeneratedKeyMode_.SQLServer.ID:
-		_, err := newQuery[E](i.executor).MapTo(i.entities...).BuildSql(func(b *SQLBuilder) {
-			i.buildSql(b)
-		}).Do()
-		return int64(len(i.entities)), err
-	default:
-		m := newMutation(i.executor)
-		if i.executor.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) {
-			m.MapTo[E](i.entities...)
-		}
-		return m.BuildSql(func(b *SQLBuilder) { i.buildSql(b) }).Do()
-	}
-}
-
-func (i *insert[E]) buildSql(b *SQLBuilder) {
 	if len(i.entities) == 0 {
-		b.Cancel()
-		return
+		return 0, nil
 	}
-	if i.executor.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.Oracle) && len(i.entities) > 1000 {
-		b.Error(errors.New("entity count cannot exceed 1000 in Oracle"))
-		return
-	}
+
 	ei, err := i.executor.db.getEntityInfo(reflect.TypeFor[E]())
 	if err != nil {
-		b.Error(err)
-		return
+		return 0, checkMust(i.executor.must, err)
 	}
 
 	insertedColumns := ei.getColumns(i.entities[0], nil,
 		i.requiredSet.concat(ei.insertPolicy.forceColumnSet, ei.insertPolicy.defaultColumnSet),
 		ei.insertPolicy.ignoredColumnSet)
+
+	if len(ei.autoColumns) > 0 {
+		switch i.executor.db.getGeneratedKeyMode.ID {
+		case GetGeneratedKeyMode_.FirstInsertId.ID, GetGeneratedKeyMode_.LastInsertId.ID:
+			return i.doLastInsertId(ei, insertedColumns)
+		case GetGeneratedKeyMode_.InsertReturning.ID:
+			return i.doInsertReturning(ei, insertedColumns)
+		case GetGeneratedKeyMode_.SQLServer.ID:
+			return i.doSQLServer(ei, insertedColumns)
+		case GetGeneratedKeyMode_.Oracle.ID:
+			return i.doOracle(ei, insertedColumns)
+		}
+	}
+	return i.doDefault(ei, insertedColumns)
+}
+
+func (i *insert[E]) doDefault(ei *entityInfo, insertedColumns []string) (int64, error) {
+	return newMutation(i.executor).BuildSql(func(b *SQLBuilder) {
+		i._buildInsertColumnsClause(b, ei, insertedColumns)
+		i._buildValuesClause(b, ei, insertedColumns)
+	}).Do()
+}
+
+func (i *insert[E]) doLastInsertId(ei *entityInfo, insertedColumns []string) (int64, error) {
+	return newMutation(i.executor).MapTo[E](i.entities...).BuildSql(func(b *SQLBuilder) {
+		i._buildInsertColumnsClause(b, ei, insertedColumns)
+		i._buildValuesClause(b, ei, insertedColumns)
+	}).Do()
+}
+
+func (i *insert[E]) doInsertReturning(ei *entityInfo, insertedColumns []string) (int64, error) {
+	_, err := newQuery[E](i.executor).MapTo(i.entities...).BuildSql(func(b *SQLBuilder) {
+		i._buildInsertColumnsClause(b, ei, insertedColumns)
+		i._buildValuesClause(b, ei, insertedColumns)
+		i.executor.db.getGeneratedKeyMode.writeSQL(b, ei.autoColumns)
+	}).Do()
+	return int64(len(i.entities)), err
+}
+
+func (i *insert[E]) doSQLServer(ei *entityInfo, insertedColumns []string) (int64, error) {
+	_, err := newQuery[E](i.executor).MapTo(i.entities...).BuildSql(func(b *SQLBuilder) {
+		i._buildInsertColumnsClause(b, ei, insertedColumns)
+		i.executor.db.getGeneratedKeyMode.writeSQL(b, ei.autoColumns)
+		i._buildValuesClause(b, ei, insertedColumns)
+	}).Do()
+	return int64(len(i.entities)), err
+}
+
+func (i *insert[E]) doOracle(ei *entityInfo, insertedColumns []string) (int64, error) {
+	if len(i.entities) > 1000 {
+		return 0, checkMust(i.executor.must, errors.New("entity count cannot exceed 1000 in Oracle"))
+	}
+	_, err := newQuery[E](i.executor).MapTo(i.entities...).BuildSql(func(b *SQLBuilder) {
+		i._buildInsertColumnsClause(b, ei, insertedColumns)
+		i.executor.db.getGeneratedKeyMode.writeSQL(b, ei.autoColumns)
+		i._buildValuesClause(b, ei, insertedColumns)
+	}).Do()
+	return int64(len(i.entities)), err
+}
+
+func (i *insert[E]) _buildInsertColumnsClause(b *SQLBuilder, ei *entityInfo, insertedColumns []string) {
 	b.Text("INSERT INTO ").Text(ei.table)
 	b.ForEach(b.SepWrap("(", ", ", ")"), insertedColumns, func(_ int, column string) {
 		b.Column(column)
 	})
-
-	if len(ei.autoColumns) > 0 && i.executor.db.getGeneratedKeyMode.IsPresent() {
-		if i.executor.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.SQLServer) {
-			i.executor.db.getGeneratedKeyMode.writeSQL(b, ei.autoColumns)
-			i._writeValuesClause(b, ei, insertedColumns)
-		} else {
-			i._writeValuesClause(b, ei, insertedColumns)
-			if i.executor.db.getGeneratedKeyMode.writeSQL != nil {
-				i.executor.db.getGeneratedKeyMode.writeSQL(b, ei.autoColumns)
-			}
-		}
-	} else {
-		i._writeValuesClause(b, ei, insertedColumns)
-	}
 }
 
-func (i *insert[E]) _writeValuesClause(b *SQLBuilder, ei *entityInfo, insertedColumns []string) {
+func (i *insert[E]) _buildValuesClause(b *SQLBuilder, ei *entityInfo, insertedColumns []string) {
 	entityValueMaps := make([]map[string]any, 0, len(i.entities))
 	for _, entity := range i.entities {
 		entityValueMaps = append(entityValueMaps, ei.getValueMap(entity, insertedColumns))
@@ -487,6 +513,7 @@ func (u *updateRow[E]) Do() (int64, error) {
 			b.Error(err)
 			return
 		}
+
 		if len(ei.pkColumns) != 1 {
 			b.Error(errors.New(ei.typ.String() + "\" must have exactly one field with the \"pk\" tag"))
 			return
@@ -526,7 +553,6 @@ func (u *updateRow[E]) Do() (int64, error) {
 		} else {
 			c = c.In(pkColumn, pkValues).add(u.condition)
 		}
-
 		b.Accept(where{
 			condition:      c,
 			policy:         ei.deleteSoftlyPolicy,

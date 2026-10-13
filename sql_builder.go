@@ -21,12 +21,13 @@ import (
 )
 
 type SQLBuilder struct {
-	b      strings.Builder
-	args   []any
-	cancel bool
-	err    error
-	ph     SQLWriter
-	delim  IdentifierDelimiter
+	b        strings.Builder
+	logIndex []int
+	args     []any
+	cancel   bool
+	err      error
+	ph       SQLWriter
+	delim    IdentifierDelimiter
 }
 
 func (b *SQLBuilder) Text(str string) *SQLBuilder {
@@ -98,7 +99,7 @@ func (b *SQLBuilder) Error(err error) {
 	}
 }
 
-func (b *SQLBuilder) sqlAndArgs() (sql string, args []any) {
+func (b *SQLBuilder) info() (sql string, args []any) {
 	if b != nil {
 		sql = b.b.String()
 		args = b.args

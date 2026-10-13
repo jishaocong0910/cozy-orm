@@ -207,7 +207,7 @@ func TestMutation(t *testing.T) {
 	}
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")
-		db, logger, mock := orm.MockDBAndLogger(r, nil)
+		db, logger, mock := orm.MockDBAndLogger(r, &orm.DBConfig{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId})
 		mock.ExpectPrepare("sql").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
 		_, err := db.Mutation(ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").BuildSql(func(b *orm.SQLBuilder) {
 			b.Text("sql")
@@ -255,38 +255,29 @@ func TestMutation(t *testing.T) {
 		r.Equal(int64(2), *users[1].Id)
 	}
 	{
-		db, logger, mock := orm.MockDBAndLogger(r, &orm.DBConfig{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId})
+		db, mock := orm.MockDB(r, &orm.DBConfig{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId})
 		mock.ExpectPrepare("").ExpectExec().WillReturnResult(sqlmock.NewResult(2, 1))
 		affected, err := db.Mutation(nil).MapTo(new(1), new(1)).BuildSql(func(b *orm.SQLBuilder) {
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
 		r.Equal(int64(1), affected)
-		lm := logger.Messages[0]
-		r.Equal(orm.Level_.Warn, lm.Level)
-		r.Equal("get generated key fail, not a valid entity type", lm.Msg)
 	}
 	{
-		db, logger, mock := orm.MockDBAndLogger(r, &orm.DBConfig{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId})
+		db, mock := orm.MockDB(r, &orm.DBConfig{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId})
 		mock.ExpectPrepare("").ExpectExec().WillReturnResult(orm.UnsupportedLastInsertIdResult{})
 		_, err := db.Mutation(nil).MapTo(new(1), new(1)).BuildSql(func(b *orm.SQLBuilder) {
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
-		lm := logger.Messages[0]
-		r.Equal(orm.Level_.Warn, lm.Level)
-		r.Equal("get generated key fail, lastInsertId is not supported", lm.Msg)
 	}
 	{
-		db, logger, mock := orm.MockDBAndLogger(r, &orm.DBConfig{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId})
+		db, mock := orm.MockDB(r, &orm.DBConfig{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId})
 		mock.ExpectPrepare("").ExpectExec().WillReturnResult(sqlmock.NewResult(2, 1))
 		affected, err := db.Mutation(nil).MapTo(&orm.DemoMulPk{}, &orm.DemoMulPk{}).BuildSql(func(b *orm.SQLBuilder) {
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
 		r.Equal(int64(1), affected)
-		lm := logger.Messages[0]
-		r.Equal(orm.Level_.Warn, lm.Level)
-		r.Equal(`get generated key fail, the entity "orm.DemoMulPk" must have exactly one field with "auto" tag`, lm.Msg)
 	}
 }

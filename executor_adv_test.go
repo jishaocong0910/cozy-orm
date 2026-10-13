@@ -191,6 +191,34 @@ func TestInsert(t *testing.T) {
 		r.Contains(lm.Msg, "desc: test desc")
 	}
 	{
+		u1 := &orm.User{Name: new("name1"), Status: new(orm.UserStatus(2))}
+		u2 := &orm.User{Name: new("name2")}
+		db, mock := orm.MockDB(r, &orm.DBConfig{
+			GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId,
+			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
+				orm.NewColumnPolicyConfig("create_at").UseCreateTime(),
+				orm.NewColumnPolicyConfig("update_at").UseUpdateTime(),
+				orm.NewColumnPolicyConfig("version").UseRowVersion(),
+				orm.NewColumnPolicyConfig("status").OnInsert().Value(false, true, func(ctx context.Context) any {
+					if s, ok := ctx.Value("status").(int); ok {
+						return s
+					}
+					return 1
+				}),
+			},
+		})
+		mock.ExpectPrepare("INSERT INTO user(`name`, `status`, `create_at`, `update_at`, `version`) VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)").ExpectExec().
+			WillReturnResult(sqlmock.NewResult(1, 2)).
+			WithArgs("name1", 2, orm.AnyTime{}, orm.AnyTime{}, 1, "name2", 4, orm.AnyTime{}, orm.AnyTime{}, 1)
+
+		ctx := context.WithValue(context.Background(), "status", 4)
+		_, err := db.Insert[orm.User](ctx).Entities(u1, u2).Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+		r.Equal(int64(1), *u1.Id)
+		r.Equal(int64(2), *u2.Id)
+	}
+	{
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
 		db, mock := orm.MockDB(r, &orm.DBConfig{
@@ -211,52 +239,6 @@ func TestInsert(t *testing.T) {
 		r.NoError(mock.ExpectationsWereMet())
 		r.Equal(int64(1), *u1.Id)
 		r.Equal(int64(2), *u2.Id)
-	}
-	{
-		u1 := &orm.User{Name: new("name1"), Status: new(orm.UserStatus(2))}
-		u2 := &orm.User{Name: new("name2")}
-		db, mock := orm.MockDB(r, &orm.DBConfig{
-			GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId,
-			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
-				orm.NewColumnPolicyConfig("status").OnInsert().Value(false, true, func(ctx context.Context) any {
-					if s, ok := ctx.Value("status").(int); ok {
-						return s
-					}
-					return 1
-				}),
-			},
-		})
-
-		mock.ExpectPrepare("INSERT INTO user(`name`, `status`) VALUES (?, ?), (?, ?)").ExpectExec().
-			WillReturnResult(sqlmock.NewResult(1, 2)).
-			WithArgs("name1", 2, "name2", 1)
-
-		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
-		r.NoError(err)
-		r.NoError(mock.ExpectationsWereMet())
-	}
-	{
-		u1 := &orm.User{Name: new("name1"), Status: new(orm.UserStatus(2))}
-		u2 := &orm.User{Name: new("name2")}
-		db, mock := orm.MockDB(r, &orm.DBConfig{
-			GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId,
-			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
-				orm.NewColumnPolicyConfig("status").OnInsert().Value(false, true, func(ctx context.Context) any {
-					if s, ok := ctx.Value("status").(int); ok {
-						return s
-					}
-					return 1
-				}),
-			},
-		})
-
-		mock.ExpectPrepare("INSERT INTO user(`name`, `status`) VALUES (?, ?), (?, ?)").ExpectExec().
-			WillReturnResult(sqlmock.NewResult(1, 2)).
-			WithArgs("name1", 2, "name2", 4)
-
-		_, err := db.Insert[orm.User](context.WithValue(context.Background(), "status", 4)).Entities(u1, u2).Do()
-		r.NoError(err)
-		r.NoError(mock.ExpectationsWereMet())
 	}
 	{
 		u1 := &orm.User{Name: new("name1")}
