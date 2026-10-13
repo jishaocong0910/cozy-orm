@@ -250,33 +250,33 @@ func (i *insert[E]) Do() (int64, error) {
 	if len(ei.autoColumns) > 0 {
 		switch i.executor.db.getGeneratedKeyMode.ID {
 		case GetGeneratedKeyMode_.FirstInsertId.ID, GetGeneratedKeyMode_.LastInsertId.ID:
-			return i.doLastInsertId(ei, insertedColumns)
+			return i._doLastInsertId(ei, insertedColumns)
 		case GetGeneratedKeyMode_.InsertReturning.ID:
-			return i.doInsertReturning(ei, insertedColumns)
+			return i._doInsertReturning(ei, insertedColumns)
 		case GetGeneratedKeyMode_.SQLServer.ID:
-			return i.doSQLServer(ei, insertedColumns)
+			return i._doSQLServer(ei, insertedColumns)
 		case GetGeneratedKeyMode_.Oracle.ID:
-			return i.doOracle(ei, insertedColumns)
+			return i._doOracle(ei, insertedColumns)
 		}
 	}
-	return i.doDefault(ei, insertedColumns)
+	return i._doDefault(ei, insertedColumns)
 }
 
-func (i *insert[E]) doDefault(ei *entityInfo, insertedColumns []string) (int64, error) {
+func (i *insert[E]) _doDefault(ei *entityInfo, insertedColumns []string) (int64, error) {
 	return newMutation(i.executor).BuildSql(func(b *SQLBuilder) {
 		i._buildInsertColumnsClause(b, ei, insertedColumns)
 		i._buildValuesClause(b, ei, insertedColumns)
 	}).Do()
 }
 
-func (i *insert[E]) doLastInsertId(ei *entityInfo, insertedColumns []string) (int64, error) {
+func (i *insert[E]) _doLastInsertId(ei *entityInfo, insertedColumns []string) (int64, error) {
 	return newMutation(i.executor).MapTo[E](i.entities...).BuildSql(func(b *SQLBuilder) {
 		i._buildInsertColumnsClause(b, ei, insertedColumns)
 		i._buildValuesClause(b, ei, insertedColumns)
 	}).Do()
 }
 
-func (i *insert[E]) doInsertReturning(ei *entityInfo, insertedColumns []string) (int64, error) {
+func (i *insert[E]) _doInsertReturning(ei *entityInfo, insertedColumns []string) (int64, error) {
 	_, err := newQuery[E](i.executor).MapTo(i.entities...).BuildSql(func(b *SQLBuilder) {
 		i._buildInsertColumnsClause(b, ei, insertedColumns)
 		i._buildValuesClause(b, ei, insertedColumns)
@@ -285,7 +285,7 @@ func (i *insert[E]) doInsertReturning(ei *entityInfo, insertedColumns []string) 
 	return int64(len(i.entities)), err
 }
 
-func (i *insert[E]) doSQLServer(ei *entityInfo, insertedColumns []string) (int64, error) {
+func (i *insert[E]) _doSQLServer(ei *entityInfo, insertedColumns []string) (int64, error) {
 	_, err := newQuery[E](i.executor).MapTo(i.entities...).BuildSql(func(b *SQLBuilder) {
 		i._buildInsertColumnsClause(b, ei, insertedColumns)
 		i.executor.db.getGeneratedKeyMode.writeSQL(b, ei.autoColumns)
@@ -294,18 +294,35 @@ func (i *insert[E]) doSQLServer(ei *entityInfo, insertedColumns []string) (int64
 	return int64(len(i.entities)), err
 }
 
-func (i *insert[E]) doOracle(ei *entityInfo, insertedColumns []string) (int64, error) {
+func (i *insert[E]) _doOracle(ei *entityInfo, insertedColumns []string) (int64, error) {
+	if ei.lastInsertIdHandler == nil {
+		return i._doDefault(ei, insertedColumns)
+	}
 	if len(i.entities) > 1000 {
 		return 0, checkMust(i.executor.must, errors.New("entity count cannot exceed 1000 in Oracle"))
 	}
-	var identities string
-	affected, err := newMutation(i.executor).MapTo[E](i.entities...).BuildSql(func(b *SQLBuilder) {
-		i._buildInsertColumnsClause(b, ei, insertedColumns)
-		i._buildValuesClause(b, ei, insertedColumns)
-		b.Args(sql.Out{Dest: &identities})
-	}).Do()
-
-	return affected, err
+	c := ei.autoColumns[0]
+	if len(i.entities) == 1 {
+		v := reflect.ValueOf(i.entities[0]).Elem()
+		fieldIndex := ei.columnToFieldIndexMap[ei.autoColumns[0]]
+		field := v.Field(fieldIndex)
+		affected, err := newMutation(i.executor).MapTo[E](i.entities...).BuildSql(func(b *SQLBuilder) {
+			i._buildInsertColumnsClause(b, ei, insertedColumns)
+			i._buildValuesClause(b, ei, insertedColumns)
+			b.Text(" RETURNING ").Column(c).Text(" INTO")
+			b.Args(sql.Out{Dest: field.Addr().Interface()})
+		}).Do()
+		return affected, err
+	} else {
+		var identities string
+		affected, err := newMutation(i.executor).MapTo[E](i.entities...).BuildSql(func(b *SQLBuilder) {
+			i._buildInsertColumnsClause(b, ei, insertedColumns)
+			i._buildValuesClause(b, ei, insertedColumns)
+			b.Text(" RETURNING ").Column(c).Text(" INTO")
+			b.Args(sql.Out{Dest: &identities})
+		}).Do()
+		return affected, err
+	}
 }
 
 func (i *insert[E]) _buildInsertColumnsClause(b *SQLBuilder, ei *entityInfo, insertedColumns []string) {
