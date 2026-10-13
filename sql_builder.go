@@ -31,12 +31,7 @@ type SQLBuilder struct {
 
 func (b *SQLBuilder) Write(str string, args ...any) *SQLBuilder {
 	b.b.WriteString(str)
-	b.AddArgs(args...)
-	return b
-}
-
-func (b *SQLBuilder) WritePh() *SQLBuilder {
-	b.Accept(b.ph)
+	b.args = append(b.args, args...)
 	return b
 }
 
@@ -48,8 +43,9 @@ func (b *SQLBuilder) WriteColumn(column string) *SQLBuilder {
 	return b
 }
 
-func (b *SQLBuilder) AddArgs(args ...any) *SQLBuilder {
-	b.args = append(b.args, args...)
+func (b *SQLBuilder) WriteArg(arg any) *SQLBuilder {
+	b.Accept(b.ph)
+	b.args = append(b.args, arg)
 	return b
 }
 

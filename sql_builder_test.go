@@ -26,7 +26,6 @@ func TestSQLBuilder_Write(t *testing.T) {
 	{
 		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
 		b.Write("a", 1, 2)
-		b.Write(" ").WritePh()
 		b.Write(" ").Accept(WriterTest{})
 		b.Write(" ").ForEach(b.Sep(","), []string{"s1", "s2", "s3"}, func(_ int, t string) {
 			b.Write(t)
@@ -43,12 +42,11 @@ func TestSQLBuilder_Write(t *testing.T) {
 		b.ForEach(b.SepWrapOpt(" (", ",", ")"), nil, func(_ int, t string) {
 			b.Write(t)
 		})
-		b.AddArgs(3, 4)
 		b.Write(" ").WriteColumn("col")
 		b.Error(errors.New("test error"))
 
-		r.Equal("a ? test writer s1,s2,s3 (s1,s2,s3) () (s1,s2,s3) col", b.b.String())
-		r.Equal([]any{1, 2, 3, 4}, b.args)
+		r.Equal("a test writer s1,s2,s3 (s1,s2,s3) () (s1,s2,s3) col", b.b.String())
+		r.Equal([]any{1, 2}, b.args)
 		r.EqualError(b.err, "test error")
 	}
 	{
@@ -68,8 +66,8 @@ func TestSQLBuilder_Write(t *testing.T) {
 	}
 	{
 		b := newSQLBuilder("$", IdentifierDelimiter_.UNDEFINED)
-		b.WritePh().Write(" ").WritePh().Write(" ").WritePh()
-		r.Equal("$1 $2 $3", b.b.String())
+		b.WriteArg(nil).WriteArg(nil).WriteArg(nil)
+		r.Equal("$1$2$3", b.b.String())
 	}
 }
 

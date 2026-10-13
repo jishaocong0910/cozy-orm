@@ -39,7 +39,7 @@ func TestDB(t *testing.T) {
 		db, mock := MockDB(r, &DBConfig{ParamPrefix: ":"})
 		mock.ExpectPrepare(":1:2:3").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}))
 		_, err := db.Query[User](nil).BuildSql(func(b *SQLBuilder) {
-			b.WritePh().WritePh().WritePh()
+			b.WriteArg(nil).WriteArg(nil).WriteArg(nil)
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())

@@ -228,7 +228,7 @@ type condBinOp struct {
 
 func (c condBinOp) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
-		b.WriteColumn(c.column).Write(" ").Write(c.op).Write(" ").WritePh().AddArgs(c.arg)
+		b.WriteColumn(c.column).Write(" ").Write(c.op).Write(" ").WriteArg(c.arg)
 	})
 }
 
@@ -245,9 +245,9 @@ func (c condIn) WriteSQL(b *SQLBuilder) {
 			if i != 0 {
 				b.Write(", ")
 			}
-			b.WritePh()
+			b.WriteArg(c.args[i])
 		}
-		b.Write(")", c.args...)
+		b.Write(")")
 	})
 }
 
@@ -259,7 +259,7 @@ type condBetween struct {
 
 func (c condBetween) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
-		b.WriteColumn(c.column).Write(" BETWEEN ").WritePh().Write(" AND ").WritePh().AddArgs(c.min, c.max)
+		b.WriteColumn(c.column).Write(" BETWEEN ").WriteArg(c.min).Write(" AND ").WriteArg(c.max)
 	})
 }
 
@@ -303,7 +303,7 @@ func (c *CondExpr) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
 		for _, item := range c.items {
 			if i, ok := item.(int); ok {
-				b.WritePh().AddArgs(c.args[i])
+				b.WriteArg(c.args[i])
 			} else {
 				b.Write(item.(string))
 			}
