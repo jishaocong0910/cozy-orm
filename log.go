@@ -45,14 +45,15 @@ func printSql(ctx context.Context, logger Logger, level Level, desc string, sql 
 	}
 
 	var builder strings.Builder
+	if desc != "" {
+		builder.WriteString("desc: ")
+		builder.WriteString(desc)
+		builder.WriteString(", ")
+	}
 	builder.WriteString("SQL: ")
 	builder.WriteString(sql)
 	builder.WriteString("; args:")
 	builder.WriteString(formatArg(args))
-	if desc != "" {
-		builder.WriteString(", desc: ")
-		builder.WriteString(desc)
-	}
 	if rowCount >= 0 {
 		builder.WriteString(", rows: ")
 		builder.WriteString(strconv.FormatInt(rowCount, 10))
