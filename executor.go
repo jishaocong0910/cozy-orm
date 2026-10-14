@@ -172,37 +172,41 @@ func (m *mutation) Do() (affected int64, err error) {
 	affected, warn := result.RowsAffected()
 	printWarn(m.ctx, m.db.logger, warn)
 	m.printSqlAffected(affected, cost)
-	m._getGenKey(result)
+	m._handleResult(result)
 	return
 }
 
-func (m *mutation) _getGenKey(result sql.Result) {
-	if m.executor.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) {
-		if len(m.mapTargets) == 0 {
-			return
-		}
-		id, err := result.LastInsertId()
-		if err != nil {
-			return
-		}
-		ei, err := m.db.getEntityInfo(m.mapTargetType)
-		if err != nil {
-			return
-		}
-		if ei.lastInsertIdHandler == nil {
-			return
-		}
-		fieldIndex := ei.columnToFieldIndexMap[ei.autoColumns[0]]
-		if m.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.LastInsertId) {
-			id = id - int64(len(m.mapTargets)-1)*ei.lastInsertIdStep
-		}
-		for _, et := range m.mapTargets {
-			v := reflect.ValueOf(et).Elem()
-			field := v.Field(fieldIndex)
-			field.Set(ei.lastInsertIdHandler(id))
-			id += ei.lastInsertIdStep
-		}
+func (m *mutation) _handleResult(result sql.Result) {
+	if m.executor.db.getGeneratedKeyMode.Not(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) {
+		return
 	}
+	if len(m.mapTargets) == 0 {
+		return
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return
+	}
+	ei, err := m.db.getEntityInfo(m.mapTargetType)
+	if err != nil {
+		return
+	}
+	if ei.identityConverter == nil {
+		return
+	}
+	if m.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.LastInsertId) {
+		id = id - int64(len(m.mapTargets)-1)*ei.identityStep
+	}
+	for _, entity := range m.mapTargets {
+		m.setIdentify(entity, ei, id)
+		id += ei.identityStep
+	}
+}
+
+func (m *mutation) setIdentify(entity any, ei *entityInfo, id int64) {
+	v := reflect.ValueOf(entity).Elem()
+	field := v.Field(ei.columnToFieldIndexMap[ei.autoColumns[0]])
+	field.Set(ei.identityConverter(id))
 }
 
 func newMutation(e *executor) *mutation {

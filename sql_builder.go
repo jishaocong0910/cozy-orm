@@ -35,7 +35,7 @@ func (b *SQLBuilder) Text(str string) *SQLBuilder {
 	return b
 }
 
-func (b *SQLBuilder) Column(column string) *SQLBuilder {
+func (b *SQLBuilder) Quoted(column string) *SQLBuilder {
 	if b.delim.addQuotes != nil {
 		column = b.delim.addQuotes(column)
 	}

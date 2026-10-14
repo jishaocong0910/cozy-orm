@@ -1,7 +1,5 @@
 module github.com/jishaocong0910/cozy-orm
 
-godebug x509negativeserial=1
-
 go 1.27
 
 toolchain go1.27rc1

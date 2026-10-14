@@ -20,6 +20,8 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
+	"strings"
 )
 
 func DemandFor[D any]() *Demand {
@@ -112,9 +114,9 @@ func (f *find[E]) Do() ([]*E, error) {
 
 		b.Text("SELECT ")
 		b.ForEach(b.Sep(", "), columns, func(_ int, column string) {
-			b.Column(column)
+			b.Quoted(column)
 		})
-		b.Text(" FROM ").Text(ei.table).Accept(where{
+		b.Text(" FROM ").Quoted(ei.table).Accept(where{
 			condition:      f.condition,
 			policy:         ei.deleteSoftlyPolicy,
 			includeDeleted: f.includeDeleted,
@@ -250,7 +252,7 @@ func (i *insert[E]) Do() (int64, error) {
 	if len(ei.autoColumns) > 0 {
 		switch i.executor.db.getGeneratedKeyMode.ID {
 		case GetGeneratedKeyMode_.FirstInsertId.ID, GetGeneratedKeyMode_.LastInsertId.ID:
-			return i._doLastInsertId(ei, insertedColumns)
+			return i._doAndSetIdentify(ei, insertedColumns)
 		case GetGeneratedKeyMode_.InsertReturning.ID:
 			return i._doInsertReturning(ei, insertedColumns)
 		case GetGeneratedKeyMode_.SQLServer.ID:
@@ -269,7 +271,7 @@ func (i *insert[E]) _doDefault(ei *entityInfo, insertedColumns []string) (int64,
 	}).Do()
 }
 
-func (i *insert[E]) _doLastInsertId(ei *entityInfo, insertedColumns []string) (int64, error) {
+func (i *insert[E]) _doAndSetIdentify(ei *entityInfo, insertedColumns []string) (int64, error) {
 	return newMutation(i.executor).MapTo[E](i.entities...).BuildSql(func(b *SQLBuilder) {
 		i._buildInsertColumnsClause(b, ei, insertedColumns)
 		i._buildValuesClause(b, ei, insertedColumns)
@@ -295,13 +297,15 @@ func (i *insert[E]) _doSQLServer(ei *entityInfo, insertedColumns []string) (int6
 }
 
 func (i *insert[E]) _doOracle(ei *entityInfo, insertedColumns []string) (int64, error) {
-	if ei.lastInsertIdHandler == nil {
+	if ei.identityConverter == nil {
 		return i._doDefault(ei, insertedColumns)
 	}
 	if len(i.entities) > 1000 {
 		return 0, checkMust(i.executor.must, errors.New("entity count cannot exceed 1000 in Oracle"))
 	}
-	c := ei.autoColumns[0]
+
+	identifyColumn := ei.autoColumns[0]
+
 	if len(i.entities) == 1 {
 		v := reflect.ValueOf(i.entities[0]).Elem()
 		fieldIndex := ei.columnToFieldIndexMap[ei.autoColumns[0]]
@@ -309,40 +313,60 @@ func (i *insert[E]) _doOracle(ei *entityInfo, insertedColumns []string) (int64, 
 		affected, err := newMutation(i.executor).MapTo[E](i.entities...).BuildSql(func(b *SQLBuilder) {
 			i._buildInsertColumnsClause(b, ei, insertedColumns)
 			i._buildValuesClause(b, ei, insertedColumns)
-			b.Text(" RETURNING ").Column(c).Text(" INTO")
-			b.Args(sql.Out{Dest: field.Addr().Interface()})
-		}).Do()
-		return affected, err
-	} else {
-		var identities string
-		affected, err := newMutation(i.executor).MapTo[E](i.entities...).BuildSql(func(b *SQLBuilder) {
-			i._buildInsertColumnsClause(b, ei, insertedColumns)
-			i._buildValuesClause(b, ei, insertedColumns)
-			b.Text(" RETURNING ").Column(c).Text(" INTO")
-			b.Args(sql.Out{Dest: &identities})
+			b.Text(" RETURNING ").Quoted(identifyColumn).Text(" INTO out_id")
+			b.Args(sql.Named("out_id", sql.Out{Dest: field.Addr().Interface()}))
 		}).Do()
 		return affected, err
 	}
+
+	idResults := string(make([]byte, 32767))
+	m := newMutation(i.executor)
+	affected, err := m.BuildSql(func(b *SQLBuilder) {
+		am := i._getAssignedManager(ei, insertedColumns)
+		b.Text("DECLARE id NUMBER; id_results VARCHAR2(32767) := ''; BEGIN")
+		for j := 0; j < len(i.entities); j++ {
+			b.Text(" ")
+			i._buildInsertColumnsClause(b, ei, insertedColumns)
+			b.Text(" VALUES ").ForEach(b.Sep(", "), i.entities, func(i int, entity *E) {
+				b.ForEach(b.SepWrap("(", ", ", ")"), insertedColumns, func(_ int, column string) {
+					b.Accept(am.getValueWriter(column, i))
+				})
+			}).Text(";  RETURNING ").Quoted(identifyColumn).Text(" INTO id; id_results := id_results || ',' || TO_CHAR(id);")
+		}
+		b.Text(" :out_id_results := id_results; EXCEPTION WHEN OTHERS THEN ROLLBACK; RAISE; END;")
+		b.Args(sql.Named("out_id_results", sql.Out{Dest: &idResults}))
+	}).Do()
+	if err == nil {
+		for j, idResult := range strings.Split(idResults, ",")[1:] {
+			id, _ := strconv.ParseInt(idResult, 10, 64)
+			m.setIdentify(i.entities[j], ei, id)
+		}
+	}
+	return affected, err
 }
 
 func (i *insert[E]) _buildInsertColumnsClause(b *SQLBuilder, ei *entityInfo, insertedColumns []string) {
-	b.Text("INSERT INTO ").Text(ei.table)
+	b.Text("INSERT INTO ").Quoted(ei.table)
 	b.ForEach(b.SepWrap("(", ", ", ")"), insertedColumns, func(_ int, column string) {
-		b.Column(column)
+		b.Quoted(column)
 	})
 }
 
 func (i *insert[E]) _buildValuesClause(b *SQLBuilder, ei *entityInfo, insertedColumns []string) {
-	entityValueMaps := make([]map[string]any, 0, len(i.entities))
-	for _, entity := range i.entities {
-		entityValueMaps = append(entityValueMaps, ei.getValueMap(entity, insertedColumns))
-	}
-	am := newAssignedManager[E](i.executor.ctx, ei.insertPolicy, entityValueMaps, setColumns{}, "")
+	am := i._getAssignedManager(ei, insertedColumns)
 	b.Text(" VALUES ").ForEach(b.Sep(", "), i.entities, func(i int, entity *E) {
 		b.ForEach(b.SepWrap("(", ", ", ")"), insertedColumns, func(_ int, column string) {
 			b.Accept(am.getValueWriter(column, i))
 		})
 	})
+}
+
+func (i *insert[E]) _getAssignedManager(ei *entityInfo, insertedColumns []string) *assignedManager[E] {
+	entityValueMaps := make([]map[string]any, 0, len(i.entities))
+	for _, entity := range i.entities {
+		entityValueMaps = append(entityValueMaps, ei.getValueMap(entity, insertedColumns))
+	}
+	return newAssignedManager[E](i.executor.ctx, ei.insertPolicy, entityValueMaps, nil, "")
 }
 
 type update[E any] struct {
@@ -444,10 +468,10 @@ func (u *update[E]) Do() (int64, error) {
 		}
 		c.add(u.condition)
 
-		am := newAssignedManager[E](u.mutation.ctx, ei.updatePolicy, []map[string]any{ei.getValueMap(u.entity, updatedColumns)}, u.setColumns, "")
-		b.Text("UPDATE ").Text(ei.table).Text(" SET ")
+		am := newAssignedManager[E](u.mutation.ctx, ei.updatePolicy, []map[string]any{ei.getValueMap(u.entity, updatedColumns)}, &u.setColumns, "")
+		b.Text("UPDATE ").Quoted(ei.table).Text(" SET ")
 		b.ForEach(b.Sep(", "), updatedColumns, func(_ int, column string) {
-			b.Column(column).Text(" = ").Accept(am.getValueWriter(column, 0))
+			b.Quoted(column).Text(" = ").Accept(am.getValueWriter(column, 0))
 		})
 
 		b.Accept(where{
@@ -561,10 +585,10 @@ func (u *updateRow[E]) Do() (int64, error) {
 			entityValueMaps = append(entityValueMaps, entityValueMap)
 		}
 
-		am := newAssignedManager[E](u.mutation.ctx, ei.updatePolicy, entityValueMaps, u.setColumns, pkColumn)
-		b.Text("UPDATE ").Text(ei.table).Text(" SET ")
+		am := newAssignedManager[E](u.mutation.ctx, ei.updatePolicy, entityValueMaps, &u.setColumns, pkColumn)
+		b.Text("UPDATE ").Quoted(ei.table).Text(" SET ")
 		b.ForEach(b.Sep(", "), updatedColumns, func(i int, column string) {
-			b.Column(column).Text(" = ").Accept(am.getValueWriter(column, -1))
+			b.Quoted(column).Text(" = ").Accept(am.getValueWriter(column, -1))
 		})
 
 		c := &Cond{}
@@ -624,7 +648,7 @@ func (d *delete[E]) Do() (int64, error) {
 			b.Error(err)
 			return
 		}
-		b.Text("DELETE FROM ").Text(ei.table).Accept(where{
+		b.Text("DELETE FROM ").Quoted(ei.table).Accept(where{
 			condition: d.condition,
 			safety:    !d.skipSafety,
 		})
@@ -672,10 +696,10 @@ func (d *deleteSoftly[E]) Do() (int64, error) {
 			b.Error(err)
 			return
 		}
-		b.Text("UPDATE ").Text(ei.table).Text(" SET ").Column(ei.deleteSoftlyPolicy.deletedColumn).Text(" = ")
+		b.Text("UPDATE ").Quoted(ei.table).Text(" SET ").Quoted(ei.deleteSoftlyPolicy.deletedColumn).Text(" = ")
 		switch ei.deleteSoftlyPolicy.mode.ID {
 		case deleteSoftlyMode_.assignedPk.ID:
-			b.Column(ei.deleteSoftlyPolicy.pkColumn)
+			b.Quoted(ei.deleteSoftlyPolicy.pkColumn)
 		case deleteSoftlyMode_.assignedNull.ID:
 			b.Text("NULL")
 		default:
@@ -731,7 +755,7 @@ func (c *count[E]) Do() (i int64, err error) {
 			b.Error(err)
 			return
 		}
-		b.Text("SELECT COUNT(*) FROM ").Text(ei.table).Accept(where{
+		b.Text("SELECT COUNT(*) FROM ").Quoted(ei.table).Accept(where{
 			condition:      c.condition,
 			policy:         ei.deleteSoftlyPolicy,
 			includeDeleted: c.includeDeleted,
@@ -743,7 +767,7 @@ func (c *count[E]) Do() (i int64, err error) {
 	return
 }
 
-func newAssignedManager[E any](ctx context.Context, policy assignedPolicy, entitiesValueMap []map[string]any, setColumns setColumns, pk string) *assignedManager[E] {
+func newAssignedManager[E any](ctx context.Context, policy assignedPolicy, entitiesValueMap []map[string]any, setColumns *setColumns, pk string) *assignedManager[E] {
 	return &assignedManager[E]{
 		ctx:                    ctx,
 		policy:                 policy,
@@ -758,7 +782,7 @@ type assignedManager[E any] struct {
 	ctx                    context.Context
 	policy                 assignedPolicy
 	entitiesValueMaps      []map[string]any
-	setColumns             setColumns
+	setColumns             *setColumns
 	pkColumn               string
 	reusePolicyValueWriter map[string]SQLWriter
 }
@@ -767,10 +791,12 @@ func (a *assignedManager[E]) getValueWriter(column string, entityIndex int) SQLW
 	if a.policy.forceColumnSet.contain(column) {
 		return a._getPolicyValueWriter(column)
 	}
-	if vw, ok := a.setColumns.valueWriterMap[column]; ok {
-		return vw
+	if a.setColumns != nil {
+		if vw, ok := a.setColumns.valueWriterMap[column]; ok {
+			return vw
+		}
 	}
-	if entityIndex == -1 {
+	if a.pkColumn != "" {
 		if len(a.entitiesValueMaps) == 1 {
 			entityIndex = 0
 		} else {
@@ -862,7 +888,7 @@ type assignedCases struct {
 }
 
 func (a assignedCases) WriteSQL(b *SQLBuilder) {
-	b.Text("CASE ").Column(a.pkColumn)
+	b.Text("CASE ").Quoted(a.pkColumn)
 	for _, item := range a.caseItems {
 		b.Accept(item)
 	}
@@ -927,7 +953,7 @@ type orderByItem struct {
 }
 
 func (o orderByItem) WriteSQL(b *SQLBuilder) {
-	b.Column(o.column).Text(" ").Text(o.seq)
+	b.Quoted(o.column).Text(" ").Text(o.seq)
 }
 
 type page struct {

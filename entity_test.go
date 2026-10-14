@@ -51,8 +51,8 @@ func TestGetEntity(t *testing.T) {
 			ei.columnToFieldNameMap)
 		r.Equal([]string{"id"}, ei.pkColumns)
 		r.Equal([]string{"id"}, ei.autoColumns)
-		r.Equal(int64(1), ei.lastInsertIdStep)
-		r.NotNil(ei.lastInsertIdHandler)
+		r.Equal(int64(1), ei.identityStep)
+		r.NotNil(ei.identityConverter)
 
 		r.Nil(ei.insertPolicy.ignoredColumnSet)
 		r.Equal(newSet[string]("create_at", "update_at", "version"), ei.insertPolicy.reusedColumnSet)
@@ -93,8 +93,8 @@ func TestGetEntity(t *testing.T) {
 		r.Equal(map[string]string{"id": "Id"}, ei.columnToFieldNameMap)
 		r.Empty(ei.pkColumns)
 		r.Equal([]string{"id"}, ei.autoColumns)
-		r.Equal(int64(2), ei.lastInsertIdStep)
-		r.NotNil(ei.lastInsertIdHandler)
+		r.Equal(int64(2), ei.identityStep)
+		r.NotNil(ei.identityConverter)
 	}
 	{
 		ei, err := newEntityInfo(reflect.TypeFor[DemoEntityTag](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, nil)
@@ -105,13 +105,13 @@ func TestGetEntity(t *testing.T) {
 		ei, err := newEntityInfo(reflect.TypeFor[DemoMulPk](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, nil)
 		r.NoError(err)
 		r.Equal("demo_mul_pk", ei.table)
-		r.Equal([]string{"id1", "id2"}, ei.columns)
-		r.Equal(map[string]int{"id1": 0, "id2": 1}, ei.columnToFieldIndexMap)
-		r.Equal(map[string]string{"id1": "Id1", "id2": "Id2"}, ei.columnToFieldNameMap)
+		r.Equal([]string{"id1", "id2", "name"}, ei.columns)
+		r.Equal(map[string]int{"id1": 0, "id2": 1, "name": 2}, ei.columnToFieldIndexMap)
+		r.Equal(map[string]string{"id1": "Id1", "id2": "Id2", "name": "Name"}, ei.columnToFieldNameMap)
 		r.Equal([]string{"id1", "id2"}, ei.pkColumns)
 		r.Equal([]string{"id1", "id2"}, ei.autoColumns)
-		r.Equal(int64(0), ei.lastInsertIdStep)
-		r.Nil(ei.lastInsertIdHandler)
+		r.Equal(int64(0), ei.identityStep)
+		r.Nil(ei.identityConverter)
 	}
 	{
 		c1 := NewColumnPolicyConfig("name").ForTable("product").OnInsert().Value(false, false, func(context.Context) any { return nil })

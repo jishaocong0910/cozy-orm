@@ -174,7 +174,7 @@ func (c DBConfig) Build() *DB {
 		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.SQLServer
 		c.PageMode = PageMode_.OffsetFetch
 	case DBType_.SQLite.ID:
-		c.IdentifierDelimiter = IdentifierDelimiter_.Backtick
+		c.IdentifierDelimiter = IdentifierDelimiter_.DoubleQuote
 		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.LastInsertId
 		c.PageMode = PageMode_.LimitOffset
 	}

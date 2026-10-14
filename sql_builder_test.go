@@ -42,7 +42,7 @@ func TestSQLBuilder_Text(t *testing.T) {
 		b.ForEach(b.SepWrapOpt(" (", ",", ")"), nil, func(_ int, t string) {
 			b.Text(t)
 		})
-		b.Text(" ").Column("col")
+		b.Text(" ").Quoted("col")
 		b.Error(errors.New("test error"))
 
 		r.Equal("a test accept s1,s2,s3 (s1,s2,s3) () (s1,s2,s3) col", b.b.String())
@@ -50,17 +50,17 @@ func TestSQLBuilder_Text(t *testing.T) {
 	}
 	{
 		b := newSQLBuilder("", IdentifierDelimiter_.Backtick)
-		b.Column("col")
+		b.Quoted("col")
 		r.Equal("`col`", b.b.String())
 	}
 	{
 		b := newSQLBuilder("", IdentifierDelimiter_.DoubleQuote)
-		b.Column("col")
+		b.Quoted("col")
 		r.Equal("\"col\"", b.b.String())
 	}
 	{
 		b := newSQLBuilder("", IdentifierDelimiter_.Bracket)
-		b.Column("col")
+		b.Quoted("col")
 		r.Equal("[col]", b.b.String())
 	}
 	{

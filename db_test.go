@@ -75,7 +75,7 @@ func TestDB(t *testing.T) {
 	{
 		db := DBConfig{DBType: DBType_.SQLite}.Build()
 		r.Equal("", db.paramPrefix)
-		r.Equal(IdentifierDelimiter_.Backtick.ID, db.identifierDelimiter.ID)
+		r.Equal(IdentifierDelimiter_.DoubleQuote.ID, db.identifierDelimiter.ID)
 		r.Equal(GetGeneratedKeyMode_.LastInsertId.ID, db.getGeneratedKeyMode.ID)
 		r.Equal(PageMode_.LimitOffset.ID, db.pageMode.ID)
 	}

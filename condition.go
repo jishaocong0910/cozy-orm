@@ -228,7 +228,7 @@ type condBinOp struct {
 
 func (c condBinOp) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
-		b.Column(c.column).Text(" ").Text(c.op).Text(" ").Arg(c.arg)
+		b.Quoted(c.column).Text(" ").Text(c.op).Text(" ").Arg(c.arg)
 	})
 }
 
@@ -240,7 +240,7 @@ type condIn struct {
 
 func (c condIn) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
-		b.Column(c.column).Text(" IN(")
+		b.Quoted(c.column).Text(" IN(")
 		for i := 0; i < len(c.args); i++ {
 			if i != 0 {
 				b.Text(", ")
@@ -259,7 +259,7 @@ type condBetween struct {
 
 func (c condBetween) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
-		b.Column(c.column).Text(" BETWEEN ").Arg(c.min).Text(" AND ").Arg(c.max)
+		b.Quoted(c.column).Text(" BETWEEN ").Arg(c.min).Text(" AND ").Arg(c.max)
 	})
 }
 
@@ -270,7 +270,7 @@ type condIsNull struct {
 
 func (c condIsNull) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
-		b.Column(c.column).Text(" IS NULL")
+		b.Quoted(c.column).Text(" IS NULL")
 	})
 }
 
@@ -281,7 +281,7 @@ type condIsNotNull struct {
 
 func (c condIsNotNull) WriteSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
-		b.Column(c.column).Text(" IS NOT NULL")
+		b.Quoted(c.column).Text(" IS NOT NULL")
 	})
 }
 

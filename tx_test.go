@@ -39,7 +39,7 @@ func TestTx(t *testing.T) {
 		tx := db.Tx(ctx)
 		err := tx.TxOptions(nil).Do(func(ctx context.Context) error {
 			ctx2 = ctx
-			ti := orm.GetTxInfoInner(ctx, db)
+			ti := orm.GetTxInfoData(ctx, db)
 			r.Equal(ti.Owner, tx)
 			r.NotNil(ti.RawTx)
 			_, err := db.Mutation(ctx).SqlLogLevel(orm.Level_.Info).BuildSql(func(b *orm.SQLBuilder) {
@@ -52,7 +52,7 @@ func TestTx(t *testing.T) {
 		l := logger.Messages[0]
 		r.Equal("SQL: UPDATE user set status=1 WHERE id=?; args: 1(int), affected: 1, cost: 0ms", l.Msg)
 
-		ti := orm.GetTxInfoInner(ctx2, db)
+		ti := orm.GetTxInfoData(ctx2, db)
 		r.Nil(ti)
 	}
 	{
@@ -223,7 +223,7 @@ func TestTxHook(t *testing.T) {
 		var wg sync.WaitGroup
 		db, mock := orm.MockDB(r, nil)
 		mock.ExpectBegin()
-		mock.ExpectPrepare("UPDATE user SET `email` = ? WHERE `id` = ?").ExpectExec().WithArgs("a1", 1).
+		mock.ExpectPrepare("UPDATE `user` SET `email` = ? WHERE `id` = ?").ExpectExec().WithArgs("a1", 1).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectRollback()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
@@ -245,7 +245,7 @@ func TestTxHook(t *testing.T) {
 				r.False(commit)
 				wg.Done()
 			})
-			ti := orm.GetTxInfoInner(ctx, db)
+			ti := orm.GetTxInfoData(ctx, db)
 			r.Len(ti.TxHook, 1)
 			r.Equal(ti.TxHook[0], h)
 			return nil
@@ -258,9 +258,9 @@ func TestTxHook(t *testing.T) {
 		var wg sync.WaitGroup
 		db, mock := orm.MockDB(r, nil)
 		mock.ExpectBegin()
-		mock.ExpectPrepare("UPDATE user SET `email` = ? WHERE `id` = ?").ExpectExec().WithArgs("a1", 1).
+		mock.ExpectPrepare("UPDATE `user` SET `email` = ? WHERE `id` = ?").ExpectExec().WithArgs("a1", 1).
 			WillReturnResult(sqlmock.NewResult(1, 1))
-		mock.ExpectPrepare("UPDATE user SET `email` = ? WHERE `id` = ?").ExpectExec().WithArgs("a2", 2).
+		mock.ExpectPrepare("UPDATE `user` SET `email` = ? WHERE `id` = ?").ExpectExec().WithArgs("a2", 2).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 		ctx := context.WithValue(context.Background(), "key", "value")
@@ -282,7 +282,7 @@ func TestTxHook(t *testing.T) {
 					return err
 				})
 				h.AfterCompleteAsync(func(ctx context.Context, commit bool) {
-					ti := orm.GetTxInfoInner(ctx, db)
+					ti := orm.GetTxInfoData(ctx, db)
 					val := ctx.Value("key").(string)
 					r.True(commit)
 					r.Nil(ti)

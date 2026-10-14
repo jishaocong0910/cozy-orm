@@ -42,8 +42,8 @@ func newEntityInfo(t reflect.Type, tableNameMapper, columnNameMapper *NameMapper
 		}
 		if tf.Name == "_" {
 			if i == 0 && tf.Type.Kind() == reflect.Struct && tf.Type.NumField() == 0 {
-				et := parseEntityTag(tf)
-				ei.table = et.table
+				tag := parseEntityTag(tf)
+				ei.table = tag.table
 			}
 			continue
 		}
@@ -76,8 +76,8 @@ type entityInfo struct {
 	fieldToColumnMap      map[string]string
 	pkColumns             []string
 	autoColumns           []string
-	lastInsertIdStep      int64
-	lastInsertIdHandler   func(id int64) reflect.Value
+	identityStep          int64
+	identityConverter     func(id int64) reflect.Value
 	insertPolicy          assignedPolicy
 	updatePolicy          assignedPolicy
 	deleteSoftlyPolicy    deleteSoftlyPolicy
@@ -202,13 +202,13 @@ func (e *entityInfo) _registerField(tf reflect.StructField, tag fieldTag, column
 	}
 	if tag.auto > 0 {
 		e.autoColumns = append(e.autoColumns, column)
-		if getGeneratedKeyMode.Is(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) {
+		if getGeneratedKeyMode.Is(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId, GetGeneratedKeyMode_.Oracle) {
 			if len(e.autoColumns) > 1 {
-				e.lastInsertIdStep = 0
-				e.lastInsertIdHandler = nil
-			} else if a, ok := lastInsertIdHandlerMap[tf.Type]; ok {
-				e.lastInsertIdStep = tag.auto
-				e.lastInsertIdHandler = a
+				e.identityStep = 0
+				e.identityConverter = nil
+			} else if a, ok := autoIncrementFieldConverterMap[tf.Type]; ok {
+				e.identityStep = tag.auto
+				e.identityConverter = a
 			}
 		}
 	}
@@ -335,7 +335,7 @@ func (p *deleteSoftlyPolicy) loadConfig(config *deleteSoftlyPolicyConfig, pkColu
 }
 
 var (
-	lastInsertIdHandlerMap = map[reflect.Type]func(id int64) reflect.Value{
+	autoIncrementFieldConverterMap = map[reflect.Type]func(id int64) reflect.Value{
 		reflect.TypeFor[*int]():     func(id int64) reflect.Value { return reflect.ValueOf(new(int(id))) },
 		reflect.TypeFor[*int8]():    func(id int64) reflect.Value { return reflect.ValueOf(new(int8(id))) },
 		reflect.TypeFor[*int16]():   func(id int64) reflect.Value { return reflect.ValueOf(new(int16(id))) },

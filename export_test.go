@@ -55,7 +55,7 @@ func MockDBAndLogger(r *require.Assertions, config *DBConfig) (*DB, *MockLogger,
 var NewTxContext = newTxContext
 
 func convertId[T any](id int64) any {
-	return lastInsertIdHandlerMap[reflect.TypeFor[T]()](id).Elem().Interface()
+	return autoIncrementFieldConverterMap[reflect.TypeFor[T]()](id).Elem().Interface()
 }
 
 func checkMapKeys[K comparable, V any](r *require.Assertions, keys []K, actual map[K]V) {
@@ -227,8 +227,9 @@ type DemoIgnoreField2 struct {
 }
 
 type DemoMulPk struct {
-	Id1 *string `orm:"pk;auto"`
-	Id2 *string `orm:"pk;auto"`
+	Id1  *string `orm:"pk;auto"`
+	Id2  *string `orm:"pk;auto"`
+	Name *string `orm:"column=name"`
 }
 
 type DemoDemand struct {
@@ -247,16 +248,16 @@ type DemoDemandAnon struct {
 	Deleted  *int64
 }
 
-type TxInfoInner struct {
+type TxInfoData struct {
 	Owner  *tx
 	RawTx  *sql.Tx
 	TxHook []*txHook
 }
 
-func GetTxInfoInner(ctx context.Context, db *DB) *TxInfoInner {
+func GetTxInfoData(ctx context.Context, db *DB) *TxInfoData {
 	if tc, ok := ctx.(*TxContext); ok {
 		if ti := tc.getTxInfo(db); ti != nil {
-			return &TxInfoInner{
+			return &TxInfoData{
 				Owner:  ti.owner,
 				RawTx:  ti.rawTx,
 				TxHook: ti.txHooks,
@@ -271,4 +272,16 @@ type AnyTime struct{}
 func (a AnyTime) Match(v driver.Value) bool {
 	_, ok := v.(time.Time)
 	return ok
+}
+
+type OutArg struct {
+	MockValue any
+}
+
+func (a OutArg) Match(v driver.Value) bool {
+	if o, ok := v.(sql.Out); ok {
+		reflect.ValueOf(o.Dest).Elem().Set(reflect.ValueOf(a.MockValue))
+		return true
+	}
+	return false
 }

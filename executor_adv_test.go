@@ -35,7 +35,7 @@ func TestFind(t *testing.T) {
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")
 		db, logger, mock := orm.MockDBAndLogger(r, &orm.DBConfig{IdentifierDelimiter: orm.IdentifierDelimiter_.Backtick, PageMode: orm.PageMode_.LimitOffset})
-		mock.ExpectPrepare("SELECT `id`, `name`, `phone`, `email`, `level`, `version` FROM user WHERE `level` = ? ORDER BY `id` DESC, `name` ASC LIMIT 1 OFFSET 10 FOR UPDATE").ExpectQuery().WithArgs(1).
+		mock.ExpectPrepare("SELECT `id`, `name`, `phone`, `email`, `level`, `version` FROM `user` WHERE `level` = ? ORDER BY `id` DESC, `name` ASC LIMIT 1 OFFSET 10 FOR UPDATE").ExpectQuery().WithArgs(1).
 			WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(9, "abc").AddRow(10, "efg"))
 		users, err := db.Find[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Select("id", "version").OnDemand(orm.DemandFor[orm.UserSimple]()).
 			Cond(func(c *orm.Cond) {
@@ -60,7 +60,7 @@ func TestFind(t *testing.T) {
 			IdentifierDelimiter: orm.IdentifierDelimiter_.Backtick,
 			PageMode:            orm.PageMode_.OffsetFetch,
 		})
-		mock.ExpectPrepare("SELECT `id`, `name` FROM user OFFSET 10 ROWS FETCH NEXT 1 ROWS ONLY").
+		mock.ExpectPrepare("SELECT `id`, `name` FROM `user` OFFSET 10 ROWS FETCH NEXT 1 ROWS ONLY").
 			ExpectQuery().WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(9, "abc"))
 		_, err := db.Find[orm.User](nil).Select("id", "name").Page(10, 1).Do()
 		r.NoError(err)
@@ -73,7 +73,7 @@ func TestFind(t *testing.T) {
 				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
 			},
 		})
-		mock.ExpectPrepare("SELECT `id`, `name` FROM user WHERE `level` = ? AND `deleted` = ?").ExpectQuery().WithArgs(1, 0).
+		mock.ExpectPrepare("SELECT `id`, `name` FROM `user` WHERE `level` = ? AND `deleted` = ?").ExpectQuery().WithArgs(1, 0).
 			WillReturnRows(mock.NewRows([]string{}))
 		_, err := db.Find[orm.User](nil).Select("id", "name").Cond(func(c *orm.Cond) {
 			c.Eq("level", 1)
@@ -81,7 +81,7 @@ func TestFind(t *testing.T) {
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
 
-		mock.ExpectPrepare("SELECT `id`, `name` FROM user WHERE `level` = ?").ExpectQuery().WithArgs(1).
+		mock.ExpectPrepare("SELECT `id`, `name` FROM `user` WHERE `level` = ?").ExpectQuery().WithArgs(1).
 			WillReturnRows(mock.NewRows([]string{}))
 		_, err = db.Find[orm.User](nil).Select("id", "name").Cond(func(c *orm.Cond) {
 			c.Eq("level", 1)
@@ -102,7 +102,7 @@ func TestFindOne(t *testing.T) {
 	{
 		db, mock := orm.MockDB(r, nil)
 		mock.ExpectPrepare("SELECT `id`, `name`, `phone`, `email`, `avatar_url`, `status`, `level`, `properties`, `category`, " +
-			"`tags`, `attributes`, `uuid`, `create_at`, `update_at`, `version`, `deleted` FROM user").ExpectQuery().
+			"`tags`, `attributes`, `uuid`, `create_at`, `update_at`, `version`, `deleted` FROM `user`").ExpectQuery().
 			WillReturnRows(mock.NewRows([]string{}).AddRow().AddRow())
 		_, err := db.FindOne[orm.User](nil).Do()
 		r.Error(err, "return more than one row")
@@ -111,7 +111,7 @@ func TestFindOne(t *testing.T) {
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")
 		db, logger, mock := orm.MockDBAndLogger(r, &orm.DBConfig{PageMode: orm.PageMode_.LimitOffset})
-		mock.ExpectPrepare("SELECT `id`, `name`, `phone`, `email`, `level`, `version` FROM user " +
+		mock.ExpectPrepare("SELECT `id`, `name`, `phone`, `email`, `level`, `version` FROM `user` " +
 			"WHERE `level` = ? ORDER BY `id` DESC, `name` ASC  LIMIT 1 OFFSET 10 FOR UPDATE").ExpectQuery().WithArgs(1).
 			WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(9, "abc").AddRow(10, "efg"))
 		user, err := db.FindOne[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Lenient().Select("id", "version").
@@ -135,7 +135,7 @@ func TestFindOne(t *testing.T) {
 				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
 			},
 		})
-		mock.ExpectPrepare("SELECT `id`, `name` FROM user WHERE `level` = ? AND `deleted` = ?").ExpectQuery().WithArgs(1, 0).
+		mock.ExpectPrepare("SELECT `id`, `name` FROM `user` WHERE `level` = ? AND `deleted` = ?").ExpectQuery().WithArgs(1, 0).
 			WillReturnRows(mock.NewRows([]string{}))
 		_, err := db.FindOne[orm.User](nil).Select("id", "name").Cond(func(c *orm.Cond) {
 			c.Eq("level", 1)
@@ -143,7 +143,7 @@ func TestFindOne(t *testing.T) {
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
 
-		mock.ExpectPrepare("SELECT `id`, `name` FROM user WHERE `level` = ?").ExpectQuery().WithArgs(1).
+		mock.ExpectPrepare("SELECT `id`, `name` FROM `user` WHERE `level` = ?").ExpectQuery().WithArgs(1).
 			WillReturnRows(mock.NewRows([]string{}))
 		_, err = db.FindOne[orm.User](nil).Select("id", "name").Cond(func(c *orm.Cond) {
 			c.Eq("level", 1)
@@ -153,7 +153,7 @@ func TestFindOne(t *testing.T) {
 	}
 }
 
-func TestInsert(t *testing.T) {
+func TestInsert_doDefault(t *testing.T) {
 	r := require.New(t)
 	{
 		db, _ := orm.MockDB(r, nil)
@@ -168,22 +168,12 @@ func TestInsert(t *testing.T) {
 		r.NoError(err)
 	}
 	{
-		db := orm.DBConfig{
-			GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.Oracle,
-		}.Build()
-		users := make([]*orm.User, 0, 1001)
-		for range 1001 {
-			users = append(users, &orm.User{})
-		}
-		_, err := db.Insert[orm.User](nil).Entities(users...).Do()
-		r.Error(err, "entity count cannot exceed 1000 in Oracle")
-	}
-	{
 		ctx := context.WithValue(context.Background(), "test", "test")
 		db, logger, mock := orm.MockDBAndLogger(r, nil)
-		mock.ExpectPrepare("INSERT INTO user(`name`, `status`) VALUES (?, NULL)").ExpectExec().WithArgs("abc").WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectPrepare("INSERT INTO `user`(`name`, `status`) VALUES (?, NULL)").ExpectExec().WithArgs("abc").WillReturnResult(sqlmock.NewResult(1, 1))
 		affected, err := db.Insert[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Entities(&orm.User{Name: new("abc")}).Required("status").Do()
 		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
 		r.Equal(int64(1), affected)
 		lm := logger.Messages[0]
 		r.Equal(ctx, lm.Ctx)
@@ -191,9 +181,8 @@ func TestInsert(t *testing.T) {
 		r.Contains(lm.Msg, "desc: test desc")
 	}
 	{
-		u1 := &orm.User{Name: new("name1"), Status: new(orm.UserStatus(2))}
-		u2 := &orm.User{Name: new("name2")}
-		db, mock := orm.MockDB(r, &orm.DBConfig{
+		ctx := context.WithValue(context.Background(), "status", 4)
+		db, logger, mock := orm.MockDBAndLogger(r, &orm.DBConfig{
 			GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId,
 			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
 				orm.NewColumnPolicyConfig("create_at").UseCreateTime(),
@@ -207,71 +196,119 @@ func TestInsert(t *testing.T) {
 				}),
 			},
 		})
-		mock.ExpectPrepare("INSERT INTO user(`name`, `status`, `create_at`, `update_at`, `version`) VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)").ExpectExec().
+		mock.ExpectPrepare("INSERT INTO `user`(`name`, `status`, `create_at`, `update_at`, `version`) VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)").ExpectExec().
 			WillReturnResult(sqlmock.NewResult(1, 2)).
 			WithArgs("name1", 2, orm.AnyTime{}, orm.AnyTime{}, 1, "name2", 4, orm.AnyTime{}, orm.AnyTime{}, 1)
 
-		ctx := context.WithValue(context.Background(), "status", 4)
-		_, err := db.Insert[orm.User](ctx).Entities(u1, u2).Do()
+		_, err := db.Insert[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").
+			Entities(&orm.User{Name: new("name1"), Status: new(orm.UserStatus(2))}, &orm.User{Name: new("name2")}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
-		r.Equal(int64(1), *u1.Id)
-		r.Equal(int64(2), *u2.Id)
+		lm := logger.Messages[0]
+		r.Equal(ctx, lm.Ctx)
+		r.Equal(orm.Level_.Info, lm.Level)
+		r.Contains(lm.Msg, "desc: test desc")
 	}
+}
+
+func TestInsert_doAndSetIdentify(t *testing.T) {
+	r := require.New(t)
 	{
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
-		db, mock := orm.MockDB(r, &orm.DBConfig{
-			GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId,
-			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
-				orm.NewColumnPolicyConfig("create_at").UseCreateTime(),
-				orm.NewColumnPolicyConfig("update_at").UseUpdateTime(),
-				orm.NewColumnPolicyConfig("version").UseRowVersion(),
-			},
-		})
-		mock.ExpectPrepare("INSERT INTO user(`name`, `create_at`, `update_at`, `version`) VALUES (?, ?, ?, ?), (?, ?, ?, ?)").ExpectExec().
-			WillReturnResult(sqlmock.NewResult(1, 2)).
-			WithArgs("name1", orm.AnyTime{}, orm.AnyTime{}, 1, "name2", orm.AnyTime{}, orm.AnyTime{}, 1)
-
-		context.WithValue(context.Background(), "test", "test")
+		db, mock := orm.MockDB(r, &orm.DBConfig{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId})
+		mock.ExpectPrepare("INSERT INTO `user`(`name`) VALUES (?), (?)").ExpectExec().WillReturnResult(sqlmock.NewResult(3, 2)).
+			WithArgs("name1", "name2")
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
-		r.Equal(int64(1), *u1.Id)
-		r.Equal(int64(2), *u2.Id)
+		r.Equal(int64(3), *u1.Id)
+		r.Equal(int64(4), *u2.Id)
 	}
 	{
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
 		db, mock := orm.MockDB(r, &orm.DBConfig{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.LastInsertId})
-		mock.ExpectPrepare("INSERT INTO user(`name`) VALUES (?), (?)").ExpectExec().WillReturnResult(sqlmock.NewResult(3, 2)).
+		mock.ExpectPrepare("INSERT INTO `user`(`name`) VALUES (?), (?)").ExpectExec().WillReturnResult(sqlmock.NewResult(3, 2)).
 			WithArgs("name1", "name2")
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
 		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
 		r.Equal(int64(2), *u1.Id)
 		r.Equal(int64(3), *u2.Id)
 	}
+}
+
+func TestInsert_doInsertReturning(t *testing.T) {
+	r := require.New(t)
 	{
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
 		db, mock := orm.MockDB(r, &orm.DBConfig{DBType: orm.DBType_.Postgres})
-		mock.ExpectPrepare("INSERT INTO user(\"name\") VALUES ($1), ($2) RETURNING \"id\"").ExpectQuery().
+		mock.ExpectPrepare("INSERT INTO \"user\"(\"name\") VALUES ($1), ($2) RETURNING \"id\"").ExpectQuery().
 			WithArgs("name1", "name2").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
 		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
 		r.Equal(int64(1), *u1.Id)
 		r.Equal(int64(2), *u2.Id)
 	}
+}
+
+func TestInsert_doSQLServer(t *testing.T) {
+	r := require.New(t)
 	{
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
 		db, mock := orm.MockDB(r, &orm.DBConfig{DBType: orm.DBType_.SQLServer})
-		mock.ExpectPrepare("INSERT INTO user([name]) OUTPUT INSERTED.[id] VALUES (:1), (:2)").ExpectQuery().
+		mock.ExpectPrepare("INSERT INTO [user]([name]) OUTPUT INSERTED.[id] VALUES (:1), (:2)").ExpectQuery().
 			WithArgs("name1", "name2").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
 		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
 		r.Equal(int64(1), *u1.Id)
 		r.Equal(int64(2), *u2.Id)
+	}
+}
+
+func TestInsert_doOracle(t *testing.T) {
+	r := require.New(t)
+	{
+		db := orm.DBConfig{
+			DBType: orm.DBType_.Oracle,
+		}.Build()
+		users := make([]*orm.User, 0, 1001)
+		for range 1001 {
+			users = append(users, &orm.User{})
+		}
+		_, err := db.Insert[orm.User](nil).Entities(users...).Do()
+		r.EqualError(err, "entity count cannot exceed 1000 in Oracle")
+	}
+	{
+		db := orm.DBConfig{
+			DBType: orm.DBType_.Oracle,
+		}.Build()
+		db, mock := orm.MockDB(r, &orm.DBConfig{DBType: orm.DBType_.Oracle})
+		mock.ExpectPrepare("INSERT INTO \"demo_mul_pk\"(\"name\") VALUES (:1), (:2)").ExpectExec().
+			WithArgs("name1", "name2").WillReturnResult(sqlmock.NewResult(0, 1))
+		_, err := db.Insert[orm.DemoMulPk](nil).Entities(&orm.DemoMulPk{Name: new("name1")}, &orm.DemoMulPk{Name: new("name2")}).Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+	}
+	{
+		db := orm.DBConfig{
+			DBType: orm.DBType_.Oracle,
+		}.Build()
+		u := &orm.User{Name: new("name")}
+		outArg := orm.OutArg{MockValue: new(int64(20))}
+		db, mock := orm.MockDB(r, &orm.DBConfig{DBType: orm.DBType_.Oracle})
+		mock.ExpectPrepare("INSERT INTO \"user\"(\"name\") VALUES (:1) RETURNING \"id\" INTO out_id").ExpectExec().
+			WithArgs("name", outArg).WillReturnResult(sqlmock.NewResult(0, 1))
+
+		_, err := db.Insert[orm.User](nil).Entities(u).Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+		r.Equal(int64(20), *u.Id)
 	}
 }
 
@@ -289,7 +326,7 @@ func TestUpdate(t *testing.T) {
 		r.Equal(int64(0), affected)
 		r.EqualError(err, "full table modification blocked")
 
-		mock.ExpectPrepare("UPDATE user SET `phone` = ?").ExpectExec().WithArgs("123").
+		mock.ExpectPrepare("UPDATE `user` SET `phone` = ?").ExpectExec().WithArgs("123").
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		affected, err = db.Update[orm.User](nil).Entity(&orm.User{Phone: new("123")}).SkipSafety().Do()
 		r.NoError(err)
@@ -310,7 +347,7 @@ func TestUpdate(t *testing.T) {
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")
 		db, logger, mock := orm.MockDBAndLogger(r, nil)
-		mock.ExpectPrepare("UPDATE user SET `name` = ? WHERE `id` = ?").
+		mock.ExpectPrepare("UPDATE `user` SET `name` = ? WHERE `id` = ?").
 			ExpectExec().WithArgs("abc", 1).WillReturnResult(sqlmock.NewResult(0, 1))
 		affected, err := db.Update[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").
 			Entity(&orm.User{Id: new(int64(1)), Name: new("abc")}).Do()
@@ -325,7 +362,7 @@ func TestUpdate(t *testing.T) {
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")
 		db, mock := orm.MockDB(r, nil)
-		mock.ExpectPrepare("UPDATE user SET `name` = ?, `phone` = NULL, `email` = NULL, `status` = ?, `level` = '2', `properties` = NULL, `tags` = NULL WHERE `id` = ? AND `status` = ?").
+		mock.ExpectPrepare("UPDATE `user` SET `name` = ?, `phone` = NULL, `email` = NULL, `status` = ?, `level` = '2', `properties` = NULL, `tags` = NULL WHERE `id` = ? AND `status` = ?").
 			ExpectExec().WithArgs("abc", 2, 1, 4).WillReturnResult(sqlmock.NewResult(0, 1))
 		affected, err := db.Update[orm.User](ctx).Entity(&orm.User{Id: new(int64(1)), Name: new("abc"), Category: &orm.UserCategory{Organization: "none", Class: 1}}).
 			OnDemand(orm.DemandFor[orm.UserSimple]()).Required("properties").Set("status", orm.UserStatus(2)).Set("tags", "'t1,t2'").Set("tags", nil).
@@ -346,7 +383,7 @@ func TestUpdate(t *testing.T) {
 			},
 		})
 
-		mock.ExpectPrepare("UPDATE user SET `name` = ?, `update_at` = ?, `version` = version + 1 WHERE `id` = ? AND `deleted` = ?").ExpectExec().
+		mock.ExpectPrepare("UPDATE `user` SET `name` = ?, `update_at` = ?, `version` = version + 1 WHERE `id` = ? AND `deleted` = ?").ExpectExec().
 			WithArgs("abc", orm.AnyTime{}, 1, 0).
 			WillReturnResult(sqlmock.NewResult(0, 0))
 		_, err := db.Update[orm.User](nil).Entity(&orm.User{Name: new("abc")}).Cond(func(c *orm.Cond) {
@@ -354,7 +391,7 @@ func TestUpdate(t *testing.T) {
 		}).Do()
 		r.NoError(err)
 
-		mock.ExpectPrepare("UPDATE user SET `name` = ?, `update_at` = ?, `version` = version + 1 WHERE `id` = ?").ExpectExec().
+		mock.ExpectPrepare("UPDATE `user` SET `name` = ?, `update_at` = ?, `version` = version + 1 WHERE `id` = ?").ExpectExec().
 			WithArgs("abc", orm.AnyTime{}, 1).
 			WillReturnResult(sqlmock.NewResult(0, 0))
 		_, err = db.Update[orm.User](nil).Entity(&orm.User{Id: new(int64(1)), Name: new("abc"), CreateAt: new(time.Now()), Version: new(int64(5))}).
@@ -399,7 +436,7 @@ func TestUpdateRow(t *testing.T) {
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")
 		db, logger, mock := orm.MockDBAndLogger(r, nil)
-		mock.ExpectPrepare("UPDATE user SET `name` = CASE `id` WHEN ? THEN ? WHEN ? THEN ? END, `phone` = NULL, "+
+		mock.ExpectPrepare("UPDATE `user` SET `name` = CASE `id` WHEN ? THEN ? WHEN ? THEN ? END, `phone` = NULL, "+
 			"`email` = CASE `id` WHEN ? THEN NULL WHEN ? THEN ? END, `status` = ?, `level` = '2', `properties` = NULL, `tags` = NULL "+
 			"WHERE `id` IN(?, ?) AND `level` = ?").ExpectExec().
 			WithArgs(1, "a", 2, "b", 1, 2, "email", 2, 1, 2, 5).WillReturnResult(sqlmock.NewResult(1, 1))
@@ -425,7 +462,7 @@ func TestUpdateRow(t *testing.T) {
 				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
 			},
 		})
-		mock.ExpectPrepare("UPDATE user SET `name` = CASE `id` WHEN ? THEN ? WHEN ? THEN ? END, `update_at` = ?, `version` = version + 1 WHERE `id` IN(?, ?) AND `level` = ? AND `deleted` = ?").ExpectExec().
+		mock.ExpectPrepare("UPDATE `user` SET `name` = CASE `id` WHEN ? THEN ? WHEN ? THEN ? END, `update_at` = ?, `version` = version + 1 WHERE `id` IN(?, ?) AND `level` = ? AND `deleted` = ?").ExpectExec().
 			WithArgs(1, "a", 2, "b", orm.AnyTime{}, 1, 2, 5, 0).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		affected, err := db.UpdateRow[orm.User](nil).Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b")}).
@@ -435,7 +472,7 @@ func TestUpdateRow(t *testing.T) {
 		r.NoError(err)
 		r.Equal(int64(1), affected)
 
-		mock.ExpectPrepare("UPDATE user SET `name` = CASE `id` WHEN ? THEN ? WHEN ? THEN ? END, `update_at` = ?, `version` = version + 1 WHERE `id` IN(?, ?)").ExpectExec().
+		mock.ExpectPrepare("UPDATE `user` SET `name` = CASE `id` WHEN ? THEN ? WHEN ? THEN ? END, `update_at` = ?, `version` = version + 1 WHERE `id` IN(?, ?)").ExpectExec().
 			WithArgs(1, "a", 2, "b", orm.AnyTime{}, 1, 2).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		affected, err = db.UpdateRow[orm.User](nil).Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b"), Version: new(int64(5))}).
@@ -446,7 +483,7 @@ func TestUpdateRow(t *testing.T) {
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")
 		db, mock := orm.MockDB(r, nil)
-		mock.ExpectPrepare("UPDATE user SET `name` = ?, `phone` = NULL, `email` = NULL, `status` = ?, `level` = '2', `properties` = NULL, `tags` = NULL "+
+		mock.ExpectPrepare("UPDATE `user` SET `name` = ?, `phone` = NULL, `email` = NULL, `status` = ?, `level` = '2', `properties` = NULL, `tags` = NULL "+
 			"WHERE `id` = ? AND `level` = ?").ExpectExec().
 			WithArgs("a", 2, 1, 5).WillReturnResult(sqlmock.NewResult(1, 1))
 		affected, err := db.UpdateRow[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
@@ -474,7 +511,7 @@ func TestDelete(t *testing.T) {
 		r.Equal(int64(0), affected)
 		r.EqualError(err, "full table modification blocked")
 
-		mock.ExpectPrepare("DELETE FROM user").ExpectExec().WithoutArgs().WillReturnResult(sqlmock.NewResult(0, 2))
+		mock.ExpectPrepare("DELETE FROM `user`").ExpectExec().WithoutArgs().WillReturnResult(sqlmock.NewResult(0, 2))
 		affected, err = db.Delete[orm.User](nil).SkipSafety().Do()
 		r.Equal(int64(2), affected)
 		r.NoError(err)
@@ -482,7 +519,7 @@ func TestDelete(t *testing.T) {
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")
 		db, logger, mock := orm.MockDBAndLogger(r, nil)
-		mock.ExpectPrepare("DELETE FROM user WHERE `id` = ?").ExpectExec().WithArgs(1).WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectPrepare("DELETE FROM `user` WHERE `id` = ?").ExpectExec().WithArgs(1).WillReturnResult(sqlmock.NewResult(0, 1))
 		affected, err := db.Delete[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Cond(func(c *orm.Cond) {
 			c.Eq("id", 1)
 		}).Do()
@@ -519,7 +556,7 @@ func TestDeleteSoftly(t *testing.T) {
 		r.EqualError(err, "full table modification blocked")
 		r.Equal(int64(0), affected)
 
-		mock.ExpectPrepare("UPDATE user SET `deleted` = `id`").ExpectExec().WithoutArgs().WillReturnResult(sqlmock.NewResult(0, 2))
+		mock.ExpectPrepare("UPDATE `user` SET `deleted` = `id`").ExpectExec().WithoutArgs().WillReturnResult(sqlmock.NewResult(0, 2))
 		affected, err = db.DeleteSoftly[orm.User](nil).SkipSafety().Do()
 		r.NoError(err)
 		r.Equal(int64(2), affected)
@@ -542,7 +579,7 @@ func TestDeleteSoftly(t *testing.T) {
 			},
 			Logger: log,
 		})
-		mock.ExpectPrepare("UPDATE user SET `deleted` = `id` WHERE `id` = ? AND `deleted` = ?").ExpectExec().WithArgs(1, 0).WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectPrepare("UPDATE `user` SET `deleted` = `id` WHERE `id` = ? AND `deleted` = ?").ExpectExec().WithArgs(1, 0).WillReturnResult(sqlmock.NewResult(0, 1))
 		affected, err := db.DeleteSoftly[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Cond(func(c *orm.Cond) {
 			c.Eq("id", 1)
 		}).Do()
@@ -559,7 +596,7 @@ func TestDeleteSoftly(t *testing.T) {
 				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
 			},
 		})
-		mock.ExpectPrepare("UPDATE user SET `deleted` = `id` WHERE `id` = ? AND `deleted` = ?").ExpectExec().WithArgs(1, 0).
+		mock.ExpectPrepare("UPDATE `user` SET `deleted` = `id` WHERE `id` = ? AND `deleted` = ?").ExpectExec().WithArgs(1, 0).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		affected, err := db.DeleteSoftly[orm.User](nil).Cond(func(c *orm.Cond) {
 			c.Eq("id", 1)
@@ -573,7 +610,7 @@ func TestDeleteSoftly(t *testing.T) {
 				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedNullMode(0),
 			},
 		})
-		mock.ExpectPrepare("UPDATE user SET `deleted` = NULL WHERE `id` = ? AND `deleted` = ?").ExpectExec().WithArgs(1, 0).
+		mock.ExpectPrepare("UPDATE `user` SET `deleted` = NULL WHERE `id` = ? AND `deleted` = ?").ExpectExec().WithArgs(1, 0).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		affected, err := db.DeleteSoftly[orm.User](nil).Cond(func(c *orm.Cond) {
 			c.Eq("id", 1)
@@ -595,7 +632,7 @@ func TestCount(t *testing.T) {
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")
 		db, logger, mock := orm.MockDBAndLogger(r, nil)
-		mock.ExpectPrepare("SELECT COUNT(*) FROM user WHERE `level` = ?").ExpectQuery().WithArgs(2).WillReturnRows(mock.NewRows([]string{"count"}).AddRow(10))
+		mock.ExpectPrepare("SELECT COUNT(*) FROM `user` WHERE `level` = ?").ExpectQuery().WithArgs(2).WillReturnRows(mock.NewRows([]string{"count"}).AddRow(10))
 		count, err := db.Count[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Cond(func(c *orm.Cond) {
 			c.Eq("level", 2)
 		}).Do()
@@ -612,14 +649,14 @@ func TestCount(t *testing.T) {
 				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
 			},
 		})
-		mock.ExpectPrepare("SELECT COUNT(*) FROM user WHERE `level` = ? AND `deleted` = ?").ExpectQuery().WithArgs(2, 0).
+		mock.ExpectPrepare("SELECT COUNT(*) FROM `user` WHERE `level` = ? AND `deleted` = ?").ExpectQuery().WithArgs(2, 0).
 			WillReturnRows(mock.NewRows([]string{"count"}).AddRow(10))
 		_, err := db.Count[orm.User](nil).SqlLogLevel(orm.Level_.Info).Description("test desc").Cond(func(c *orm.Cond) {
 			c.Eq("level", 2)
 		}).Do()
 		r.NoError(err)
 
-		mock.ExpectPrepare("SELECT COUNT(*) FROM user WHERE `level` = ?").ExpectQuery().WithArgs(2).
+		mock.ExpectPrepare("SELECT COUNT(*) FROM `user` WHERE `level` = ?").ExpectQuery().WithArgs(2).
 			WillReturnRows(mock.NewRows([]string{"count"}).AddRow(10))
 		_, err = db.Count[orm.User](nil).SqlLogLevel(orm.Level_.Info).Description("test desc").Cond(func(c *orm.Cond) {
 			c.Eq("level", 2)
