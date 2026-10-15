@@ -2,8 +2,6 @@ module github.com/jishaocong0910/cozy-orm
 
 go 1.27
 
-toolchain go1.27rc1
-
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/jishaocong0910/enum v1.1.6
