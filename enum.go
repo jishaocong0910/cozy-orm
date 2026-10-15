@@ -52,7 +52,7 @@ var Level_ = e.NewEnum(_Level{})
 
 type IdentifierDelimiter struct {
 	e.EnumElem
-	addQuotes func(string) string
+	quoted func(string) string
 }
 
 type _IdentifierDelimiter struct {
@@ -63,13 +63,13 @@ type _IdentifierDelimiter struct {
 }
 
 var IdentifierDelimiter_ = e.NewEnum(_IdentifierDelimiter{
-	Backtick: IdentifierDelimiter{addQuotes: func(s string) string {
+	Backtick: IdentifierDelimiter{quoted: func(s string) string {
 		return "`" + s + "`"
 	}},
-	DoubleQuote: IdentifierDelimiter{addQuotes: func(s string) string {
+	DoubleQuote: IdentifierDelimiter{quoted: func(s string) string {
 		return "\"" + s + "\""
 	}},
-	Bracket: IdentifierDelimiter{addQuotes: func(s string) string {
+	Bracket: IdentifierDelimiter{quoted: func(s string) string {
 		return "[" + s + "]"
 	}},
 })

@@ -40,8 +40,8 @@ func (b *SQLBuilder) Text(str string) *SQLBuilder {
 }
 
 func (b *SQLBuilder) Quoted(column string) *SQLBuilder {
-	if b.delim.addQuotes != nil {
-		column = b.delim.addQuotes(column)
+	if b.delim.quoted != nil {
+		column = b.delim.quoted(column)
 	}
 	b.Text(column)
 	return b
