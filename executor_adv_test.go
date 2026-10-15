@@ -170,7 +170,7 @@ func TestInsert_doDefault(t *testing.T) {
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")
 		db, logger, mock := orm.MockDBAndLogger(r, nil)
-		mock.ExpectPrepare("INSERT INTO `user`(`name`, `status`) VALUES (?, NULL)").ExpectExec().WithArgs("abc").WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectPrepare("INSERT INTO `user`(`name`, `status`) VALUES(?, NULL)").ExpectExec().WithArgs("abc").WillReturnResult(sqlmock.NewResult(1, 1))
 		affected, err := db.Insert[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Entities(&orm.User{Name: new("abc")}).Required("status").Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
@@ -196,7 +196,7 @@ func TestInsert_doDefault(t *testing.T) {
 				}),
 			},
 		})
-		mock.ExpectPrepare("INSERT INTO `user`(`name`, `status`, `create_at`, `update_at`, `version`) VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)").ExpectExec().
+		mock.ExpectPrepare("INSERT INTO `user`(`name`, `status`, `create_at`, `update_at`, `version`) VALUES(?, ?, ?, ?, ?), (?, ?, ?, ?, ?)").ExpectExec().
 			WillReturnResult(sqlmock.NewResult(1, 2)).
 			WithArgs("name1", 2, orm.AnyTime{}, orm.AnyTime{}, 1, "name2", 4, orm.AnyTime{}, orm.AnyTime{}, 1)
 
@@ -217,7 +217,7 @@ func TestInsert_doGetIdentify(t *testing.T) {
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
 		db, mock := orm.MockDB(r, &orm.DBConfig{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId})
-		mock.ExpectPrepare("INSERT INTO `user`(`name`) VALUES (?), (?)").ExpectExec().WillReturnResult(sqlmock.NewResult(3, 2)).
+		mock.ExpectPrepare("INSERT INTO `user`(`name`) VALUES(?), (?)").ExpectExec().WillReturnResult(sqlmock.NewResult(3, 2)).
 			WithArgs("name1", "name2")
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
 		r.NoError(err)
@@ -229,20 +229,7 @@ func TestInsert_doGetIdentify(t *testing.T) {
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
 		db, mock := orm.MockDB(r, &orm.DBConfig{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.LastInsertId})
-		mock.ExpectPrepare("INSERT INTO `user`(`name`) VALUES (?), (?)").ExpectExec().WillReturnResult(sqlmock.NewResult(3, 2)).
-			WithArgs("name1", "name2")
-		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
-		r.NoError(err)
-		r.NoError(mock.ExpectationsWereMet())
-		r.Equal(int64(2), *u1.Id)
-		r.Equal(int64(3), *u2.Id)
-	}
-
-	{
-		u1 := &orm.User{Name: new("name1")}
-		u2 := &orm.User{Name: new("name2")}
-		db, mock := orm.MockDB(r, &orm.DBConfig{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.LastInsertId})
-		mock.ExpectPrepare("INSERT INTO `user`(`name`) VALUES (?), (?)").ExpectExec().WillReturnResult(sqlmock.NewResult(3, 2)).
+		mock.ExpectPrepare("INSERT INTO `user`(`name`) VALUES(?), (?)").ExpectExec().WillReturnResult(sqlmock.NewResult(3, 2)).
 			WithArgs("name1", "name2")
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
 		r.NoError(err)
@@ -258,7 +245,7 @@ func TestInsert_doInsertReturning(t *testing.T) {
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
 		db, mock := orm.MockDB(r, &orm.DBConfig{DBType: orm.DBType_.Postgres})
-		mock.ExpectPrepare("INSERT INTO \"user\"(\"name\") VALUES ($1), ($2) RETURNING \"id\"").ExpectQuery().
+		mock.ExpectPrepare("INSERT INTO \"user\"(\"name\") VALUES($1), ($2) RETURNING \"id\"").ExpectQuery().
 			WithArgs("name1", "name2").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
 		r.NoError(err)
@@ -274,7 +261,7 @@ func TestInsert_doSQLServer(t *testing.T) {
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
 		db, mock := orm.MockDB(r, &orm.DBConfig{DBType: orm.DBType_.SQLServer})
-		mock.ExpectPrepare("INSERT INTO [user]([name]) OUTPUT INSERTED.[id] VALUES (:1), (:2)").ExpectQuery().
+		mock.ExpectPrepare("INSERT INTO [user]([name]) OUTPUT INSERTED.[id] VALUES(:1), (:2)").ExpectQuery().
 			WithArgs("name1", "name2").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
 		r.NoError(err)
@@ -302,7 +289,7 @@ func TestInsert_doOracle(t *testing.T) {
 			DBType: orm.DBType_.Oracle,
 		}.Build()
 		db, mock := orm.MockDB(r, &orm.DBConfig{DBType: orm.DBType_.Oracle})
-		mock.ExpectPrepare("INSERT INTO \"demo_mul_pk\"(\"name\") VALUES (:1), (:2)").ExpectExec().
+		mock.ExpectPrepare("INSERT INTO \"demo_mul_pk\"(\"name\") VALUES(:1), (:2)").ExpectExec().
 			WithArgs("name1", "name2").WillReturnResult(sqlmock.NewResult(0, 1))
 		_, err := db.Insert[orm.DemoMulPk](nil).Entities(&orm.DemoMulPk{Name: new("name1")}, &orm.DemoMulPk{Name: new("name2")}).Do()
 		r.NoError(err)
@@ -315,13 +302,34 @@ func TestInsert_doOracle(t *testing.T) {
 		u := &orm.User{Name: new("name")}
 		outArg := orm.OutArg{MockValue: new(int64(20))}
 		db, mock := orm.MockDB(r, &orm.DBConfig{DBType: orm.DBType_.Oracle})
-		mock.ExpectPrepare("INSERT INTO \"user\"(\"name\") VALUES (:1) RETURNING \"id\" INTO out_id").ExpectExec().
+		mock.ExpectPrepare("INSERT INTO \"user\"(\"name\") VALUES(:1) RETURNING \"id\" INTO out_id").ExpectExec().
 			WithArgs("name", outArg).WillReturnResult(sqlmock.NewResult(0, 1))
 
 		_, err := db.Insert[orm.User](nil).Entities(u).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
 		r.Equal(int64(20), *u.Id)
+	}
+	{
+		db := orm.DBConfig{
+			DBType: orm.DBType_.Oracle,
+		}.Build()
+		u1 := &orm.User{Name: new("name1")}
+		u2 := &orm.User{Name: new("name2")}
+		outArg := orm.OutArg{MockValue: ",1,2"}
+		db, mock := orm.MockDB(r, &orm.DBConfig{DBType: orm.DBType_.Oracle})
+		mock.ExpectPrepare("DECLARE l_id NUMBER; l_results VARCHAR2(32767) := '';"+
+			" BEGIN"+
+			" INSERT INTO \"user\"(\"name\") VALUES(:1) RETURNING \"id\" INTO l_id; l_results := l_results || ',' || TO_CHAR(l_id);"+
+			" INSERT INTO \"user\"(\"name\") VALUES(:2) RETURNING \"id\" INTO l_id; l_results := l_results || ',' || TO_CHAR(l_id);"+
+			" :out_results := l_results; EXCEPTION WHEN OTHERS THEN ROLLBACK; RAISE; END;").ExpectExec().
+			WithArgs("name1", "name2", outArg).WillReturnResult(sqlmock.NewResult(0, 1))
+
+		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+		r.Equal(int64(1), *u1.Id)
+		r.Equal(int64(2), *u2.Id)
 	}
 }
 

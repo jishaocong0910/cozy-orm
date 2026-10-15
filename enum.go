@@ -76,7 +76,6 @@ var IdentifierDelimiter_ = e.NewEnum(_IdentifierDelimiter{
 
 type GetGeneratedKeyMode struct {
 	e.EnumElem
-	writeSQL func(b *SQLBuilder, autoColumns []string)
 }
 
 type _GetGeneratedKeyMode struct {
@@ -88,22 +87,7 @@ type _GetGeneratedKeyMode struct {
 	Oracle GetGeneratedKeyMode
 }
 
-var GetGeneratedKeyMode_ = e.NewEnum(_GetGeneratedKeyMode{
-	InsertReturning: GetGeneratedKeyMode{
-		writeSQL: func(b *SQLBuilder, autoColumns []string) {
-			b.ForEach(b.SepWrapOpt(" RETURNING ", ", ", ""), autoColumns, func(_ int, column string) {
-				b.Quoted(column)
-			})
-		},
-	},
-	SQLServer: GetGeneratedKeyMode{
-		writeSQL: func(b *SQLBuilder, autoColumns []string) {
-			b.ForEach(b.SepWrapOpt(" OUTPUT ", ", ", ""), autoColumns, func(_ int, column string) {
-				b.Text("INSERTED.").Quoted(column)
-			})
-		},
-	},
-})
+var GetGeneratedKeyMode_ = e.NewEnum(_GetGeneratedKeyMode{})
 
 type PageMode struct {
 	e.EnumElem

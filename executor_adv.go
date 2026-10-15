@@ -282,7 +282,9 @@ func (i *insert[E]) _doInsertReturning(ei *entityInfo, insertedColumns []string)
 	_, err := newQuery[E](i.executor).MapTo(i.entities...).BuildSql(func(b *SQLBuilder) {
 		i._buildInsertColumnsClause(b, ei, insertedColumns)
 		i._buildValuesClause(b, ei, insertedColumns)
-		i.executor.db.getGeneratedKeyMode.writeSQL(b, ei.autoColumns)
+		b.ForEach(b.SepWrapOpt(" RETURNING ", ", ", ""), ei.autoColumns, func(_ int, column string) {
+			b.Quoted(column)
+		})
 	}).Do()
 	return int64(len(i.entities)), err
 }
@@ -290,7 +292,9 @@ func (i *insert[E]) _doInsertReturning(ei *entityInfo, insertedColumns []string)
 func (i *insert[E]) _doSQLServer(ei *entityInfo, insertedColumns []string) (int64, error) {
 	_, err := newQuery[E](i.executor).MapTo(i.entities...).BuildSql(func(b *SQLBuilder) {
 		i._buildInsertColumnsClause(b, ei, insertedColumns)
-		i.executor.db.getGeneratedKeyMode.writeSQL(b, ei.autoColumns)
+		b.ForEach(b.SepWrapOpt(" OUTPUT ", ", ", ""), ei.autoColumns, func(_ int, column string) {
+			b.Text("INSERTED.").Quoted(column)
+		})
 		i._buildValuesClause(b, ei, insertedColumns)
 	}).Do()
 	return int64(len(i.entities)), err
@@ -327,11 +331,9 @@ func (i *insert[E]) _doOracle(ei *entityInfo, insertedColumns []string) (int64, 
 		for j := 0; j < len(i.entities); j++ {
 			b.Text(" ")
 			i._buildInsertColumnsClause(b, ei, insertedColumns)
-			b.Text(" VALUES ").ForEach(b.Sep(", "), i.entities, func(i int, entity *E) {
-				b.ForEach(b.SepWrap("(", ", ", ")"), insertedColumns, func(_ int, column string) {
-					b.accept(am.getValueWriter(column, i))
-				})
-			}).Text(";  RETURNING ").Quoted(identifyColumn).Text(" INTO l_id; l_results := l_results || ',' || TO_CHAR(l_id);")
+			b.ForEach(b.SepWrap(" VALUES(", ", ", ")"), insertedColumns, func(_ int, column string) {
+				b.accept(am.getValueWriter(column, j))
+			}).Text(" RETURNING ").Quoted(identifyColumn).Text(" INTO l_id; l_results := l_results || ',' || TO_CHAR(l_id);")
 		}
 		b.Text(" :out_results := l_results; EXCEPTION WHEN OTHERS THEN ROLLBACK; RAISE; END;")
 		b.Args(sql.Named("out_results", sql.Out{Dest: &results}))
@@ -354,7 +356,7 @@ func (i *insert[E]) _buildInsertColumnsClause(b *SQLBuilder, ei *entityInfo, ins
 
 func (i *insert[E]) _buildValuesClause(b *SQLBuilder, ei *entityInfo, insertedColumns []string) {
 	am := i._getAssignedManager(ei, insertedColumns)
-	b.Text(" VALUES ").ForEach(b.Sep(", "), i.entities, func(i int, entity *E) {
+	b.Text(" VALUES").ForEach(b.Sep(", "), i.entities, func(i int, entity *E) {
 		b.ForEach(b.SepWrap("(", ", ", ")"), insertedColumns, func(_ int, column string) {
 			b.accept(am.getValueWriter(column, i))
 		})
