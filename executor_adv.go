@@ -38,7 +38,7 @@ type find[E any] struct {
 	demand         *Demand
 	orderBy        *OrderBy
 	page           *page
-	condition      *Cond
+	cond           *Cond
 	includeDeleted bool
 	lastClause     string
 }
@@ -70,8 +70,8 @@ func (f *find[E]) OnDemand(demand *Demand) *find[E] {
 
 func (f *find[E]) Cond(handler func(c *Cond)) *find[E] {
 	if handler != nil {
-		f.condition = &Cond{}
-		handler(f.condition)
+		f.cond = &Cond{}
+		handler(f.cond)
 	}
 	return f
 }
@@ -116,14 +116,14 @@ func (f *find[E]) Do() ([]*E, error) {
 		b.ForEach(b.Sep(", "), columns, func(_ int, column string) {
 			b.Quoted(column)
 		})
-		b.Text(" FROM ").Quoted(ei.table).Accept(where{
-			condition:      f.condition,
+		b.Text(" FROM ").Quoted(ei.table).accept(where{
+			cond:           f.cond,
 			policy:         ei.deleteSoftlyPolicy,
 			includeDeleted: f.includeDeleted,
-		}).Accept(f.orderBy)
+		}).accept(f.orderBy)
 		if f.page != nil {
 			f.page.pageMode = f.query.db.pageMode
-			b.Accept(f.page)
+			b.accept(f.page)
 		}
 		if f.lastClause != "" {
 			b.Text(" ").Text(f.lastClause)
@@ -319,26 +319,26 @@ func (i *insert[E]) _doOracle(ei *entityInfo, insertedColumns []string) (int64, 
 		return affected, err
 	}
 
-	idResults := string(make([]byte, 32767))
+	results := string(make([]byte, 32767))
 	m := newMutation(i.executor)
 	affected, err := m.BuildSql(func(b *SQLBuilder) {
 		am := i._getAssignedManager(ei, insertedColumns)
-		b.Text("DECLARE id NUMBER; id_results VARCHAR2(32767) := ''; BEGIN")
+		b.Text("DECLARE l_id NUMBER; l_results VARCHAR2(32767) := ''; BEGIN")
 		for j := 0; j < len(i.entities); j++ {
 			b.Text(" ")
 			i._buildInsertColumnsClause(b, ei, insertedColumns)
 			b.Text(" VALUES ").ForEach(b.Sep(", "), i.entities, func(i int, entity *E) {
 				b.ForEach(b.SepWrap("(", ", ", ")"), insertedColumns, func(_ int, column string) {
-					b.Accept(am.getValueWriter(column, i))
+					b.accept(am.getValueWriter(column, i))
 				})
-			}).Text(";  RETURNING ").Quoted(identifyColumn).Text(" INTO id; id_results := id_results || ',' || TO_CHAR(id);")
+			}).Text(";  RETURNING ").Quoted(identifyColumn).Text(" INTO l_id; l_results := l_results || ',' || TO_CHAR(l_id);")
 		}
-		b.Text(" :out_id_results := id_results; EXCEPTION WHEN OTHERS THEN ROLLBACK; RAISE; END;")
-		b.Args(sql.Named("out_id_results", sql.Out{Dest: &idResults}))
+		b.Text(" :out_results := l_results; EXCEPTION WHEN OTHERS THEN ROLLBACK; RAISE; END;")
+		b.Args(sql.Named("out_results", sql.Out{Dest: &results}))
 	}).Do()
 	if err == nil {
-		for j, idResult := range strings.Split(idResults, ",")[1:] {
-			id, _ := strconv.ParseInt(idResult, 10, 64)
+		for j, r := range strings.Split(results, ",")[1:] {
+			id, _ := strconv.ParseInt(r, 10, 64)
 			m.setIdentify(i.entities[j], ei, id)
 		}
 	}
@@ -356,7 +356,7 @@ func (i *insert[E]) _buildValuesClause(b *SQLBuilder, ei *entityInfo, insertedCo
 	am := i._getAssignedManager(ei, insertedColumns)
 	b.Text(" VALUES ").ForEach(b.Sep(", "), i.entities, func(i int, entity *E) {
 		b.ForEach(b.SepWrap("(", ", ", ")"), insertedColumns, func(_ int, column string) {
-			b.Accept(am.getValueWriter(column, i))
+			b.accept(am.getValueWriter(column, i))
 		})
 	})
 }
@@ -375,7 +375,7 @@ type update[E any] struct {
 	demand         *Demand
 	setColumns     setColumns
 	requiredSet    set[string]
-	condition      *Cond
+	cond           *Cond
 	includeDeleted bool
 	skipSafety     bool
 }
@@ -422,8 +422,8 @@ func (u *update[E]) Required(columns ...string) *update[E] {
 
 func (u *update[E]) Cond(handler func(c *Cond)) *update[E] {
 	if handler != nil {
-		u.condition = &Cond{}
-		handler(u.condition)
+		u.cond = &Cond{}
+		handler(u.cond)
 	}
 	return u
 }
@@ -466,16 +466,16 @@ func (u *update[E]) Do() (int64, error) {
 				}
 			}
 		}
-		c.add(u.condition)
+		c.add(u.cond)
 
 		am := newAssignedManager[E](u.mutation.ctx, ei.updatePolicy, []map[string]any{ei.getValueMap(u.entity, updatedColumns)}, &u.setColumns, "")
 		b.Text("UPDATE ").Quoted(ei.table).Text(" SET ")
 		b.ForEach(b.Sep(", "), updatedColumns, func(_ int, column string) {
-			b.Quoted(column).Text(" = ").Accept(am.getValueWriter(column, 0))
+			b.Quoted(column).Text(" = ").accept(am.getValueWriter(column, 0))
 		})
 
-		b.Accept(where{
-			condition:      c,
+		b.accept(where{
+			cond:           c,
 			policy:         ei.deleteSoftlyPolicy,
 			includeDeleted: u.includeDeleted,
 			safety:         !u.skipSafety,
@@ -489,7 +489,7 @@ type updateRow[E any] struct {
 	demand         *Demand
 	setColumns     setColumns
 	requiredSet    set[string]
-	condition      *Cond
+	cond           *Cond
 	includeDeleted bool
 	skipSafety     bool
 }
@@ -536,8 +536,8 @@ func (u *updateRow[E]) SetExpr(column string, expr string) *updateRow[E] {
 
 func (u *updateRow[E]) Cond(handler func(c *Cond)) *updateRow[E] {
 	if handler != nil {
-		u.condition = &Cond{}
-		handler(u.condition)
+		u.cond = &Cond{}
+		handler(u.cond)
 	}
 	return u
 }
@@ -588,17 +588,17 @@ func (u *updateRow[E]) Do() (int64, error) {
 		am := newAssignedManager[E](u.mutation.ctx, ei.updatePolicy, entityValueMaps, &u.setColumns, pkColumn)
 		b.Text("UPDATE ").Quoted(ei.table).Text(" SET ")
 		b.ForEach(b.Sep(", "), updatedColumns, func(i int, column string) {
-			b.Quoted(column).Text(" = ").Accept(am.getValueWriter(column, -1))
+			b.Quoted(column).Text(" = ").accept(am.getValueWriter(column, -1))
 		})
 
 		c := &Cond{}
 		if len(u.entities) == 1 {
-			c = c.Eq(pkColumn, pkValues[0]).add(u.condition)
+			c = c.Eq(pkColumn, pkValues[0]).add(u.cond)
 		} else {
-			c = c.In(pkColumn, pkValues).add(u.condition)
+			c = c.In(pkColumn, pkValues).add(u.cond)
 		}
-		b.Accept(where{
-			condition:      c,
+		b.accept(where{
+			cond:           c,
 			policy:         ei.deleteSoftlyPolicy,
 			includeDeleted: u.includeDeleted,
 			safety:         true,
@@ -608,7 +608,7 @@ func (u *updateRow[E]) Do() (int64, error) {
 
 type delete[E any] struct {
 	mutation       *mutation
-	condition      *Cond
+	cond           *Cond
 	includeDeleted bool
 	skipSafety     bool
 }
@@ -630,8 +630,8 @@ func (d *delete[E]) SqlLogLevel(level Level) *delete[E] {
 
 func (d *delete[E]) Cond(handler func(c *Cond)) *delete[E] {
 	if handler != nil {
-		d.condition = &Cond{}
-		handler(d.condition)
+		d.cond = &Cond{}
+		handler(d.cond)
 	}
 	return d
 }
@@ -648,16 +648,16 @@ func (d *delete[E]) Do() (int64, error) {
 			b.Error(err)
 			return
 		}
-		b.Text("DELETE FROM ").Quoted(ei.table).Accept(where{
-			condition: d.condition,
-			safety:    !d.skipSafety,
+		b.Text("DELETE FROM ").Quoted(ei.table).accept(where{
+			cond:   d.cond,
+			safety: !d.skipSafety,
 		})
 	}).Do()
 }
 
 type deleteSoftly[E any] struct {
 	mutation   *mutation
-	condition  *Cond
+	cond       *Cond
 	skipSafety bool
 }
 
@@ -678,8 +678,8 @@ func (d *deleteSoftly[E]) SqlLogLevel(level Level) *deleteSoftly[E] {
 
 func (d *deleteSoftly[E]) Cond(handler func(c *Cond)) *deleteSoftly[E] {
 	if handler != nil {
-		d.condition = &Cond{}
-		handler(d.condition)
+		d.cond = &Cond{}
+		handler(d.cond)
 	}
 	return d
 }
@@ -706,17 +706,17 @@ func (d *deleteSoftly[E]) Do() (int64, error) {
 			b.Error(errors.New("delete softly mode is undefined"))
 			return
 		}
-		b.Accept(where{
-			condition: d.condition,
-			policy:    ei.deleteSoftlyPolicy,
-			safety:    !d.skipSafety,
+		b.accept(where{
+			cond:   d.cond,
+			policy: ei.deleteSoftlyPolicy,
+			safety: !d.skipSafety,
 		})
 	}).Do()
 }
 
 type count[E any] struct {
 	query          *query[Tuple[int64]]
-	condition      *Cond
+	cond           *Cond
 	includeDeleted bool
 }
 
@@ -737,8 +737,8 @@ func (c *count[E]) SqlLogLevel(level Level) *count[E] {
 
 func (c *count[E]) Cond(handler func(c *Cond)) *count[E] {
 	if handler != nil {
-		c.condition = &Cond{}
-		handler(c.condition)
+		c.cond = &Cond{}
+		handler(c.cond)
 	}
 	return c
 }
@@ -755,8 +755,8 @@ func (c *count[E]) Do() (i int64, err error) {
 			b.Error(err)
 			return
 		}
-		b.Text("SELECT COUNT(*) FROM ").Quoted(ei.table).Accept(where{
-			condition:      c.condition,
+		b.Text("SELECT COUNT(*) FROM ").Quoted(ei.table).accept(where{
+			cond:           c.cond,
 			policy:         ei.deleteSoftlyPolicy,
 			includeDeleted: c.includeDeleted,
 		})
@@ -774,7 +774,7 @@ func newAssignedManager[E any](ctx context.Context, policy assignedPolicy, entit
 		entitiesValueMaps:      entitiesValueMap,
 		setColumns:             setColumns,
 		pkColumn:               pk,
-		reusePolicyValueWriter: make(map[string]SQLWriter, len(policy.reusedColumnSet)),
+		reusePolicyValueWriter: make(map[string]sqlWriter, len(policy.reusedColumnSet)),
 	}
 }
 
@@ -784,10 +784,10 @@ type assignedManager[E any] struct {
 	entitiesValueMaps      []map[string]any
 	setColumns             *setColumns
 	pkColumn               string
-	reusePolicyValueWriter map[string]SQLWriter
+	reusePolicyValueWriter map[string]sqlWriter
 }
 
-func (a *assignedManager[E]) getValueWriter(column string, entityIndex int) SQLWriter {
+func (a *assignedManager[E]) getValueWriter(column string, entityIndex int) sqlWriter {
 	if a.policy.forceColumnSet.contain(column) {
 		return a._getPolicyValueWriter(column)
 	}
@@ -827,11 +827,11 @@ func (a *assignedManager[E]) getValueWriter(column string, entityIndex int) SQLW
 	return assignedValue{value: nil}
 }
 
-func (a *assignedManager[E]) _getPolicyValueWriter(column string) SQLWriter {
+func (a *assignedManager[E]) _getPolicyValueWriter(column string) sqlWriter {
 	if vw, ok := a.reusePolicyValueWriter[column]; ok {
 		return vw
 	}
-	var vm SQLWriter
+	var vm sqlWriter
 	p := a.policy.assignedValueMap[column]
 	if p.trueExprFalseValue {
 		vm = assignedExpr{expr: p.expr(a.ctx)}
@@ -846,16 +846,16 @@ func (a *assignedManager[E]) _getPolicyValueWriter(column string) SQLWriter {
 
 type setColumns struct {
 	columnSet      set[string]
-	valueWriterMap map[string]SQLWriter
+	valueWriterMap map[string]sqlWriter
 }
 
-func (s *setColumns) add(column string, valueWriter SQLWriter) {
+func (s *setColumns) add(column string, valueWriter sqlWriter) {
 	if s.columnSet.contain(column) {
 		s.valueWriterMap[column] = valueWriter
 	} else {
 		if s.columnSet == nil {
 			s.columnSet = newSet[string]()
-			s.valueWriterMap = make(map[string]SQLWriter)
+			s.valueWriterMap = make(map[string]sqlWriter)
 		}
 		s.columnSet.add(column)
 		s.valueWriterMap[column] = valueWriter
@@ -866,7 +866,7 @@ type assignedValue struct {
 	value any
 }
 
-func (a assignedValue) WriteSQL(b *SQLBuilder) {
+func (a assignedValue) writeSQL(b *SQLBuilder) {
 	if a.value == nil {
 		b.Text("NULL")
 	} else {
@@ -878,7 +878,7 @@ type assignedExpr struct {
 	expr string
 }
 
-func (a assignedExpr) WriteSQL(b *SQLBuilder) {
+func (a assignedExpr) writeSQL(b *SQLBuilder) {
 	b.Text(a.expr)
 }
 
@@ -887,10 +887,10 @@ type assignedCases struct {
 	caseItems []assignedCaseItem
 }
 
-func (a assignedCases) WriteSQL(b *SQLBuilder) {
+func (a assignedCases) writeSQL(b *SQLBuilder) {
 	b.Text("CASE ").Quoted(a.pkColumn)
 	for _, item := range a.caseItems {
-		b.Accept(item)
+		b.accept(item)
 	}
 	b.Text(" END")
 }
@@ -900,19 +900,19 @@ type assignedCaseItem struct {
 	thenValue assignedValue
 }
 
-func (a assignedCaseItem) WriteSQL(b *SQLBuilder) {
-	b.Text(" WHEN ").Arg(a.caseValue).Text(" THEN ").Accept(a.thenValue)
+func (a assignedCaseItem) writeSQL(b *SQLBuilder) {
+	b.Text(" WHEN ").Arg(a.caseValue).Text(" THEN ").accept(a.thenValue)
 }
 
 type where struct {
-	condition      *Cond
 	policy         deleteSoftlyPolicy
+	cond           *Cond
 	includeDeleted bool
 	safety         bool
 }
 
-func (w where) WriteSQL(b *SQLBuilder) {
-	c := w.condition
+func (w where) writeSQL(b *SQLBuilder) {
+	c := w.cond
 	if c.isEmpty() {
 		if w.safety {
 			b.Error(errors.New("full table modification blocked"))
@@ -920,9 +920,9 @@ func (w where) WriteSQL(b *SQLBuilder) {
 		return
 	}
 	if w.policy.mode.IsPresent() && !w.includeDeleted {
-		c = (&Cond{}).add(w.condition).Eq(w.policy.deletedColumn, w.policy.normalValue)
+		c = (&Cond{}).add(w.cond).Eq(w.policy.deletedColumn, w.policy.normalValue)
 	}
-	b.Text(" WHERE ").Accept(c)
+	b.Text(" WHERE ").accept(c)
 }
 
 type OrderBy struct {
@@ -939,10 +939,10 @@ func (o *OrderBy) Desc(column string) *OrderBy {
 	return o
 }
 
-func (o *OrderBy) WriteSQL(b *SQLBuilder) {
+func (o *OrderBy) writeSQL(b *SQLBuilder) {
 	if o != nil && len(o.items) > 0 {
 		b.Text(" ORDER BY ").ForEach(b.Sep(", "), o.items, func(_ int, item orderByItem) {
-			b.Accept(item)
+			b.accept(item)
 		})
 	}
 }
@@ -952,7 +952,7 @@ type orderByItem struct {
 	seq    string
 }
 
-func (o orderByItem) WriteSQL(b *SQLBuilder) {
+func (o orderByItem) writeSQL(b *SQLBuilder) {
 	b.Quoted(o.column).Text(" ").Text(o.seq)
 }
 
@@ -961,8 +961,8 @@ type page struct {
 	offset, rowCount int
 }
 
-func (p *page) WriteSQL(b *SQLBuilder) {
-	if p != nil && p.pageMode.IsPresent() {
+func (p page) writeSQL(b *SQLBuilder) {
+	if p.pageMode.IsPresent() {
 		p.pageMode.writeSQL(b, p.offset, p.rowCount)
 	}
 }

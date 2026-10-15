@@ -23,7 +23,7 @@ type Cond struct {
 	items   []condItem
 }
 
-func (c *Cond) WriteSQL(b *SQLBuilder) {
+func (c *Cond) writeSQL(b *SQLBuilder) {
 	if c != nil && len(c.items) > 0 {
 		c.writeWrap(b, func() {
 			for i, item := range c.items {
@@ -34,7 +34,7 @@ func (c *Cond) WriteSQL(b *SQLBuilder) {
 						b.Text(" AND ")
 					}
 				}
-				b.Accept(item)
+				b.accept(item)
 			}
 		})
 	}
@@ -174,7 +174,7 @@ func (c *Cond) IsNotNull(column string) *Cond {
 }
 
 type condItem interface {
-	SQLWriter
+	sqlWriter
 	isEmpty() bool
 	isOr() bool
 	setNot()
@@ -226,7 +226,7 @@ type condBinOp struct {
 	arg    any
 }
 
-func (c condBinOp) WriteSQL(b *SQLBuilder) {
+func (c condBinOp) writeSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
 		b.Quoted(c.column).Text(" ").Text(c.op).Text(" ").Arg(c.arg)
 	})
@@ -238,7 +238,7 @@ type condIn struct {
 	args   []any
 }
 
-func (c condIn) WriteSQL(b *SQLBuilder) {
+func (c condIn) writeSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
 		b.Quoted(c.column).Text(" IN(")
 		for i := 0; i < len(c.args); i++ {
@@ -257,7 +257,7 @@ type condBetween struct {
 	min, max any
 }
 
-func (c condBetween) WriteSQL(b *SQLBuilder) {
+func (c condBetween) writeSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
 		b.Quoted(c.column).Text(" BETWEEN ").Arg(c.min).Text(" AND ").Arg(c.max)
 	})
@@ -268,7 +268,7 @@ type condIsNull struct {
 	column string
 }
 
-func (c condIsNull) WriteSQL(b *SQLBuilder) {
+func (c condIsNull) writeSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
 		b.Quoted(c.column).Text(" IS NULL")
 	})
@@ -279,7 +279,7 @@ type condIsNotNull struct {
 	column string
 }
 
-func (c condIsNotNull) WriteSQL(b *SQLBuilder) {
+func (c condIsNotNull) writeSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
 		b.Quoted(c.column).Text(" IS NOT NULL")
 	})
@@ -299,7 +299,7 @@ func (c *CondExpr) setParen() {
 	c.paren = true
 }
 
-func (c *CondExpr) WriteSQL(b *SQLBuilder) {
+func (c *CondExpr) writeSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
 		for _, item := range c.items {
 			if i, ok := item.(int); ok {

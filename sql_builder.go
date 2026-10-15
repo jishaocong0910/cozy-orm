@@ -20,6 +20,10 @@ import (
 	_ "unsafe"
 )
 
+type SQLWriter interface {
+	WriteSQL(b *SQLBuilder)
+}
+
 type SQLBuilder struct {
 	b        strings.Builder
 	logIndex []int
@@ -99,6 +103,11 @@ func (b *SQLBuilder) Error(err error) {
 	}
 }
 
+func (b *SQLBuilder) accept(w sqlWriter) *SQLBuilder {
+	w.writeSQL(b)
+	return b
+}
+
 func (b *SQLBuilder) info() (sql string, args []any) {
 	if b != nil {
 		sql = b.b.String()
@@ -112,8 +121,8 @@ type separate struct {
 	optional               bool
 }
 
-type SQLWriter interface {
-	WriteSQL(b *SQLBuilder)
+type sqlWriter interface {
+	writeSQL(b *SQLBuilder)
 }
 
 type defaultPh struct{}
