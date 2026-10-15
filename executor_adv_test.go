@@ -300,7 +300,7 @@ func TestInsert_doOracle(t *testing.T) {
 			DBType: orm.DBType_.Oracle,
 		}.Build()
 		u := &orm.User{Name: new("name")}
-		outArg := orm.OutArg{MockValue: new(int64(20))}
+		outArg := orm.OutArg{MockValue: int64(20)}
 		db, mock := orm.MockDB(r, &orm.DBConfig{DBType: orm.DBType_.Oracle})
 		mock.ExpectPrepare("INSERT INTO \"user\"(\"name\") VALUES(:1) RETURNING \"id\" INTO :out_id").ExpectExec().
 			WithArgs("name", outArg).WillReturnResult(sqlmock.NewResult(0, 1))
