@@ -244,7 +244,7 @@ func TestInsert_doInsertReturning(t *testing.T) {
 	{
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}
-		db, mock := orm.MockDB(r, &orm.DBConfig{DBType: orm.DBType_.Postgres})
+		db, mock := orm.MockDB(r, &orm.DBConfig{DBType: orm.DBType_.PostgreSQL})
 		mock.ExpectPrepare("INSERT INTO \"user\"(\"name\") VALUES($1), ($2) RETURNING \"id\"").ExpectQuery().
 			WithArgs("name1", "name2").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
 		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()

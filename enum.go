@@ -28,7 +28,7 @@ type _DBType struct {
 	e.Enum[DBType]
 	MySQL,
 	Oracle,
-	Postgres,
+	PostgreSQL,
 	SQLServer,
 	SQLite DBType
 }

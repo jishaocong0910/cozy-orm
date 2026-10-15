@@ -59,7 +59,7 @@ func TestDB(t *testing.T) {
 		r.Equal(PageMode_.OffsetFetch.ID, db.pageMode.ID)
 	}
 	{
-		db := DBConfig{DBType: DBType_.Postgres}.Build()
+		db := DBConfig{DBType: DBType_.PostgreSQL}.Build()
 		r.Equal("$", db.paramPrefix)
 		r.Equal(IdentifierDelimiter_.DoubleQuote.ID, db.identifierDelimiter.ID)
 		r.Equal(GetGeneratedKeyMode_.InsertReturning.ID, db.getGeneratedKeyMode.ID)

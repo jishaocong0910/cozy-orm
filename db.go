@@ -163,7 +163,7 @@ func (c DBConfig) Build() *DB {
 		c.IdentifierDelimiter = IdentifierDelimiter_.DoubleQuote
 		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.Oracle
 		c.PageMode = PageMode_.OffsetFetch
-	case DBType_.Postgres.ID:
+	case DBType_.PostgreSQL.ID:
 		c.ParamPrefix = "$"
 		c.IdentifierDelimiter = IdentifierDelimiter_.DoubleQuote
 		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.InsertReturning
