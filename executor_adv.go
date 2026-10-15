@@ -252,7 +252,7 @@ func (i *insert[E]) Do() (int64, error) {
 	if len(ei.autoColumns) > 0 {
 		switch i.executor.db.getGeneratedKeyMode.ID {
 		case GetGeneratedKeyMode_.FirstInsertId.ID, GetGeneratedKeyMode_.LastInsertId.ID:
-			return i._doAndSetIdentify(ei, insertedColumns)
+			return i._doGetIdentify(ei, insertedColumns)
 		case GetGeneratedKeyMode_.InsertReturning.ID:
 			return i._doInsertReturning(ei, insertedColumns)
 		case GetGeneratedKeyMode_.SQLServer.ID:
@@ -271,7 +271,7 @@ func (i *insert[E]) _doDefault(ei *entityInfo, insertedColumns []string) (int64,
 	}).Do()
 }
 
-func (i *insert[E]) _doAndSetIdentify(ei *entityInfo, insertedColumns []string) (int64, error) {
+func (i *insert[E]) _doGetIdentify(ei *entityInfo, insertedColumns []string) (int64, error) {
 	return newMutation(i.executor).MapTo[E](i.entities...).BuildSql(func(b *SQLBuilder) {
 		i._buildInsertColumnsClause(b, ei, insertedColumns)
 		i._buildValuesClause(b, ei, insertedColumns)
@@ -339,7 +339,7 @@ func (i *insert[E]) _doOracle(ei *entityInfo, insertedColumns []string) (int64, 
 	if err == nil {
 		for j, r := range strings.Split(results, ",")[1:] {
 			id, _ := strconv.ParseInt(r, 10, 64)
-			m.setIdentify(i.entities[j], ei, id)
+			m.getIdentify(i.entities[j], ei, id)
 		}
 	}
 	return affected, err

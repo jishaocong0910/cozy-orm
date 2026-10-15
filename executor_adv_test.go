@@ -211,7 +211,7 @@ func TestInsert_doDefault(t *testing.T) {
 	}
 }
 
-func TestInsert_doAndSetIdentify(t *testing.T) {
+func TestInsert_doGetIdentify(t *testing.T) {
 	r := require.New(t)
 	{
 		u1 := &orm.User{Name: new("name1")}
@@ -225,6 +225,19 @@ func TestInsert_doAndSetIdentify(t *testing.T) {
 		r.Equal(int64(3), *u1.Id)
 		r.Equal(int64(4), *u2.Id)
 	}
+	{
+		u1 := &orm.User{Name: new("name1")}
+		u2 := &orm.User{Name: new("name2")}
+		db, mock := orm.MockDB(r, &orm.DBConfig{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.LastInsertId})
+		mock.ExpectPrepare("INSERT INTO `user`(`name`) VALUES (?), (?)").ExpectExec().WillReturnResult(sqlmock.NewResult(3, 2)).
+			WithArgs("name1", "name2")
+		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+		r.Equal(int64(2), *u1.Id)
+		r.Equal(int64(3), *u2.Id)
+	}
+
 	{
 		u1 := &orm.User{Name: new("name1")}
 		u2 := &orm.User{Name: new("name2")}

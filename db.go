@@ -175,7 +175,7 @@ func (c DBConfig) Build() *DB {
 		c.PageMode = PageMode_.OffsetFetch
 	case DBType_.SQLite.ID:
 		c.IdentifierDelimiter = IdentifierDelimiter_.DoubleQuote
-		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.LastInsertId
+		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.InsertReturning
 		c.PageMode = PageMode_.LimitOffset
 	}
 	if c.TabNameMapper == nil {

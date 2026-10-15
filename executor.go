@@ -198,12 +198,12 @@ func (m *mutation) _handleResult(result sql.Result) {
 		id = id - int64(len(m.mapTargets)-1)*ei.identityStep
 	}
 	for _, entity := range m.mapTargets {
-		m.setIdentify(entity, ei, id)
+		m.getIdentify(entity, ei, id)
 		id += ei.identityStep
 	}
 }
 
-func (m *mutation) setIdentify(entity any, ei *entityInfo, id int64) {
+func (m *mutation) getIdentify(entity any, ei *entityInfo, id int64) {
 	v := reflect.ValueOf(entity).Elem()
 	field := v.Field(ei.columnToFieldIndexMap[ei.autoColumns[0]])
 	field.Set(ei.identityConverter(id))
