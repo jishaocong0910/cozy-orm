@@ -317,7 +317,7 @@ func (i *insert[E]) _doOracle(ei *entityInfo, insertedColumns []string) (int64, 
 		affected, err := newMutation(i.executor).MapTo[E](i.entities...).BuildSql(func(b *SQLBuilder) {
 			i._buildInsertColumnsClause(b, ei, insertedColumns)
 			i._buildValuesClause(b, ei, insertedColumns)
-			b.Text(" RETURNING ").Quoted(identifyColumn).Text(" INTO out_id")
+			b.Text(" RETURNING ").Quoted(identifyColumn).Text(" INTO :out_id")
 			b.Args(sql.Named("out_id", sql.Out{Dest: field.Addr().Interface()}))
 		}).Do()
 		return affected, err

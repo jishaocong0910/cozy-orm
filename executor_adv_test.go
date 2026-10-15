@@ -302,7 +302,7 @@ func TestInsert_doOracle(t *testing.T) {
 		u := &orm.User{Name: new("name")}
 		outArg := orm.OutArg{MockValue: new(int64(20))}
 		db, mock := orm.MockDB(r, &orm.DBConfig{DBType: orm.DBType_.Oracle})
-		mock.ExpectPrepare("INSERT INTO \"user\"(\"name\") VALUES(:1) RETURNING \"id\" INTO out_id").ExpectExec().
+		mock.ExpectPrepare("INSERT INTO \"user\"(\"name\") VALUES(:1) RETURNING \"id\" INTO :out_id").ExpectExec().
 			WithArgs("name", outArg).WillReturnResult(sqlmock.NewResult(0, 1))
 
 		_, err := db.Insert[orm.User](nil).Entities(u).Do()
