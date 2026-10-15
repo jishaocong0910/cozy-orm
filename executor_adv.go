@@ -308,23 +308,22 @@ func (i *insert[E]) _doOracle(ei *entityInfo, insertedColumns []string) (int64, 
 		return 0, checkMust(i.executor.must, errors.New("entity count cannot exceed 1000 in Oracle"))
 	}
 
+	m := newMutation(i.executor)
 	identifyColumn := ei.autoColumns[0]
 
 	if len(i.entities) == 1 {
-		v := reflect.ValueOf(i.entities[0]).Elem()
-		fieldIndex := ei.columnToFieldIndexMap[ei.autoColumns[0]]
-		field := v.Field(fieldIndex)
-		affected, err := newMutation(i.executor).MapTo[E](i.entities...).BuildSql(func(b *SQLBuilder) {
+		var id int64
+		affected, err := m.BuildSql(func(b *SQLBuilder) {
 			i._buildInsertColumnsClause(b, ei, insertedColumns)
 			i._buildValuesClause(b, ei, insertedColumns)
 			b.Text(" RETURNING ").Quoted(identifyColumn).Text(" INTO :out_id")
-			b.Args(sql.Named("out_id", sql.Out{Dest: field.Addr().Interface()}))
+			b.Args(sql.Named("out_id", sql.Out{Dest: &id}))
 		}).Do()
+		m.getIdentify(i.entities[0], ei, id)
 		return affected, err
 	}
 
 	results := string(make([]byte, 32767))
-	m := newMutation(i.executor)
 	affected, err := m.BuildSql(func(b *SQLBuilder) {
 		am := i._getAssignedManager(ei, insertedColumns)
 		b.Text("DECLARE l_id NUMBER; l_results VARCHAR2(32767) := ''; BEGIN")
