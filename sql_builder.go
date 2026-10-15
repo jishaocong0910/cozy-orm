@@ -116,13 +116,13 @@ func (b *SQLBuilder) info() (sql string, args []any) {
 	return
 }
 
+type sqlWriter interface {
+	writeSQL(b *SQLBuilder)
+}
+
 type separate struct {
 	open, separator, close string
 	optional               bool
-}
-
-type sqlWriter interface {
-	writeSQL(b *SQLBuilder)
 }
 
 type defaultPh struct{}
