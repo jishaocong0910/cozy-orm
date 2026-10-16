@@ -77,6 +77,10 @@ func (q *query[E]) Do() (entities []*E, err error) {
 	} else {
 		rowCount, entities, err = q._mapNewEntities(rows, columns, mp)
 	}
+	if err != nil {
+		q.printSqlError(err)
+		return []*E{}, checkMust(q.must, err)
+	}
 	q.printSqlRowCount(int64(rowCount), cost)
 	return
 }
@@ -88,7 +92,7 @@ func (q *query[E]) _mapTargetEntities(rows *sql.Rows, columns []string, mp mappe
 			dest_, afterScan := mp.mapping(columns, e)
 			err = rows.Scan(dest_...)
 			if err != nil {
-				return 0, checkMust(q.must, err)
+				return 0, err
 			}
 			afterScan()
 		}
@@ -107,7 +111,7 @@ func (q *query[E]) _mapNewEntities(rows *sql.Rows, columns []string, mp mapper) 
 		dest, afterScan := mp.mapping(columns, e)
 		err = rows.Scan(dest...)
 		if err != nil {
-			return 0, []*E{}, checkMust(q.must, err)
+			return 0, []*E{}, err
 		}
 		afterScan()
 		entities = append(entities, e)
