@@ -37,7 +37,7 @@ func TestFind(t *testing.T) {
 		db, logger, mock := orm.MockDBAndLogger(r, &orm.DBConfig{IdentifierDelimiter: orm.IdentifierDelimiter_.Backtick, PageMode: orm.PageMode_.LimitOffset})
 		mock.ExpectPrepare("SELECT `id`, `name`, `phone`, `email`, `level`, `version` FROM `user` WHERE `level` = ? ORDER BY `id` DESC, `name` ASC LIMIT 1 OFFSET 10 FOR UPDATE").ExpectQuery().WithArgs(1).
 			WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(9, "abc").AddRow(10, "efg"))
-		users, err := db.Find[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Select("id", "version").OnDemand(orm.DemandFor[orm.UserSimple]()).
+		users, err := db.Find[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").Select("id", "version").OnDemand(orm.DemandFor[orm.UserSimple]()).
 			Cond(func(c *orm.Cond) {
 				c.Eq("level", 1)
 			}).
@@ -52,7 +52,7 @@ func TestFind(t *testing.T) {
 		r.Equal("efg", *users[1].Name)
 		lm := logger.Messages[0]
 		r.Equal(ctx, lm.Ctx)
-		r.Equal(orm.Level_.Info, lm.Level)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
 		r.Contains(lm.Msg, "desc: test desc")
 	}
 	{
@@ -114,7 +114,7 @@ func TestFindOne(t *testing.T) {
 		mock.ExpectPrepare("SELECT `id`, `name`, `phone`, `email`, `level`, `version` FROM `user` " +
 			"WHERE `level` = ? ORDER BY `id` DESC, `name` ASC  LIMIT 1 OFFSET 10 FOR UPDATE").ExpectQuery().WithArgs(1).
 			WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(9, "abc").AddRow(10, "efg"))
-		user, err := db.FindOne[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Lenient().Select("id", "version").
+		user, err := db.FindOne[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").Lenient().Select("id", "version").
 			OnDemand(orm.DemandFor[orm.UserSimple]()).Cond(func(c *orm.Cond) {
 			c.Eq("level", 1)
 		}).OrderBy(func(o *orm.OrderBy) {
@@ -126,7 +126,7 @@ func TestFindOne(t *testing.T) {
 		r.Equal("abc", *user.Name)
 		lm := logger.Messages[0]
 		r.Equal(ctx, lm.Ctx)
-		r.Equal(orm.Level_.Info, lm.Level)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
 		r.Contains(lm.Msg, "desc: test desc")
 	}
 	{
@@ -171,13 +171,13 @@ func TestInsert_doDefault(t *testing.T) {
 		ctx := context.WithValue(context.Background(), "test", "test")
 		db, logger, mock := orm.MockDBAndLogger(r, nil)
 		mock.ExpectPrepare("INSERT INTO `user`(`name`, `status`) VALUES(?, NULL)").ExpectExec().WithArgs("abc").WillReturnResult(sqlmock.NewResult(1, 1))
-		affected, err := db.Insert[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Entities(&orm.User{Name: new("abc")}).Required("status").Do()
+		affected, err := db.Insert[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").Entities(&orm.User{Name: new("abc")}).Required("status").Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
 		r.Equal(int64(1), affected)
 		lm := logger.Messages[0]
 		r.Equal(ctx, lm.Ctx)
-		r.Equal(orm.Level_.Info, lm.Level)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
 		r.Contains(lm.Msg, "desc: test desc")
 	}
 	{
@@ -200,13 +200,13 @@ func TestInsert_doDefault(t *testing.T) {
 			WillReturnResult(sqlmock.NewResult(1, 2)).
 			WithArgs("name1", 2, orm.AnyTime{}, orm.AnyTime{}, 1, "name2", 4, orm.AnyTime{}, orm.AnyTime{}, 1)
 
-		_, err := db.Insert[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").
+		_, err := db.Insert[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").
 			Entities(&orm.User{Name: new("name1"), Status: new(orm.UserStatus(2))}, &orm.User{Name: new("name2")}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
 		lm := logger.Messages[0]
 		r.Equal(ctx, lm.Ctx)
-		r.Equal(orm.Level_.Info, lm.Level)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
 		r.Contains(lm.Msg, "desc: test desc")
 	}
 }
@@ -370,14 +370,14 @@ func TestUpdate(t *testing.T) {
 		db, logger, mock := orm.MockDBAndLogger(r, nil)
 		mock.ExpectPrepare("UPDATE `user` SET `name` = ? WHERE `id` = ?").
 			ExpectExec().WithArgs("abc", 1).WillReturnResult(sqlmock.NewResult(0, 1))
-		affected, err := db.Update[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").
+		affected, err := db.Update[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").
 			Entity(&orm.User{Id: new(int64(1)), Name: new("abc")}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
 		r.Equal(int64(1), affected)
 		lm := logger.Messages[0]
 		r.Equal(ctx, lm.Ctx)
-		r.Equal(orm.Level_.Info, lm.Level)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
 		r.Contains(lm.Msg, "desc: test desc")
 	}
 	{
@@ -461,7 +461,7 @@ func TestUpdateRow(t *testing.T) {
 			"`email` = CASE `id` WHEN ? THEN NULL WHEN ? THEN ? END, `status` = ?, `level` = '2', `properties` = NULL, `tags` = NULL "+
 			"WHERE `id` IN(?, ?) AND `level` = ?").ExpectExec().
 			WithArgs(1, "a", 2, "b", 1, 2, "email", 2, 1, 2, 5).WillReturnResult(sqlmock.NewResult(1, 1))
-		affected, err := db.UpdateRow[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
+		affected, err := db.UpdateRow[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
 			Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b"), Email: new("email")}).
 			Required("properties").Set("status", orm.UserStatus(2)).Set("tags", nil).SetExpr("level", "'2'").
 			Cond(func(c *orm.Cond) {
@@ -471,7 +471,7 @@ func TestUpdateRow(t *testing.T) {
 		r.Equal(int64(1), affected)
 		lm := logger.Messages[0]
 		r.Equal(ctx, lm.Ctx)
-		r.Equal(orm.Level_.Info, lm.Level)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
 		r.Contains(lm.Msg, "desc: test desc")
 	}
 	{
@@ -507,7 +507,7 @@ func TestUpdateRow(t *testing.T) {
 		mock.ExpectPrepare("UPDATE `user` SET `name` = ?, `phone` = NULL, `email` = NULL, `status` = ?, `level` = '2', `properties` = NULL, `tags` = NULL "+
 			"WHERE `id` = ? AND `level` = ?").ExpectExec().
 			WithArgs("a", 2, 1, 5).WillReturnResult(sqlmock.NewResult(1, 1))
-		affected, err := db.UpdateRow[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
+		affected, err := db.UpdateRow[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
 			Entities(&orm.User{Id: new(int64(1)), Name: new("a")}).Required("properties").
 			Set("status", orm.UserStatus(2)).Set("tags", nil).SetExpr("level", "'2'").
 			Cond(func(c *orm.Cond) {
@@ -541,14 +541,14 @@ func TestDelete(t *testing.T) {
 		ctx := context.WithValue(context.Background(), "test", "test")
 		db, logger, mock := orm.MockDBAndLogger(r, nil)
 		mock.ExpectPrepare("DELETE FROM `user` WHERE `id` = ?").ExpectExec().WithArgs(1).WillReturnResult(sqlmock.NewResult(0, 1))
-		affected, err := db.Delete[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Cond(func(c *orm.Cond) {
+		affected, err := db.Delete[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").Cond(func(c *orm.Cond) {
 			c.Eq("id", 1)
 		}).Do()
 		r.NoError(err)
 		r.Equal(int64(1), affected)
 		lm := logger.Messages[0]
 		r.Equal(ctx, lm.Ctx)
-		r.Equal(orm.Level_.Info, lm.Level)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
 		r.Contains(lm.Msg, "desc: test desc")
 	}
 }
@@ -601,14 +601,14 @@ func TestDeleteSoftly(t *testing.T) {
 			Logger: log,
 		})
 		mock.ExpectPrepare("UPDATE `user` SET `deleted` = `id` WHERE `id` = ? AND `deleted` = ?").ExpectExec().WithArgs(1, 0).WillReturnResult(sqlmock.NewResult(0, 1))
-		affected, err := db.DeleteSoftly[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Cond(func(c *orm.Cond) {
+		affected, err := db.DeleteSoftly[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").Cond(func(c *orm.Cond) {
 			c.Eq("id", 1)
 		}).Do()
 		r.NoError(err)
 		r.Equal(int64(1), affected)
 		lm := log.Messages[0]
 		r.Equal(ctx, lm.Ctx)
-		r.Equal(orm.Level_.Info, lm.Level)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
 		r.Contains(lm.Msg, "desc: test desc")
 	}
 	{
@@ -654,14 +654,14 @@ func TestCount(t *testing.T) {
 		ctx := context.WithValue(context.Background(), "test", "test")
 		db, logger, mock := orm.MockDBAndLogger(r, nil)
 		mock.ExpectPrepare("SELECT COUNT(*) FROM `user` WHERE `level` = ?").ExpectQuery().WithArgs(2).WillReturnRows(mock.NewRows([]string{"count"}).AddRow(10))
-		count, err := db.Count[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").Cond(func(c *orm.Cond) {
+		count, err := db.Count[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").Cond(func(c *orm.Cond) {
 			c.Eq("level", 2)
 		}).Do()
 		r.NoError(err)
 		r.Equal(int64(10), count)
 		lm := logger.Messages[0]
 		r.Equal(ctx, lm.Ctx)
-		r.Equal(orm.Level_.Info, lm.Level)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
 		r.Contains(lm.Msg, "desc: test desc")
 	}
 	{
@@ -672,14 +672,14 @@ func TestCount(t *testing.T) {
 		})
 		mock.ExpectPrepare("SELECT COUNT(*) FROM `user` WHERE `level` = ? AND `deleted` = ?").ExpectQuery().WithArgs(2, 0).
 			WillReturnRows(mock.NewRows([]string{"count"}).AddRow(10))
-		_, err := db.Count[orm.User](nil).SqlLogLevel(orm.Level_.Info).Description("test desc").Cond(func(c *orm.Cond) {
+		_, err := db.Count[orm.User](nil).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").Cond(func(c *orm.Cond) {
 			c.Eq("level", 2)
 		}).Do()
 		r.NoError(err)
 
 		mock.ExpectPrepare("SELECT COUNT(*) FROM `user` WHERE `level` = ?").ExpectQuery().WithArgs(2).
 			WillReturnRows(mock.NewRows([]string{"count"}).AddRow(10))
-		_, err = db.Count[orm.User](nil).SqlLogLevel(orm.Level_.Info).Description("test desc").Cond(func(c *orm.Cond) {
+		_, err = db.Count[orm.User](nil).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").Cond(func(c *orm.Cond) {
 			c.Eq("level", 2)
 		}).IncludeDeleted().Do()
 		r.NoError(err)

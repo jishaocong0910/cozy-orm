@@ -53,7 +53,7 @@ func (f *find[E]) Description(desc string) *find[E] {
 	return f
 }
 
-func (f *find[E]) SqlLogLevel(level Level) *find[E] {
+func (f *find[E]) SqlLogLevel(level LogLevel) *find[E] {
 	f.query.SqlLogLevel(level)
 	return f
 }
@@ -147,7 +147,7 @@ func (f *findOne[E]) Description(desc string) *findOne[E] {
 	return f
 }
 
-func (f *findOne[E]) SqlLogLevel(level Level) *findOne[E] {
+func (f *findOne[E]) SqlLogLevel(level LogLevel) *findOne[E] {
 	f.find.SqlLogLevel(level)
 	return f
 }
@@ -220,7 +220,7 @@ func (i *insert[E]) Description(desc string) *insert[E] {
 	return i
 }
 
-func (i *insert[E]) SqlLogLevel(level Level) *insert[E] {
+func (i *insert[E]) SqlLogLevel(level LogLevel) *insert[E] {
 	i.executor.setSqlLogLevel(level)
 	return i
 }
@@ -391,7 +391,7 @@ func (u *update[E]) Description(desc string) *update[E] {
 	return u
 }
 
-func (u *update[E]) SqlLogLevel(level Level) *update[E] {
+func (u *update[E]) SqlLogLevel(level LogLevel) *update[E] {
 	u.mutation.SqlLogLevel(level)
 	return u
 }
@@ -505,7 +505,7 @@ func (u *updateRow[E]) Description(desc string) *updateRow[E] {
 	return u
 }
 
-func (u *updateRow[E]) SqlLogLevel(level Level) *updateRow[E] {
+func (u *updateRow[E]) SqlLogLevel(level LogLevel) *updateRow[E] {
 	u.mutation.SqlLogLevel(level)
 	return u
 }
@@ -624,7 +624,7 @@ func (d *delete[E]) Description(desc string) *delete[E] {
 	return d
 }
 
-func (d *delete[E]) SqlLogLevel(level Level) *delete[E] {
+func (d *delete[E]) SqlLogLevel(level LogLevel) *delete[E] {
 	d.mutation.SqlLogLevel(level)
 	return d
 }
@@ -672,7 +672,7 @@ func (d *deleteSoftly[E]) Description(desc string) *deleteSoftly[E] {
 	return d
 }
 
-func (d *deleteSoftly[E]) SqlLogLevel(level Level) *deleteSoftly[E] {
+func (d *deleteSoftly[E]) SqlLogLevel(level LogLevel) *deleteSoftly[E] {
 	d.mutation.SqlLogLevel(level)
 	return d
 }
@@ -731,7 +731,7 @@ func (c *count[E]) Description(desc string) *count[E] {
 	return c
 }
 
-func (c *count[E]) SqlLogLevel(level Level) *count[E] {
+func (c *count[E]) SqlLogLevel(level LogLevel) *count[E] {
 	c.query.SqlLogLevel(level)
 	return c
 }

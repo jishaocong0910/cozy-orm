@@ -130,7 +130,7 @@ func (t *tx) _runAfterHook(commit bool) {
 			go func() {
 				defer func() {
 					if r := recover(); r != nil {
-						printLog(ctx, t.db.logger, Level_.Error, "panic in transaction after-hook %v\n%s", r, deferStack())
+						printLog(ctx, t.db.logger, LogLevel_.Error, "panic in transaction after-hook %v\n%s", r, deferStack())
 					}
 				}()
 				hook.afterHandler(ctx, commit)

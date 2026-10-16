@@ -25,7 +25,7 @@ import (
 type DB struct {
 	rawDB               *sql.DB
 	logger              Logger
-	sqlLogLevel         Level
+	sqlLogLevel         LogLevel
 	tabNameMapper       *NameMapper
 	colNameMapper       *NameMapper
 	paramPrefix         string
@@ -141,7 +141,7 @@ func (d *DB) getMapper(t reflect.Type) (mapper, error) {
 type DBConfig struct {
 	RawDB               *sql.DB
 	Logger              Logger
-	SqlLogLevel         Level
+	SqlLogLevel         LogLevel
 	TabNameMapper       *NameMapper
 	ColNameMapper       *NameMapper
 	DBType              DBType

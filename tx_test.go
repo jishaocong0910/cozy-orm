@@ -42,7 +42,7 @@ func TestTx(t *testing.T) {
 			ti := orm.GetTxInfoData(ctx, db)
 			r.Equal(ti.Owner, tx)
 			r.NotNil(ti.RawTx)
-			_, err := db.Mutation(ctx).SqlLogLevel(orm.Level_.Info).BuildSql(func(b *orm.SQLBuilder) {
+			_, err := db.Mutation(ctx).SqlLogLevel(orm.LogLevel_.Info).BuildSql(func(b *orm.SQLBuilder) {
 				b.Text("UPDATE user set status=1 WHERE id=?").Args(1)
 			}).Do()
 			return err
@@ -310,7 +310,7 @@ func TestTxHook(t *testing.T) {
 		r.NoError(err)
 		time.Sleep(time.Second * 1)
 		r.Len(logger.Messages, 1)
-		r.Equal(orm.Level_.Error, logger.Messages[0].Level)
+		r.Equal(orm.LogLevel_.Error, logger.Messages[0].Level)
 		r.Contains(logger.Messages[0].Msg, "panic in transaction after-hook after-hook panic")
 	}
 }

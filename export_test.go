@@ -76,7 +76,7 @@ func checkEqualFunc(r *require.Assertions, f1, f2 any) {
 
 type logMsg struct {
 	Ctx   context.Context
-	Level Level
+	Level LogLevel
 	Msg   string
 }
 
@@ -85,19 +85,19 @@ type MockLogger struct {
 }
 
 func (d *MockLogger) Debug(ctx context.Context, msg string) {
-	d.Messages = append(d.Messages, logMsg{Ctx: ctx, Level: Level_.Debug, Msg: msg})
+	d.Messages = append(d.Messages, logMsg{Ctx: ctx, Level: LogLevel_.Debug, Msg: msg})
 }
 
 func (d *MockLogger) Info(ctx context.Context, msg string) {
-	d.Messages = append(d.Messages, logMsg{Ctx: ctx, Level: Level_.Info, Msg: msg})
+	d.Messages = append(d.Messages, logMsg{Ctx: ctx, Level: LogLevel_.Info, Msg: msg})
 }
 
 func (d *MockLogger) Warn(ctx context.Context, msg string) {
-	d.Messages = append(d.Messages, logMsg{Ctx: ctx, Level: Level_.Warn, Msg: msg})
+	d.Messages = append(d.Messages, logMsg{Ctx: ctx, Level: LogLevel_.Warn, Msg: msg})
 }
 
 func (d *MockLogger) Error(ctx context.Context, msg string) {
-	d.Messages = append(d.Messages, logMsg{Ctx: ctx, Level: Level_.Error, Msg: msg})
+	d.Messages = append(d.Messages, logMsg{Ctx: ctx, Level: LogLevel_.Error, Msg: msg})
 }
 
 type UnsupportedLastInsertIdResult struct {

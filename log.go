@@ -32,14 +32,14 @@ type Logger interface {
 
 func printWarn(ctx context.Context, logger Logger, err error) {
 	if err != nil {
-		printLog(ctx, logger, Level_.Warn, fmt.Sprintf("%v", err))
+		printLog(ctx, logger, LogLevel_.Warn, fmt.Sprintf("%v", err))
 	}
 }
 
-func printSql(ctx context.Context, logger Logger, level Level, desc string, sql string, args []any,
+func printSql(ctx context.Context, logger Logger, level LogLevel, desc string, sql string, args []any,
 	rowCount int64, affected int64, cost time.Duration, err error) {
 	if err != nil {
-		level = Level_.Error
+		level = LogLevel_.Error
 	} else if level.IsUndefined() {
 		return
 	}
@@ -74,19 +74,19 @@ func printSql(ctx context.Context, logger Logger, level Level, desc string, sql 
 	printLog(ctx, logger, level, builder.String())
 }
 
-func printLog(ctx context.Context, logger Logger, level Level, msg string, args ...any) {
+func printLog(ctx context.Context, logger Logger, level LogLevel, msg string, args ...any) {
 	if logger != nil {
 		if len(args) > 0 {
 			msg = fmt.Sprintf(msg, args...)
 		}
 		switch level.ID {
-		case Level_.Debug.ID:
+		case LogLevel_.Debug.ID:
 			logger.Debug(ctx, msg)
-		case Level_.Info.ID:
+		case LogLevel_.Info.ID:
 			logger.Info(ctx, msg)
-		case Level_.Warn.ID:
+		case LogLevel_.Warn.ID:
 			logger.Warn(ctx, msg)
-		case Level_.Error.ID:
+		case LogLevel_.Error.ID:
 			logger.Error(ctx, msg)
 		}
 	}

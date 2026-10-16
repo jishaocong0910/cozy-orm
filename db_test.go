@@ -25,14 +25,14 @@ func TestDB(t *testing.T) {
 	{
 		db, logger, mock := MockDBAndLogger(r, nil)
 		mock.ExpectPrepare("test").ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}))
-		_, err := db.Query[User](nil).SqlLogLevel(Level_.Info).BuildSql(func(b *SQLBuilder) {
+		_, err := db.Query[User](nil).SqlLogLevel(LogLevel_.Info).BuildSql(func(b *SQLBuilder) {
 			b.Text("test")
 		}).Do()
 		r.NoError(err)
 		r.NotNil(db.RawDB())
 		r.Len(logger.Messages, 1)
 		lm := logger.Messages[0]
-		r.Equal(Level_.Info, lm.Level)
+		r.Equal(LogLevel_.Info, lm.Level)
 		r.Contains(lm.Msg, "test")
 	}
 	{

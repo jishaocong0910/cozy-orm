@@ -35,20 +35,20 @@ type _DBType struct {
 
 var DBType_ = e.NewEnum(_DBType{})
 
-type Level struct {
+type LogLevel struct {
 	e.EnumElem
 }
 
-type _Level struct {
-	e.Enum[Level]
+type _LogLevel struct {
+	e.Enum[LogLevel]
 	Off,
 	Debug,
 	Info,
 	Warn,
-	Error Level
+	Error LogLevel
 }
 
-var Level_ = e.NewEnum(_Level{})
+var LogLevel_ = e.NewEnum(_LogLevel{})
 
 type IdentifierDelimiter struct {
 	e.EnumElem

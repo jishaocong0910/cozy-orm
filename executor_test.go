@@ -87,14 +87,14 @@ func TestQuery(t *testing.T) {
 		ctx := context.WithValue(context.Background(), "test", "test")
 		db, logger, mock := orm.MockDBAndLogger(r, nil)
 		mock.ExpectPrepare("sql").ExpectQuery().WillReturnRows(mock.NewRows([]string{"unused"}))
-		_, err := db.Query[orm.User](ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").BuildSql(func(b *orm.SQLBuilder) {
+		_, err := db.Query[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").BuildSql(func(b *orm.SQLBuilder) {
 			b.Text("sql")
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
 		lm := logger.Messages[0]
 		r.Equal(ctx, lm.Ctx)
-		r.Equal(orm.Level_.Info, lm.Level)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
 		r.Contains(lm.Msg, "desc: test desc, SQL: sql; args: ")
 	}
 	{
@@ -209,14 +209,14 @@ func TestMutation(t *testing.T) {
 		ctx := context.WithValue(context.Background(), "test", "test")
 		db, logger, mock := orm.MockDBAndLogger(r, &orm.DBConfig{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId})
 		mock.ExpectPrepare("sql").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
-		_, err := db.Mutation(ctx).SqlLogLevel(orm.Level_.Info).Description("test desc").BuildSql(func(b *orm.SQLBuilder) {
+		_, err := db.Mutation(ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").BuildSql(func(b *orm.SQLBuilder) {
 			b.Text("sql")
 		}).Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
 		lm := logger.Messages[0]
 		r.Equal(ctx, lm.Ctx)
-		r.Equal(orm.Level_.Info, lm.Level)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
 		r.Contains(lm.Msg, "desc: test desc, SQL: sql; args: ")
 	}
 	{

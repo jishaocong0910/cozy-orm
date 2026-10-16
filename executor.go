@@ -37,7 +37,7 @@ func (q *query[E]) Description(desc string) *query[E] {
 	return q
 }
 
-func (q *query[E]) SqlLogLevel(level Level) *query[E] {
+func (q *query[E]) SqlLogLevel(level LogLevel) *query[E] {
 	q.setSqlLogLevel(level)
 	return q
 }
@@ -141,7 +141,7 @@ func (m *mutation) Description(desc string) *mutation {
 	return m
 }
 
-func (m *mutation) SqlLogLevel(level Level) *mutation {
+func (m *mutation) SqlLogLevel(level LogLevel) *mutation {
 	m.setSqlLogLevel(level)
 	return m
 }
@@ -218,7 +218,7 @@ type executor struct {
 	db          *DB
 	must        bool
 	desc        string
-	sqlLogLevel Level
+	sqlLogLevel LogLevel
 	builder     *SQLBuilder
 	buildSQL    func(b *SQLBuilder)
 }
@@ -231,7 +231,7 @@ func (e *executor) setDescription(desc string) {
 	e.desc = desc
 }
 
-func (e *executor) setSqlLogLevel(level Level) {
+func (e *executor) setSqlLogLevel(level LogLevel) {
 	e.sqlLogLevel = level
 }
 

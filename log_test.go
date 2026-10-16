@@ -26,13 +26,13 @@ func TestPrintSql(t *testing.T) {
 	r := require.New(t)
 	{
 		log := &MockLogger{}
-		printSql(nil, log, Level_.UNDEFINED, "update a user", `  
+		printSql(nil, log, LogLevel_.UNDEFINED, "update a user", `  
 SELECT *
   FROM
 user`,
 			[]any{2, nil, (*int)(nil), new("abc"), time.UnixMilli(1703659380000).In(time.UTC)},
 			100, 20, 15*time.Millisecond, errors.New("error"))
-		r.True(Level_.Error.Is(log.Messages[0].Level))
+		r.True(LogLevel_.Error.Is(log.Messages[0].Level))
 		r.Equal(`desc: update a user, SQL:   
 SELECT *
   FROM
@@ -40,19 +40,19 @@ user; args: 2(int) <nil> <nil> abc(string) 2023-12-27 06:43:00 +0000 UTC(time.Ti
 	}
 	{
 		log := &MockLogger{}
-		printSql(nil, log, Level_.UNDEFINED, "test", "test", nil, -1, -1, -1, nil)
+		printSql(nil, log, LogLevel_.UNDEFINED, "test", "test", nil, -1, -1, -1, nil)
 		r.Empty(log.Messages)
 	}
 	{
 		log := &MockLogger{}
-		printSql(nil, log, Level_.Debug, "test", "", nil, -1, -1, -1, nil)
-		r.True(log.Messages[0].Level.Is(Level_.Debug))
+		printSql(nil, log, LogLevel_.Debug, "test", "", nil, -1, -1, -1, nil)
+		r.True(log.Messages[0].Level.Is(LogLevel_.Debug))
 		r.Equal("desc: test, SQL: ; args: ", log.Messages[0].Msg)
 	}
 	{
 		log := &MockLogger{}
-		printSql(nil, log, Level_.Info, "test", "", nil, -1, -1, -1, nil)
-		r.True(log.Messages[0].Level.Is(Level_.Info))
+		printSql(nil, log, LogLevel_.Info, "test", "", nil, -1, -1, -1, nil)
+		r.True(log.Messages[0].Level.Is(LogLevel_.Info))
 		r.Equal("desc: test, SQL: ; args: ", log.Messages[0].Msg)
 	}
 }
@@ -61,6 +61,6 @@ func TestPrintWarn(t *testing.T) {
 	r := require.New(t)
 	log := &MockLogger{}
 	printWarn(nil, log, errors.New("warn"))
-	r.True(log.Messages[0].Level.Is(Level_.Warn))
+	r.True(log.Messages[0].Level.Is(LogLevel_.Warn))
 	r.Equal("warn", log.Messages[0].Msg)
 }
