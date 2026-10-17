@@ -23,7 +23,7 @@ import (
 	"sync"
 )
 
-func newEntityInfo(t reflect.Type, tableNameMapper, columnNameMapper *NameMapper, getGeneratedKeyMode GetGeneratedKeyMode, columnPolicyConfigs []*columnPolicyConfig) (*entityInfo, error) {
+func newEntityInfo(t reflect.Type, tableNameMapper, columnNameMapper *NameMapper, getGeneratedKeyMode GetGeneratedKeyMode, columnPolicyConfigs ColumnPolicyConfigs) (*entityInfo, error) {
 	if !isEntityType(t) {
 		return nil, errors.New("not a valid entity type")
 	}
@@ -214,7 +214,7 @@ func (e *entityInfo) _registerField(tf reflect.StructField, tag fieldTag, column
 	}
 }
 
-func (e *entityInfo) _registerPolicy(columnPolicyConfigs []*columnPolicyConfig) {
+func (e *entityInfo) _registerPolicy(columnPolicyConfigs ColumnPolicyConfigs) {
 	for _, pk := range e.pkColumns {
 		columnPolicyConfigs = append(columnPolicyConfigs, NewColumnPolicyConfig(pk).ForTable(e.table).OnUpdate().Never())
 	}

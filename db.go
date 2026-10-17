@@ -32,7 +32,7 @@ type DB struct {
 	getGeneratedKeyMode GetGeneratedKeyMode
 	pageMode            PageMode
 	identifierDelimiter IdentifierDelimiter
-	columnPolicyConfigs []*columnPolicyConfig
+	columnPolicyConfigs ColumnPolicyConfigs
 
 	entities           sync.Map
 	mappers            sync.Map
