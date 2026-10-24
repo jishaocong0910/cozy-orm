@@ -1,25 +1,26 @@
-/*
- * Copyright 2024-present jishaocong0910
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2024-present jishaocong0910
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package orm_test
 
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	orm "github.com/jishaocong0910/cozy-orm"
@@ -29,73 +30,302 @@ import (
 func TestTx(t *testing.T) {
 	r := require.New(t)
 	{
-		userDao, mock := mockUserDao(r)
+		db, logger, mock := orm.MockDBAndLogger(r, nil)
 		mock.ExpectBegin()
-		mock.ExpectPrepare(`UPDATE user set status=1 WHERE id=\?`).ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectPrepare("UPDATE user set status=1 WHERE id=?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
-		tx, err := userDao.DB().Begin()
-		r.NoError(err)
-		affected, err := userDao.Exec().Ctx(orm.SetTx(nil, tx)).BuildSql(func(b *orm.SqlBuilder[User]) {
-			b.Write("UPDATE user set status=1 WHERE id=?", 1)
-		}).Do()
-		tx.Commit()
-		r.NoError(err)
-		r.NoError(mock.ExpectationsWereMet())
-		r.Equal(int64(1), affected)
-	}
-	{
-		userDao, mock := mockUserDao(r)
-		mock.ExpectBegin()
-		mock.ExpectPrepare(`UPDATE user set status=1 WHERE id=\?`).ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
-		mock.ExpectCommit()
-		err := orm.Tx(nil, func(ctx context.Context) error {
-			_, err := userDao.Exec().Ctx(ctx).BuildSql(func(b *orm.SqlBuilder[User]) {
-				b.Write("UPDATE user set status=1 WHERE id=?", 1)
+		ctx := context.Background()
+		var ctx2 context.Context
+		tx := db.Tx(ctx)
+		err := tx.TxOptions(nil).Do(func(ctx context.Context) error {
+			ctx2 = ctx
+			ti := orm.GetTxInfoData(ctx, db)
+			r.Equal(ti.Owner, tx)
+			r.NotNil(ti.RawTx)
+			_, err := db.Mutation(ctx).SqlLogLevel(orm.LogLevel_.Info).BuildSql(func(b *orm.SQLBuilder) {
+				b.Text("UPDATE user set status=1 WHERE id=?").Args(1)
 			}).Do()
 			return err
 		})
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
+		l := logger.Messages[0]
+		r.Equal("SQL: UPDATE user set status=1 WHERE id=?; args: 1(int), affected: 1, cost: 0ms", l.Msg)
+
+		ti := orm.GetTxInfoData(ctx2, db)
+		r.Nil(ti)
 	}
 	{
-		_, mock := mockUserDao(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectBegin()
+		mock.ExpectPrepare("UPDATE user set status=1 WHERE id=?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectPrepare("UPDATE user set status=2 WHERE id=?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
+			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
+				b.Text("UPDATE user set status=1 WHERE id=?").Args(1)
+			}).Do()
+			if err != nil {
+				return err
+			}
+
+			err = db.Tx(ctx).Do(func(ctx context.Context) error {
+				_, err := db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
+					b.Text("UPDATE user set status=2 WHERE id=?").Args(1)
+				}).Do()
+				return err
+			})
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+	}
+	{
+		db, mock := orm.MockDB(r, nil)
+		mock.ExpectBegin()
+		mock.ExpectPrepare("UPDATE user set status=1 WHERE id=?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectPrepare("UPDATE user set status=2 WHERE id=?").ExpectExec().WillReturnError(errors.New("test nested _rollback"))
 		mock.ExpectRollback()
-		err := orm.Tx(nil, func(ctx context.Context) error {
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
+			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
+				b.Text("UPDATE user set status=1 WHERE id=?").Args(1)
+			}).Do()
+			if err != nil {
+				return err
+			}
+
+			err = db.Tx(ctx).Do(func(ctx context.Context) error {
+				_, err := db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
+					b.Text("UPDATE user set status=2 WHERE id=?").Args(1)
+				}).Do()
+				return err
+			})
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+		r.EqualError(err, "test nested _rollback")
+		r.NoError(mock.ExpectationsWereMet())
+	}
+	{
+		db, mock := orm.MockDB(r, nil)
+		db2, mock2 := orm.MockDB(r, nil)
+		mock.ExpectBegin()
+		mock.ExpectPrepare("UPDATE user set status = 1 WHERE id = ?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectPrepare("UPDATE user set status = 2 WHERE id = ?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+		mock2.ExpectBegin()
+		mock2.ExpectPrepare("UPDATE user set status = 3 WHERE id = ?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
+		mock2.ExpectCommit()
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
+			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
+				b.Text("UPDATE user set status = 1 WHERE id = ?").Args(1)
+			}).Do()
+			if err != nil {
+				return err
+			}
+
+			err = db2.Tx(ctx).Do(func(ctx context.Context) error {
+				err = db.Tx(ctx).Do(func(ctx context.Context) error {
+					_, err = db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
+						b.Text("UPDATE user set status = 2 WHERE id = ?").Args(1)
+					}).Do()
+					return err
+				})
+				if err != nil {
+					return err
+				}
+
+				_, err := db2.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {
+					b.Text("UPDATE user set status = 3 WHERE id = ?").Args(1)
+				}).Do()
+				return err
+			})
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+	}
+	{
+		db := orm.Config{}.Build()
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
+			_, err := db.Mutation(ctx).BuildSql(func(b *orm.SQLBuilder) {}).Do()
+			return err
+		})
+		r.EqualError(err, "no available *sql.DB")
+	}
+	{
+		db, mock := orm.MockDB(r, nil)
+		mock.ExpectBegin()
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			return errors.New("error")
 		})
 		r.EqualError(err, "error")
-		r.NoError(mock.ExpectationsWereMet())
 	}
 	{
-		_, mock := mockUserDao(r)
+		db, mock := orm.MockDB(r, nil)
+		mock.ExpectBegin().WillReturnError(errors.New("begin error"))
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
+			return nil
+		})
+		r.EqualError(err, "begin error")
+	}
+	{
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectBegin()
-		mock.ExpectRollback()
-		err := orm.Tx(nil, func(ctx context.Context) error {
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			panic(errors.New("panic error"))
 		})
 		r.ErrorContains(err, "panic error")
-		r.NoError(mock.ExpectationsWereMet())
 	}
 	{
-		_, mock := mockUserDao(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectBegin()
-		mock.ExpectRollback()
-		err := orm.Tx(nil, func(ctx context.Context) error {
-			panic(1)
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
+			panic(123)
 		})
-		r.ErrorContains(err, "1")
-		r.NoError(mock.ExpectationsWereMet())
+		r.ErrorContains(err, "123")
 	}
 	{
-		_, mock := mockUserDao(r)
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectBegin()
-		mock.ExpectRollback()
 		r.Panics(func() {
-			orm.Tx(nil, func(ctx context.Context) error {
+			db.Tx(nil).Must().Do(func(ctx context.Context) error {
 				panic(errors.New("test panic"))
-			}, orm.WithMust())
+			})
 		})
 	}
 
+}
+
+func TestTxHook(t *testing.T) {
+	r := require.New(t)
+	{
+		db, _ := orm.MockDB(r, nil)
+		h, ok := db.TxHook(nil)
+		r.Nil(h)
+		r.False(ok)
+		h, ok = db.TxHook(context.Background())
+		r.Nil(h)
+		r.False(ok)
+	}
+	{
+		var wg sync.WaitGroup
+		db, mock := orm.MockDB(r, nil)
+		mock.ExpectBegin()
+		mock.ExpectPrepare("UPDATE `user` SET `email` = ? WHERE `id` = ?").ExpectExec().WithArgs("a1", 1).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectRollback()
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
+			_, err := db.Update[orm.User](ctx).Set("email", "a1").Cond(func(c *orm.Cond) {
+				c.Eq("id", 1)
+			}).Do()
+			if err != nil {
+				return err
+			}
+			h, ok := db.TxHook(ctx)
+			r.NotNil(h)
+			r.True(ok)
+
+			wg.Add(1)
+			h.BeforeCommitSync(func(ctx context.Context) error {
+				return errors.New("before hook error")
+			})
+			h.AfterCompleteAsync(func(ctx context.Context, commit bool) {
+				r.False(commit)
+				wg.Done()
+			})
+			ti := orm.GetTxInfoData(ctx, db)
+			r.Len(ti.TxHook, 1)
+			r.Equal(ti.TxHook[0], h)
+			return nil
+		})
+		fmt.Println(err)
+		r.EqualError(err, "before hook error")
+		wg.Wait()
+	}
+	{
+		var wg sync.WaitGroup
+		db, mock := orm.MockDB(r, nil)
+		mock.ExpectBegin()
+		mock.ExpectPrepare("UPDATE `user` SET `email` = ? WHERE `id` = ?").ExpectExec().WithArgs("a1", 1).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectPrepare("UPDATE `user` SET `email` = ? WHERE `id` = ?").ExpectExec().WithArgs("a2", 2).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+		ctx := context.WithValue(context.Background(), "key", "value")
+		err := db.Tx(ctx).Do(func(ctx context.Context) error {
+			_, err := db.Update[orm.User](ctx).Set("email", "a1").Cond(func(c *orm.Cond) {
+				c.Eq("id", 1)
+			}).Do()
+			if err != nil {
+				return err
+			}
+
+			wg.Add(1)
+
+			if h, ok := db.TxHook(ctx); ok {
+				h.BeforeCommitSync(func(ctx context.Context) error {
+					_, err := db.Update[orm.User](ctx).Set("email", "a2").Cond(func(c *orm.Cond) {
+						c.Eq("id", 2)
+					}).Do()
+					return err
+				})
+				h.AfterCompleteAsync(func(ctx context.Context, commit bool) {
+					ti := orm.GetTxInfoData(ctx, db)
+					val := ctx.Value("key").(string)
+					r.True(commit)
+					r.Nil(ti)
+					r.Equal(val, "value")
+					wg.Done()
+				}, "key")
+			}
+			return nil
+		})
+		r.NoError(err)
+		wg.Wait()
+	}
+	{
+		db, logger, mock := orm.MockDBAndLogger(r, nil)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
+			if h, ok := db.TxHook(ctx); ok {
+				h.AfterCompleteAsync(func(ctx context.Context, commit bool) {
+					panic("after-hook panic")
+				})
+			}
+			return nil
+		})
+		r.NoError(err)
+		time.Sleep(time.Second * 1)
+		r.Len(logger.Messages, 1)
+		r.Equal(orm.LogLevel_.Error, logger.Messages[0].Level)
+		r.Contains(logger.Messages[0].Msg, "panic in transaction after-hook after-hook panic")
+	}
+}
+
+func TestTxContext(t *testing.T) {
+	r := require.New(t)
+	tc := orm.NewTxContext(nil)
+	_, ok := tc.Deadline()
+	r.False(ok)
+
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+	tc = orm.NewTxContext(ctx)
+	_, ok = tc.Deadline()
+	r.True(ok)
+
+	cancelFunc()
+	r.Equal(tc.Err(), context.Canceled)
 }
