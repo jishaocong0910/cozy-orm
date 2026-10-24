@@ -1,0 +1,353 @@
+// Copyright 2024-present jishaocong0910
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package orm
+
+import (
+	"context"
+	"errors"
+	"maps"
+	"reflect"
+	"strconv"
+	"sync"
+)
+
+func newEntityInfo(t reflect.Type, tableNameMapper, columnNameMapper *NameMapper, getGeneratedKeyMode GetGeneratedKeyMode, columnPolicyConfigs ColumnPolicyConfigs) (*entityInfo, error) {
+	if !isEntityType(t) {
+		return nil, errors.New("not a valid entity type")
+	}
+
+	ei := &entityInfo{
+		typ:                   t,
+		columnToFieldIndexMap: make(map[string]int, t.NumField()),
+		columnToFieldNameMap:  make(map[string]string, t.NumField()),
+		fieldToColumnMap:      make(map[string]string, t.NumField()),
+	}
+
+	for i := 0; i < t.NumField(); i++ {
+		tf := t.Field(i)
+		if tf.Anonymous {
+			continue
+		}
+		if tf.Name == "_" {
+			if i == 0 && tf.Type.Kind() == reflect.Struct && tf.Type.NumField() == 0 {
+				tag := parseEntityTag(tf)
+				ei.table = tag.table
+			}
+			continue
+		}
+		if !tf.IsExported() {
+			continue
+		}
+		tag := parseFieldTag(tf)
+		if tag.ignore {
+			continue
+		}
+		if !isValidFieldType(tf.Type) {
+			continue
+		}
+		ei._registerField(tf, tag, columnNameMapper, getGeneratedKeyMode)
+	}
+	if ei.table == "" {
+		ei.table = tableNameMapper.Convert(t.Name())
+	}
+
+	ei._registerPolicy(columnPolicyConfigs)
+	return ei, nil
+}
+
+type entityInfo struct {
+	typ                   reflect.Type
+	table                 string
+	columns               []string
+	columnToFieldIndexMap map[string]int
+	columnToFieldNameMap  map[string]string
+	fieldToColumnMap      map[string]string
+	pkColumns             []string
+	autoColumns           []string
+	autoStep              int64
+	identityConverter     func(id int64) reflect.Value
+	insertPolicy          assignedPolicy
+	updatePolicy          assignedPolicy
+	deleteSoftlyPolicy    deleteSoftlyPolicy
+
+	demandColumns               sync.Map
+	registerOnDemandColumnsLock sync.Mutex
+}
+
+func (e *entityInfo) getColumns(entity any, demand *Demand, requiredSet set[string], ignoredSet set[string]) []string {
+	var columns []string
+	var ev reflect.Value
+	demandColumnSet := e._getDemandColumnSet(demand)
+
+	if demandColumnSet == nil {
+		columns = make([]string, 0, len(e.columns))
+		if entity != nil {
+			ev = reflect.ValueOf(entity).Elem()
+		}
+	} else {
+		columns = make([]string, 0, len(demandColumnSet))
+	}
+
+	for _, column := range e.columns {
+		if ignoredSet.contain(column) {
+			continue
+		}
+		if requiredSet.contain(column) {
+			columns = append(columns, column)
+			continue
+		}
+		if demandColumnSet == nil {
+			if !ev.IsValid() {
+				continue
+			}
+			if !ev.Field(e.columnToFieldIndexMap[column]).IsNil() {
+				columns = append(columns, column)
+				continue
+			}
+		} else if demandColumnSet.contain(column) {
+			columns = append(columns, column)
+			continue
+		}
+	}
+	return columns
+}
+
+func (e *entityInfo) getValueMap(entity any, column2s ...[]string) map[string]any {
+	var v reflect.Value
+	if entity != nil {
+		v = reflect.ValueOf(entity).Elem()
+	}
+	if !v.IsValid() {
+		return nil
+	}
+	var valueMap map[string]any
+	size := 0
+	for _, columns := range column2s {
+		size += len(columns)
+	}
+	valueMap = make(map[string]any, size)
+	for _, columns := range column2s {
+		for _, column := range columns {
+			if i, ok := e.columnToFieldIndexMap[column]; ok {
+				vf := v.Field(i)
+				if !vf.IsNil() {
+					valueMap[column] = vf.Interface()
+				}
+			}
+		}
+	}
+	return valueMap
+}
+
+func (e *entityInfo) _getDemandColumnSet(demand *Demand) set[string] {
+	if demand == nil || demand.t == nil {
+		return nil
+	}
+	if val, ok := e.demandColumns.Load(demand.t); ok {
+		columnSet, _ := val.(set[string])
+		return columnSet
+	}
+
+	e.registerOnDemandColumnsLock.Lock()
+	defer e.registerOnDemandColumnsLock.Unlock()
+
+	if val, ok := e.demandColumns.Load(demand.t); ok { // coverage-ignore
+		columnSet, _ := val.(set[string])
+		return columnSet
+	}
+
+	if demand.t.Kind() != reflect.Struct {
+		e.demandColumns.Store(demand.t, nil)
+		return nil
+	}
+
+	columns := make([]string, 0, demand.t.NumField())
+	for tf := range demand.t.Fields() {
+		if tf.Anonymous {
+			continue
+		}
+		if c, ok := e.fieldToColumnMap[tf.Name]; ok {
+			columns = append(columns, c)
+		}
+	}
+
+	columnSet := newSet(columns...)
+	e.demandColumns.Store(demand.t, columnSet)
+	return columnSet
+}
+
+func (e *entityInfo) _registerField(tf reflect.StructField, tag fieldTag, columnNameMapper *NameMapper, getGeneratedKeyMode GetGeneratedKeyMode) {
+	column := tag.column
+	if column == "" {
+		column = columnNameMapper.Convert(tf.Name)
+	}
+	e.columns = append(e.columns, column)
+	e.columnToFieldIndexMap[column] = tf.Index[0]
+	e.columnToFieldNameMap[column] = tf.Name
+	e.fieldToColumnMap[tf.Name] = column
+	if tag.pk {
+		e.pkColumns = append(e.pkColumns, column)
+	}
+	if tag.auto > 0 {
+		e.autoColumns = append(e.autoColumns, column)
+		if getGeneratedKeyMode.Is(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId, GetGeneratedKeyMode_.Oracle) {
+			if len(e.autoColumns) > 1 {
+				e.autoStep = 0
+				e.identityConverter = nil
+			} else if a, ok := identityConverterMap[tf.Type]; ok {
+				e.autoStep = tag.auto
+				e.identityConverter = a
+			}
+		}
+	}
+}
+
+func (e *entityInfo) _registerPolicy(columnPolicyConfigs ColumnPolicyConfigs) {
+	for _, pk := range e.pkColumns {
+		columnPolicyConfigs = append(columnPolicyConfigs, NewColumnPolicyConfig(pk).ForTable(e.table).OnUpdate().Never())
+	}
+	columnSet := newSet(e.columns...)
+	columnOnInsertMap := map[string]*assignedPolicyConfig{}
+	columnOnUpdateMap := map[string]*assignedPolicyConfig{}
+	var finalDeleteSoftlyPolicyConfig *deleteSoftlyPolicyConfig
+	for _, config := range columnPolicyConfigs {
+		if config.exceptTableSet.contain(e.table) {
+			continue
+		}
+		if !config.isDefault() && !config.forTableSet.contain(e.table) {
+			continue
+		}
+		if !columnSet.contain(config.column) {
+			continue
+		}
+		if config.onInsert != nil {
+			if exists, ok := columnOnInsertMap[config.column]; !ok || exists.parent.isDefault() || !config.isDefault() {
+				columnOnInsertMap[config.column] = config.onInsert
+			}
+		}
+		if config.onUpdate != nil {
+			if exists, ok := columnOnUpdateMap[config.column]; !ok || exists.parent.isDefault() || !config.isDefault() {
+				columnOnUpdateMap[config.column] = config.onUpdate
+			}
+		}
+		if config.onDeleteSoftly != nil {
+			if finalDeleteSoftlyPolicyConfig == nil || finalDeleteSoftlyPolicyConfig.parent.isDefault() || !config.isDefault() {
+				finalDeleteSoftlyPolicyConfig = config.onDeleteSoftly
+			}
+		}
+	}
+	e.insertPolicy.loadConfig(columnOnInsertMap)
+	e.updatePolicy.loadConfig(columnOnUpdateMap)
+	e.deleteSoftlyPolicy.loadConfig(finalDeleteSoftlyPolicyConfig, e.pkColumns)
+}
+
+type assignedPolicy struct {
+	ignoredColumnSet set[string]
+	reusedColumnSet  set[string]
+	forceColumnSet   set[string]
+	defaultColumnSet set[string]
+	assignedValueMap map[string]assignedValuePolicy
+}
+
+func (p *assignedPolicy) loadConfig(columnOnInsertMap map[string]*assignedPolicyConfig) {
+	if len(columnOnInsertMap) == 0 {
+		return
+	}
+	ignoredColumnSet := newSetWithCap[string](len(columnOnInsertMap))
+	reusedColumnSet := newSetWithCap[string](len(columnOnInsertMap))
+	forceColumnSet := newSetWithCap[string](len(columnOnInsertMap))
+	defaultColumnSet := newSetWithCap[string](len(columnOnInsertMap))
+	assignedValueMap := make(map[string]assignedValuePolicy, len(columnOnInsertMap))
+	for column, config := range columnOnInsertMap {
+		if config.never {
+			ignoredColumnSet.add(column)
+			continue
+		}
+		if config.batchReuse {
+			reusedColumnSet.add(column)
+		}
+		if config.force {
+			forceColumnSet.add(column)
+		} else {
+			defaultColumnSet.add(column)
+		}
+		assignedValueMap[column] = assignedValuePolicy{
+			trueExprFalseValue: config.trueExprFalseValue,
+			value:              config.value,
+			expr:               config.expr,
+		}
+	}
+	if len(ignoredColumnSet) > 0 {
+		p.ignoredColumnSet = newSetWithCap[string](len(ignoredColumnSet))
+		maps.Copy(p.ignoredColumnSet, ignoredColumnSet)
+	}
+	if len(reusedColumnSet) > 0 {
+		p.reusedColumnSet = newSetWithCap[string](len(reusedColumnSet))
+		maps.Copy(p.reusedColumnSet, reusedColumnSet)
+	}
+	if len(forceColumnSet) > 0 {
+		p.forceColumnSet = newSetWithCap[string](len(forceColumnSet))
+		maps.Copy(p.forceColumnSet, forceColumnSet)
+	}
+	if len(defaultColumnSet) > 0 {
+		p.defaultColumnSet = newSetWithCap[string](len(defaultColumnSet))
+		maps.Copy(p.defaultColumnSet, defaultColumnSet)
+	}
+	if len(assignedValueMap) > 0 {
+		p.assignedValueMap = make(map[string]assignedValuePolicy, len(assignedValueMap))
+		maps.Copy(p.assignedValueMap, assignedValueMap)
+	}
+}
+
+type assignedValuePolicy struct {
+	trueExprFalseValue bool
+	value              func(ctx context.Context) any
+	expr               func(ctx context.Context) string
+}
+
+type deleteSoftlyPolicy struct {
+	mode          deleteSoftlyMode
+	deletedColumn string
+	pkColumn      string
+	normalValue   any
+}
+
+func (p *deleteSoftlyPolicy) loadConfig(config *deleteSoftlyPolicyConfig, pkColumns []string) {
+	if config == nil || config.mode.IsUndefined() || config.normalValue == nil || config.mode.Is(deleteSoftlyMode_.assignedPk) && len(pkColumns) != 1 {
+		return
+	}
+	p.mode = config.mode
+	p.deletedColumn = config.parent.column
+	p.pkColumn = pkColumns[0]
+	p.normalValue = config.normalValue
+}
+
+var (
+	identityConverterMap = map[reflect.Type]func(id int64) reflect.Value{
+		reflect.TypeFor[*int]():     func(id int64) reflect.Value { return reflect.ValueOf(new(int(id))) },
+		reflect.TypeFor[*int8]():    func(id int64) reflect.Value { return reflect.ValueOf(new(int8(id))) },
+		reflect.TypeFor[*int16]():   func(id int64) reflect.Value { return reflect.ValueOf(new(int16(id))) },
+		reflect.TypeFor[*int32]():   func(id int64) reflect.Value { return reflect.ValueOf(new(int32(id))) },
+		reflect.TypeFor[*int64]():   func(id int64) reflect.Value { return reflect.ValueOf(new(id)) },
+		reflect.TypeFor[*uint]():    func(id int64) reflect.Value { return reflect.ValueOf(new(uint(id))) },
+		reflect.TypeFor[*uint8]():   func(id int64) reflect.Value { return reflect.ValueOf(new(uint8(id))) },
+		reflect.TypeFor[*uint16]():  func(id int64) reflect.Value { return reflect.ValueOf(new(uint16(id))) },
+		reflect.TypeFor[*uint32]():  func(id int64) reflect.Value { return reflect.ValueOf(new(uint32(id))) },
+		reflect.TypeFor[*uint64]():  func(id int64) reflect.Value { return reflect.ValueOf(new(uint64(id))) },
+		reflect.TypeFor[*float32](): func(id int64) reflect.Value { return reflect.ValueOf(new(float32(id))) },
+		reflect.TypeFor[*float64](): func(id int64) reflect.Value { return reflect.ValueOf(new(float64(id))) },
+		reflect.TypeFor[*string]():  func(id int64) reflect.Value { return reflect.ValueOf(new(strconv.FormatInt(id, 10))) },
+	}
+)

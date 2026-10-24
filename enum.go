@@ -1,27 +1,39 @@
-/*
- * Copyright 2024-present jishaocong0910
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2024-present jishaocong0910
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package orm
 
 import (
-	"reflect"
 	"strconv"
 
 	e "github.com/jishaocong0910/enum"
 )
+
+type DBType struct {
+	e.EnumElem
+}
+
+type _DBType struct {
+	e.Enum[DBType]
+	MySQL,
+	Oracle,
+	PostgreSQL,
+	SQLServer,
+	SQLite DBType
+}
+
+var DBType_ = e.NewEnum(_DBType{})
 
 type LogLevel struct {
 	e.EnumElem
@@ -29,63 +41,89 @@ type LogLevel struct {
 
 type _LogLevel struct {
 	e.Enum[LogLevel]
-	OFF,
-	DEBUG,
-	INFO,
-	WARN,
-	ERROR LogLevel
+	Off,
+	Debug,
+	Info,
+	Warn,
+	Error LogLevel
 }
 
 var LogLevel_ = e.NewEnum(_LogLevel{})
 
-type LastInsertIdAs struct {
+type IdentifierDelimiter struct {
 	e.EnumElem
+	quoted func(string) string
 }
 
-type _LastInsertIdAs struct {
-	e.Enum[LastInsertIdAs]
-	FIRST_ID,
-	LAST_ID LastInsertIdAs
+type _IdentifierDelimiter struct {
+	e.Enum[IdentifierDelimiter]
+	Backtick,
+	DoubleQuote,
+	Bracket IdentifierDelimiter
 }
 
-var LastInsertIdAs_ = e.NewEnum(_LastInsertIdAs{})
-
-type RowAs struct {
-	e.EnumElem
-}
-
-type _RowAs struct {
-	e.Enum[RowAs]
-	RETURNING,
-	LAST_ID RowAs
-}
-
-var RowAs_ = e.NewEnum(_RowAs{})
-
-type lastInsertIdConvertor struct {
-	e.EnumElem
-	convert func(id int64) reflect.Value
-}
-
-type _lastInsertIdConvertor struct {
-	e.Enum[lastInsertIdConvertor]
-	int, int8, int16, int32, int64,
-	uint, uint8, uint16, uint32, uint64,
-	float32, float64, string lastInsertIdConvertor
-}
-
-var lastInsertIdConvertor_ = e.NewEnum(_lastInsertIdConvertor{
-	int:     lastInsertIdConvertor{convert: func(id int64) reflect.Value { i := int(id); return reflect.ValueOf(&i) }},
-	int8:    lastInsertIdConvertor{convert: func(id int64) reflect.Value { i := int8(id); return reflect.ValueOf(&i) }},
-	int16:   lastInsertIdConvertor{convert: func(id int64) reflect.Value { i := int16(id); return reflect.ValueOf(&i) }},
-	int32:   lastInsertIdConvertor{convert: func(id int64) reflect.Value { i := int32(id); return reflect.ValueOf(&i) }},
-	int64:   lastInsertIdConvertor{convert: func(id int64) reflect.Value { return reflect.ValueOf(&id) }},
-	uint:    lastInsertIdConvertor{convert: func(id int64) reflect.Value { u := uint(id); return reflect.ValueOf(&u) }},
-	uint8:   lastInsertIdConvertor{convert: func(id int64) reflect.Value { u := uint8(id); return reflect.ValueOf(&u) }},
-	uint16:  lastInsertIdConvertor{convert: func(id int64) reflect.Value { u := uint16(id); return reflect.ValueOf(&u) }},
-	uint32:  lastInsertIdConvertor{convert: func(id int64) reflect.Value { u := uint32(id); return reflect.ValueOf(&u) }},
-	uint64:  lastInsertIdConvertor{convert: func(id int64) reflect.Value { u := uint64(id); return reflect.ValueOf(&u) }},
-	float32: lastInsertIdConvertor{convert: func(id int64) reflect.Value { f := float32(id); return reflect.ValueOf(&f) }},
-	float64: lastInsertIdConvertor{convert: func(id int64) reflect.Value { f := float64(id); return reflect.ValueOf(&f) }},
-	string:  lastInsertIdConvertor{convert: func(id int64) reflect.Value { s := strconv.FormatInt(id, 10); return reflect.ValueOf(&s) }},
+var IdentifierDelimiter_ = e.NewEnum(_IdentifierDelimiter{
+	Backtick: IdentifierDelimiter{quoted: func(s string) string {
+		return "`" + s + "`"
+	}},
+	DoubleQuote: IdentifierDelimiter{quoted: func(s string) string {
+		return "\"" + s + "\""
+	}},
+	Bracket: IdentifierDelimiter{quoted: func(s string) string {
+		return "[" + s + "]"
+	}},
 })
+
+type GetGeneratedKeyMode struct {
+	e.EnumElem
+}
+
+type _GetGeneratedKeyMode struct {
+	e.Enum[GetGeneratedKeyMode]
+	FirstInsertId,
+	LastInsertId,
+	InsertReturning,
+	SQLServer,
+	Oracle GetGeneratedKeyMode
+}
+
+var GetGeneratedKeyMode_ = e.NewEnum(_GetGeneratedKeyMode{})
+
+type PageMode struct {
+	e.EnumElem
+	writeSQL func(b *SQLBuilder, offset, count int)
+}
+
+type _PageMode struct {
+	e.Enum[PageMode]
+	LimitOffset,
+	OffsetFetch PageMode
+}
+
+var PageMode_ = e.NewEnum(_PageMode{
+	LimitOffset: PageMode{
+		writeSQL: func(b *SQLBuilder, offset, count int) {
+			b.Text(" LIMIT ").Text(strconv.FormatInt(int64(count), 10))
+			if offset > 0 {
+				b.Text(" OFFSET ").Text(strconv.FormatInt(int64(offset), 10))
+			}
+		},
+	},
+	OffsetFetch: PageMode{
+		writeSQL: func(b *SQLBuilder, offset, count int) {
+			b.Text(" OFFSET ").Text(strconv.FormatInt(int64(offset), 10)).Text(" ROWS")
+			b.Text(" FETCH NEXT ").Text(strconv.FormatInt(int64(count), 10)).Text(" ROWS ONLY")
+		},
+	},
+})
+
+type deleteSoftlyMode struct {
+	e.EnumElem
+}
+
+type _deleteSoftlyMode struct {
+	e.Enum[deleteSoftlyMode]
+	assignedPk, assignedNull deleteSoftlyMode
+}
+
+var deleteSoftlyMode_ = e.NewEnum(_deleteSoftlyMode{})
