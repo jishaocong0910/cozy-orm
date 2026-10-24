@@ -1,18 +1,16 @@
-/*
- * Copyright 2024-present jishaocong0910
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2024-present jishaocong0910
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package orm
 
@@ -20,134 +18,108 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 )
 
 type Logger interface {
-	Debugf(ctx context.Context, msg string, args ...any)
-	Infof(ctx context.Context, msg string, args ...any)
-	Warnf(ctx context.Context, msg string, args ...any)
-	Errorf(ctx context.Context, msg string, args ...any)
+	Debug(ctx context.Context, msg string)
+	Info(ctx context.Context, msg string)
+	Warn(ctx context.Context, msg string)
+	Error(ctx context.Context, msg string)
 }
 
-func printWarn(ctx context.Context, err error) {
-	if err == nil { // coverage-ignore
+func printWarn(ctx context.Context, logger Logger, err error) {
+	if err != nil {
+		printLog(ctx, logger, LogLevel_.Warn, fmt.Sprintf("%v", err))
+	}
+}
+
+func printSql(ctx context.Context, logger Logger, level LogLevel, desc string, sql string, args []any,
+	rowCount int64, affected int64, cost time.Duration, err error) {
+	if err != nil {
+		level = LogLevel_.Error
+	} else if level.IsUndefined() {
 		return
 	}
-	printLog(ctx, LogLevel_.WARN, fmt.Sprintf("%v", err))
-}
 
-func printSql(ctx context.Context, logLevel LogLevel, desc string, sql string, args []any, affected, rowCount int64, count int64, err error) {
-	if err != nil {
-		logLevel = LogLevel_.ERROR
-	} else if logLevel.IsUndefined() {
-		if cfg.SqlLogLevel.IsUndefined() { // coverage-ignore
-			return
-		}
-		logLevel = cfg.SqlLogLevel
-	}
-
-	var msg strings.Builder
-	msgArgs := make([]any, 0, 5+len(args))
+	var builder strings.Builder
 	if desc != "" {
-		msg.WriteString("desc: %s, ")
-		msgArgs = append(msgArgs, desc)
+		builder.WriteString("desc: ")
+		builder.WriteString(desc)
+		builder.WriteString(", ")
 	}
-	msg.WriteString("SQL: %s;")
-	msgArgs = append(msgArgs, formatSql(sql))
-
-	sep := " "
-	if len(args) > 0 {
-		sep = ", "
-		msg.WriteString(" args: %v")
-		var values = make([]any, 0, len(args))
-		for _, a := range args {
-			if a == nil {
-				values = append(values, nil)
-			} else {
-				v := reflect.ValueOf(a)
-				if v.Kind() == reflect.Pointer {
-					if v.IsNil() {
-						a = nil
-					} else {
-						a = v.Elem().Interface()
-					}
-				}
-				if a != nil {
-					if s, ok := a.(string); ok {
-						a = "\"" + s + "\""
-					} else if t, ok := a.(time.Time); ok {
-						a = "time.Time(" + t.String() + ")"
-					}
-				}
-				values = append(values, a)
-			}
-		}
-		msgArgs = append(msgArgs, values)
+	builder.WriteString("SQL: ")
+	builder.WriteString(sql)
+	builder.WriteString("; args:")
+	builder.WriteString(formatArg(args))
+	if rowCount >= 0 {
+		builder.WriteString(", rows: ")
+		builder.WriteString(strconv.FormatInt(rowCount, 10))
 	}
-
-	if affected != -1 {
-		msg.WriteString(sep)
-		sep = ", "
-		msg.WriteString("affected: %d")
-		msgArgs = append(msgArgs, affected)
+	if affected >= 0 {
+		builder.WriteString(", affected: ")
+		builder.WriteString(strconv.FormatInt(affected, 10))
 	}
-
-	if count != -1 {
-		msg.WriteString(sep)
-		sep = ", "
-		msg.WriteString("count: %d")
-		msgArgs = append(msgArgs, count)
-	} else if rowCount != -1 {
-		msg.WriteString(sep)
-		sep = ", "
-		msg.WriteString("rowcount: %d")
-		msgArgs = append(msgArgs, rowCount)
+	if cost >= 0 {
+		builder.WriteString(", cost: ")
+		builder.WriteString(strconv.FormatInt(int64(cost/time.Millisecond), 10))
+		builder.WriteString("ms")
 	}
-
 	if err != nil {
-		msg.WriteString(sep)
-		msg.WriteString("error: %+v")
-		msgArgs = append(msgArgs, err)
+		builder.WriteString(", error: ")
+		builder.WriteString(err.Error())
 	}
-
-	printLog(ctx, logLevel, msg.String(), msgArgs...)
+	printLog(ctx, logger, level, builder.String())
 }
 
-func printLog(ctx context.Context, logLevel LogLevel, msg string, args ...any) {
-	if cfg.Logger == nil { // coverage-ignore
-		return
-	}
-	switch logLevel.String() {
-	case LogLevel_.DEBUG.String():
-		cfg.Logger.Debugf(ctx, msg, args...)
-	case LogLevel_.INFO.String():
-		cfg.Logger.Infof(ctx, msg, args...)
-	case LogLevel_.WARN.String():
-		cfg.Logger.Warnf(ctx, msg, args...)
-	case LogLevel_.ERROR.String():
-		cfg.Logger.Errorf(ctx, msg, args...)
+func printLog(ctx context.Context, logger Logger, level LogLevel, msg string, args ...any) {
+	if logger != nil {
+		if len(args) > 0 {
+			msg = fmt.Sprintf(msg, args...)
+		}
+		switch level.ID {
+		case LogLevel_.Debug.ID:
+			logger.Debug(ctx, msg)
+		case LogLevel_.Info.ID:
+			logger.Info(ctx, msg)
+		case LogLevel_.Warn.ID:
+			logger.Warn(ctx, msg)
+		case LogLevel_.Error.ID:
+			logger.Error(ctx, msg)
+		}
 	}
 }
 
-func formatSql(sql string) string {
-	if cfg.CompressSqlLog {
-		sql = strings.TrimSpace(sql)
-		var line strings.Builder
-		chars := []rune(sql)
-		var prevC rune
-		for i, c := range chars {
-			if c == '\n' {
-				if prevC != ' ' && i != len(chars)-1 && chars[i+1] != ' ' {
-					line.WriteRune(' ')
-				}
+func formatArg(args []any) string {
+	var builder strings.Builder
+	sep := " "
+	for _, a := range args {
+		builder.WriteString(sep)
+
+		if a == nil {
+			builder.WriteString("<nil>")
+			continue
+		}
+
+		v := reflect.ValueOf(a)
+		if v.Kind() == reflect.Pointer {
+			if v.IsNil() {
+				builder.WriteString("<nil>")
 				continue
 			}
-			line.WriteRune(c)
-			prevC = c
+			v = v.Elem()
 		}
-		sql = line.String()
+
+		builder.WriteString(fmt.Sprintf("%v", v.Interface()))
+		builder.WriteString("(")
+		builder.WriteString(v.Type().String())
+		builder.WriteString(")")
 	}
-	return sql
+	str := builder.String()
+	if str == "" {
+		str = " "
+	}
+	return str
 }

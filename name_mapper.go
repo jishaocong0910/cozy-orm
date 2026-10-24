@@ -1,18 +1,16 @@
-/*
- * Copyright 2024-present jishaocong0910
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2024-present jishaocong0910
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package orm
 
@@ -22,12 +20,12 @@ import (
 )
 
 type NameMapper struct {
-	mapping      []nameMapping
+	mappings     []nameMapping
 	hasCamelCase bool
 }
 
 func (n *NameMapper) Convert(str string) string {
-	for _, m := range n.mapping {
+	for _, m := range n.mappings {
 		str = m(str)
 	}
 	return str
@@ -38,98 +36,62 @@ func NewNameMapper() *NameMapper {
 
 type nameMapping func(str string) string
 
-func (n *NameMapper) SubPrefix(prefix string) *NameMapper {
-	n.mapping = append(n.mapping, subPrefix(prefix))
-	return n
-}
-
-func (n *NameMapper) SubSuffix(suffix string) *NameMapper {
-	n.mapping = append(n.mapping, subSuffix(suffix))
-	return n
-}
-
-func (n *NameMapper) AddPrefix(prefix string) *NameMapper {
-	n.mapping = append(n.mapping, addPrefix(prefix))
-	return n
-}
-
-func (n *NameMapper) AddSuffix(suffix string) *NameMapper {
-	n.mapping = append(n.mapping, addSuffix(suffix))
-	return n
-}
-
 func (n *NameMapper) LowerCamelCase() *NameMapper {
 	n.hasCamelCase = true
-	n.mapping = append(n.mapping, lowerCamelCase)
+	n.mappings = append(n.mappings, lowerCamelCase)
 	return n
 }
 
 func (n *NameMapper) LowerSnakeCase() *NameMapper {
 	if !n.hasCamelCase {
-		n.mapping = append(n.mapping, lowerCamelCase)
+		n.mappings = append(n.mappings, lowerCamelCase)
 	}
-	n.mapping = append(n.mapping, lowerSnakeCase)
+	n.mappings = append(n.mappings, lowerSnakeCase)
 	return n
 }
 
 func (n *NameMapper) LowerFirstLiteral() *NameMapper {
-	n.mapping = append(n.mapping, lowerFirstLiteral)
+	n.mappings = append(n.mappings, lowerFirstLiteral)
 	return n
 }
 
 func (n *NameMapper) UpperCamelCase() *NameMapper {
 	n.hasCamelCase = true
-	n.mapping = append(n.mapping, upperCamelCase)
+	n.mappings = append(n.mappings, upperCamelCase)
 	return n
 }
 
 func (n *NameMapper) UpperSnakeCase() *NameMapper {
 	if !n.hasCamelCase {
-		n.mapping = append(n.mapping, upperCamelCase)
+		n.mappings = append(n.mappings, upperCamelCase)
 	}
-	n.mapping = append(n.mapping, upperSnakeCase)
+	n.mappings = append(n.mappings, upperSnakeCase)
 	return n
 }
 
 func (n *NameMapper) UpperFirstLiteral() *NameMapper {
-	n.mapping = append(n.mapping, upperFirstLiteral)
+	n.mappings = append(n.mappings, upperFirstLiteral)
 	return n
 }
 
-var subPrefix = func(prefix string) nameMapping {
-	return func(str string) string {
-		if str == "" {
-			return str
-		}
-		return strings.TrimPrefix(str, prefix)
-	}
+func (n *NameMapper) AddPrefix(prefix string) *NameMapper {
+	n.mappings = append(n.mappings, addPrefix(prefix))
+	return n
 }
 
-var subSuffix = func(suffix string) nameMapping {
-	return func(str string) string {
-		if str == "" {
-			return str
-		}
-		return strings.TrimRight(str, suffix)
-	}
+func (n *NameMapper) AddSuffix(suffix string) *NameMapper {
+	n.mappings = append(n.mappings, addSuffix(suffix))
+	return n
 }
 
-var addPrefix = func(prefix string) nameMapping {
-	return func(str string) string {
-		if str == "" {
-			return str
-		}
-		return prefix + str
-	}
+func (n *NameMapper) SubPrefix(prefix string) *NameMapper {
+	n.mappings = append(n.mappings, subPrefix(prefix))
+	return n
 }
 
-var addSuffix = func(suffix string) nameMapping {
-	return func(str string) string {
-		if str == "" {
-			return str
-		}
-		return str + suffix
-	}
+func (n *NameMapper) SubSuffix(suffix string) *NameMapper {
+	n.mappings = append(n.mappings, subSuffix(suffix))
+	return n
 }
 
 var lowerCamelCase = func(str string) string {
@@ -183,7 +145,8 @@ var lowerFirstLiteral = func(str string) string {
 	if str == "" {
 		return str
 	}
-	return strings.ToLower(str[:1]) + str[1:]
+	runes := []rune(str)
+	return strings.ToLower(string(runes[:1])) + string(runes[1:])
 }
 
 var upperCamelCase = func(str string) string {
@@ -237,5 +200,42 @@ var upperFirstLiteral = func(str string) string {
 	if str == "" {
 		return str
 	}
-	return strings.ToUpper(str[:1]) + str[1:]
+	runes := []rune(str)
+	return strings.ToUpper(string(runes[:1])) + string(runes[1:])
+}
+
+var addPrefix = func(prefix string) nameMapping {
+	return func(str string) string {
+		if str == "" {
+			return str
+		}
+		return prefix + str
+	}
+}
+
+var addSuffix = func(suffix string) nameMapping {
+	return func(str string) string {
+		if str == "" {
+			return str
+		}
+		return str + suffix
+	}
+}
+
+var subPrefix = func(prefix string) nameMapping {
+	return func(str string) string {
+		if str == "" {
+			return str
+		}
+		return strings.TrimPrefix(str, prefix)
+	}
+}
+
+var subSuffix = func(suffix string) nameMapping {
+	return func(str string) string {
+		if str == "" {
+			return str
+		}
+		return strings.TrimSuffix(str, suffix)
+	}
 }

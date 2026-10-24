@@ -1,0 +1,697 @@
+// Copyright 2024-present jishaocong0910
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package orm_test
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/DATA-DOG/go-sqlmock"
+	orm "github.com/jishaocong0910/cozy-orm"
+	"github.com/stretchr/testify/require"
+)
+
+func TestFind(t *testing.T) {
+	r := require.New(t)
+	{
+		db, _ := orm.MockDB(r, nil)
+		r.PanicsWithError("not a valid entity type", func() {
+			db.Find[int](nil).Must().Do()
+		})
+	}
+	{
+		ctx := context.WithValue(context.Background(), "test", "test")
+		db, logger, mock := orm.MockDBAndLogger(r, &orm.Config{IdentifierDelimiter: orm.IdentifierDelimiter_.Backtick, PageMode: orm.PageMode_.LimitOffset})
+		mock.ExpectPrepare("SELECT `id`, `name`, `phone`, `email`, `level`, `version` FROM `user` WHERE `level` = ? ORDER BY `id` DESC, `name` ASC LIMIT 1 OFFSET 10 FOR UPDATE").ExpectQuery().WithArgs(1).
+			WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(9, "abc").AddRow(10, "efg"))
+		users, err := db.Find[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").Select("id", "version").OnDemand(orm.DemandFor[orm.UserSimple]()).
+			Cond(func(c *orm.Cond) {
+				c.Eq("level", 1)
+			}).
+			OrderBy(func(o *orm.OrderBy) {
+				o.Desc("id").Asc("name")
+			}).Page(10, 1).LastClause("FOR UPDATE").Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+		r.Equal(int64(9), *users[0].Id)
+		r.Equal("abc", *users[0].Name)
+		r.Equal(int64(10), *users[1].Id)
+		r.Equal("efg", *users[1].Name)
+		lm := logger.Messages[0]
+		r.Equal(ctx, lm.Ctx)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
+		r.Contains(lm.Msg, "desc: test desc")
+	}
+	{
+		db, mock := orm.MockDB(r, &orm.Config{
+			IdentifierDelimiter: orm.IdentifierDelimiter_.Backtick,
+			PageMode:            orm.PageMode_.OffsetFetch,
+		})
+		mock.ExpectPrepare("SELECT `id`, `name` FROM `user` OFFSET 10 ROWS FETCH NEXT 1 ROWS ONLY").
+			ExpectQuery().WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(9, "abc"))
+		_, err := db.Find[orm.User](nil).Select("id", "name").Page(10, 1).Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+	}
+	{
+		db, mock := orm.MockDB(r, &orm.Config{
+			IdentifierDelimiter: orm.IdentifierDelimiter_.Backtick,
+			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
+			},
+		})
+		mock.ExpectPrepare("SELECT `id`, `name` FROM `user` WHERE `level` = ? AND `deleted` = ?").ExpectQuery().WithArgs(1, 0).
+			WillReturnRows(mock.NewRows([]string{}))
+		_, err := db.Find[orm.User](nil).Select("id", "name").Cond(func(c *orm.Cond) {
+			c.Eq("level", 1)
+		}).Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+
+		mock.ExpectPrepare("SELECT `id`, `name` FROM `user` WHERE `level` = ?").ExpectQuery().WithArgs(1).
+			WillReturnRows(mock.NewRows([]string{}))
+		_, err = db.Find[orm.User](nil).Select("id", "name").Cond(func(c *orm.Cond) {
+			c.Eq("level", 1)
+		}).IncludeDeleted().Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+	}
+}
+
+func TestFindOne(t *testing.T) {
+	r := require.New(t)
+	{
+		db, _ := orm.MockDB(r, nil)
+		r.PanicsWithError("not a valid entity type", func() {
+			db.FindOne[int](nil).Must().Do()
+		})
+	}
+	{
+		db, mock := orm.MockDB(r, nil)
+		mock.ExpectPrepare("SELECT `id`, `name`, `phone`, `email`, `avatar_url`, `status`, `level`, `properties`, `category`, " +
+			"`tags`, `attributes`, `uuid`, `create_at`, `update_at`, `version`, `deleted` FROM `user`").ExpectQuery().
+			WillReturnRows(mock.NewRows([]string{}).AddRow().AddRow())
+		_, err := db.FindOne[orm.User](nil).Do()
+		r.Error(err, "return more than one row")
+		r.NoError(mock.ExpectationsWereMet())
+	}
+	{
+		ctx := context.WithValue(context.Background(), "test", "test")
+		db, logger, mock := orm.MockDBAndLogger(r, &orm.Config{PageMode: orm.PageMode_.LimitOffset})
+		mock.ExpectPrepare("SELECT `id`, `name`, `phone`, `email`, `level`, `version` FROM `user` " +
+			"WHERE `level` = ? ORDER BY `id` DESC, `name` ASC  LIMIT 1 OFFSET 10 FOR UPDATE").ExpectQuery().WithArgs(1).
+			WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(9, "abc").AddRow(10, "efg"))
+		user, err := db.FindOne[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").Lenient().Select("id", "version").
+			OnDemand(orm.DemandFor[orm.UserSimple]()).Cond(func(c *orm.Cond) {
+			c.Eq("level", 1)
+		}).OrderBy(func(o *orm.OrderBy) {
+			o.Desc("id").Asc("name")
+		}).Page(10, 1).LastClause("FOR UPDATE").Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+		r.Equal(int64(9), *user.Id)
+		r.Equal("abc", *user.Name)
+		lm := logger.Messages[0]
+		r.Equal(ctx, lm.Ctx)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
+		r.Contains(lm.Msg, "desc: test desc")
+	}
+	{
+		db, mock := orm.MockDB(r, &orm.Config{
+			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
+			},
+		})
+
+		mock.ExpectPrepare("SELECT `id`, `name` FROM `user` WHERE `level` = ? AND `deleted` = ?").ExpectQuery().WithArgs(1, 0).
+			WillReturnRows(mock.NewRows([]string{}))
+		_, err := db.FindOne[orm.User](nil).Select("id", "name").Cond(func(c *orm.Cond) {
+			c.Eq("level", 1)
+		}).Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+
+		mock.ExpectPrepare("SELECT `id`, `name` FROM `user` WHERE `deleted` = ?").ExpectQuery().
+			WillReturnRows(mock.NewRows([]string{}))
+		_, err = db.FindOne[orm.User](nil).Select("id", "name").Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+
+		mock.ExpectPrepare("SELECT `id`, `name` FROM `user` WHERE `level` = ?").ExpectQuery().WithArgs(1).
+			WillReturnRows(mock.NewRows([]string{}))
+		_, err = db.FindOne[orm.User](nil).Select("id", "name").Cond(func(c *orm.Cond) {
+			c.Eq("level", 1)
+		}).IncludeDeleted().Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+	}
+}
+
+func TestInsert_doDefault(t *testing.T) {
+	r := require.New(t)
+	{
+		db, _ := orm.MockDB(r, nil)
+		r.PanicsWithError("not a valid entity type", func() {
+			db.Insert[int](nil).Must().Entities(new(1)).Do()
+		})
+	}
+	{
+		db, _ := orm.MockDB(r, nil)
+		affected, err := db.Insert[orm.User](nil).Do()
+		r.Equal(int64(0), affected)
+		r.NoError(err)
+	}
+	{
+		ctx := context.WithValue(context.Background(), "test", "test")
+		db, logger, mock := orm.MockDBAndLogger(r, nil)
+		mock.ExpectPrepare("INSERT INTO `user`(`name`, `status`) VALUES(?, NULL)").ExpectExec().WithArgs("abc").WillReturnResult(sqlmock.NewResult(1, 1))
+		affected, err := db.Insert[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").Entities(&orm.User{Name: new("abc")}).Required("status").Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+		r.Equal(int64(1), affected)
+		lm := logger.Messages[0]
+		r.Equal(ctx, lm.Ctx)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
+		r.Contains(lm.Msg, "desc: test desc")
+	}
+	{
+		ctx := context.WithValue(context.Background(), "status", 4)
+		db, logger, mock := orm.MockDBAndLogger(r, &orm.Config{
+			GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId,
+			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
+				orm.NewColumnPolicyConfig("create_at").UseCreateTime(),
+				orm.NewColumnPolicyConfig("update_at").UseUpdateTime(),
+				orm.NewColumnPolicyConfig("version").UseRowVersion(),
+				orm.NewColumnPolicyConfig("status").OnInsert().Value(false, true, func(ctx context.Context) any {
+					if s, ok := ctx.Value("status").(int); ok {
+						return s
+					}
+					return 1
+				}),
+			},
+		})
+		mock.ExpectPrepare("INSERT INTO `user`(`name`, `status`, `create_at`, `update_at`, `version`) VALUES(?, ?, ?, ?, ?), (?, ?, ?, ?, ?)").ExpectExec().
+			WillReturnResult(sqlmock.NewResult(1, 2)).
+			WithArgs("name1", 2, orm.AnyTime{}, orm.AnyTime{}, 1, "name2", 4, orm.AnyTime{}, orm.AnyTime{}, 1)
+
+		_, err := db.Insert[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").
+			Entities(&orm.User{Name: new("name1"), Status: new(orm.UserStatus(2))}, &orm.User{Name: new("name2")}).Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+		lm := logger.Messages[0]
+		r.Equal(ctx, lm.Ctx)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
+		r.Contains(lm.Msg, "desc: test desc")
+	}
+}
+
+func TestInsert_doGetIdentity(t *testing.T) {
+	r := require.New(t)
+	{
+		u1 := &orm.User{Name: new("name1")}
+		u2 := &orm.User{Name: new("name2")}
+		db, mock := orm.MockDB(r, &orm.Config{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.FirstInsertId})
+		mock.ExpectPrepare("INSERT INTO `user`(`name`) VALUES(?), (?)").ExpectExec().WillReturnResult(sqlmock.NewResult(3, 2)).
+			WithArgs("name1", "name2")
+		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+		r.Equal(int64(3), *u1.Id)
+		r.Equal(int64(4), *u2.Id)
+	}
+	{
+		u1 := &orm.User{Name: new("name1")}
+		u2 := &orm.User{Name: new("name2")}
+		db, mock := orm.MockDB(r, &orm.Config{GetGeneratedKeyMode: orm.GetGeneratedKeyMode_.LastInsertId})
+		mock.ExpectPrepare("INSERT INTO `user`(`name`) VALUES(?), (?)").ExpectExec().WillReturnResult(sqlmock.NewResult(3, 2)).
+			WithArgs("name1", "name2")
+		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+		r.Equal(int64(2), *u1.Id)
+		r.Equal(int64(3), *u2.Id)
+	}
+}
+
+func TestInsert_doInsertReturning(t *testing.T) {
+	r := require.New(t)
+	{
+		u1 := &orm.User{Name: new("name1")}
+		u2 := &orm.User{Name: new("name2")}
+		db, mock := orm.MockDB(r, &orm.Config{DBType: orm.DBType_.PostgreSQL})
+		mock.ExpectPrepare("INSERT INTO \"user\"(\"name\") VALUES($1), ($2) RETURNING \"id\"").ExpectQuery().
+			WithArgs("name1", "name2").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
+		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+		r.Equal(int64(1), *u1.Id)
+		r.Equal(int64(2), *u2.Id)
+	}
+}
+
+func TestInsert_doSQLServer(t *testing.T) {
+	r := require.New(t)
+	{
+		u1 := &orm.User{Name: new("name1")}
+		u2 := &orm.User{Name: new("name2")}
+		db, mock := orm.MockDB(r, &orm.Config{DBType: orm.DBType_.SQLServer})
+		mock.ExpectPrepare("INSERT INTO [user]([name]) OUTPUT INSERTED.[id] VALUES(:1), (:2)").ExpectQuery().
+			WithArgs("name1", "name2").WillReturnRows(mock.NewRows([]string{"id"}).AddRow(1).AddRow(2))
+		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+		r.Equal(int64(1), *u1.Id)
+		r.Equal(int64(2), *u2.Id)
+	}
+}
+
+func TestInsert_doOracle(t *testing.T) {
+	r := require.New(t)
+	{
+		db := orm.Config{
+			DBType: orm.DBType_.Oracle,
+		}.Build()
+		users := make([]*orm.User, 0, 1001)
+		for range 1001 {
+			users = append(users, &orm.User{})
+		}
+		_, err := db.Insert[orm.User](nil).Entities(users...).Do()
+		r.EqualError(err, "entity count cannot exceed 1000 in Oracle")
+	}
+	{
+		db := orm.Config{
+			DBType: orm.DBType_.Oracle,
+		}.Build()
+		u := &orm.DemoMulPk{Name: new("name")}
+		db, mock := orm.MockDB(r, &orm.Config{DBType: orm.DBType_.Oracle})
+		mock.ExpectPrepare("INSERT INTO \"DEMO_MUL_PK\"(\"name\") VALUES(:1)").ExpectExec().
+			WithArgs("name").WillReturnResult(sqlmock.NewResult(0, 1))
+
+		_, err := db.Insert[orm.DemoMulPk](nil).Entities(u).Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+	}
+	{
+		db := orm.Config{
+			DBType: orm.DBType_.Oracle,
+		}.Build()
+		u := &orm.User{Name: new("name")}
+		outArg := orm.OutArg{MockValue: int64(20)}
+		db, mock := orm.MockDB(r, &orm.Config{DBType: orm.DBType_.Oracle})
+		mock.ExpectPrepare("INSERT INTO \"USER\"(\"name\") VALUES(:1) RETURNING \"id\" INTO :out_id").ExpectExec().
+			WithArgs("name", outArg).WillReturnResult(sqlmock.NewResult(0, 1))
+
+		_, err := db.Insert[orm.User](nil).Entities(u).Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+		r.Equal(int64(20), *u.Id)
+	}
+	{
+		db := orm.Config{
+			DBType: orm.DBType_.Oracle,
+		}.Build()
+		u1 := &orm.User{Name: new("name1")}
+		u2 := &orm.User{Name: new("name2")}
+		outArg := orm.OutArg{MockValue: ",1,2"}
+		db, mock := orm.MockDB(r, &orm.Config{DBType: orm.DBType_.Oracle})
+		mock.ExpectPrepare("DECLARE l_id NUMBER; l_results VARCHAR2(32767) := '';"+
+			" BEGIN"+
+			" INSERT INTO \"USER\"(\"name\") VALUES(:1) RETURNING \"id\" INTO l_id; l_results := l_results || ',' || TO_CHAR(l_id);"+
+			" INSERT INTO \"USER\"(\"name\") VALUES(:2) RETURNING \"id\" INTO l_id; l_results := l_results || ',' || TO_CHAR(l_id);"+
+			" :out_results := l_results; EXCEPTION WHEN OTHERS THEN ROLLBACK; RAISE; END;").ExpectExec().
+			WithArgs("name1", "name2", outArg).WillReturnResult(sqlmock.NewResult(0, 1))
+
+		_, err := db.Insert[orm.User](nil).Entities(u1, u2).Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+		r.Equal(int64(1), *u1.Id)
+		r.Equal(int64(2), *u2.Id)
+	}
+}
+
+func TestUpdate(t *testing.T) {
+	r := require.New(t)
+	{
+		db, _ := orm.MockDB(r, nil)
+		r.PanicsWithError("not a valid entity type", func() {
+			db.Update[int](nil).Must().Entity(new(1)).Do()
+		})
+	}
+	{
+		db, mock := orm.MockDB(r, nil)
+		affected, err := db.Update[orm.User](nil).Entity(&orm.User{Phone: new("123")}).Do()
+		r.Equal(int64(0), affected)
+		r.EqualError(err, "full table modification blocked")
+
+		mock.ExpectPrepare("UPDATE `user` SET `phone` = ?").ExpectExec().WithArgs("123").
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		affected, err = db.Update[orm.User](nil).Entity(&orm.User{Phone: new("123")}).SkipSafety().Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+	}
+	{
+		db, _ := orm.MockDB(r, nil)
+		affected, err := db.Update[orm.User](nil).Do()
+		r.Equal(int64(0), affected)
+		r.NoError(err)
+	}
+	{
+		db, _ := orm.MockDB(r, nil)
+		affected, err := db.Update[orm.User](nil).Entity(&orm.User{}).Do()
+		r.Equal(int64(0), affected)
+		r.NoError(err)
+	}
+	{
+		ctx := context.WithValue(context.Background(), "test", "test")
+		db, logger, mock := orm.MockDBAndLogger(r, nil)
+		mock.ExpectPrepare("UPDATE `user` SET `name` = ? WHERE `id` = ?").
+			ExpectExec().WithArgs("abc", 1).WillReturnResult(sqlmock.NewResult(0, 1))
+		affected, err := db.Update[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").
+			Entity(&orm.User{Id: new(int64(1)), Name: new("abc")}).Do()
+		r.NoError(err)
+		r.NoError(mock.ExpectationsWereMet())
+		r.Equal(int64(1), affected)
+		lm := logger.Messages[0]
+		r.Equal(ctx, lm.Ctx)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
+		r.Contains(lm.Msg, "desc: test desc")
+	}
+	{
+		ctx := context.WithValue(context.Background(), "test", "test")
+		db, mock := orm.MockDB(r, nil)
+		mock.ExpectPrepare("UPDATE `user` SET `name` = ?, `phone` = NULL, `email` = NULL, `status` = ?, `level` = '2', `properties` = NULL, `tags` = NULL WHERE `id` = ? AND `status` = ?").
+			ExpectExec().WithArgs("abc", 2, 1, 4).WillReturnResult(sqlmock.NewResult(0, 1))
+		affected, err := db.Update[orm.User](ctx).Entity(&orm.User{Id: new(int64(1)), Name: new("abc"), Category: &orm.UserCategory{Organization: "none", Class: 1}}).
+			OnDemand(orm.DemandFor[orm.UserSimple]()).Required("properties").Set("status", orm.UserStatus(2)).Set("tags", "'t1,t2'").Set("tags", nil).
+			SetExpr("level", "'2'").
+			Cond(func(c *orm.Cond) {
+				c.Eq("status", 4)
+			}).Do()
+		r.NoError(err)
+		r.Equal(int64(1), affected)
+	}
+	{
+		db, mock := orm.MockDB(r, &orm.Config{
+			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
+				orm.NewColumnPolicyConfig("create_at").UseCreateTime(),
+				orm.NewColumnPolicyConfig("update_at").UseUpdateTime(),
+				orm.NewColumnPolicyConfig("version").UseRowVersion(),
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
+			},
+		})
+
+		mock.ExpectPrepare("UPDATE `user` SET `name` = ?, `update_at` = ?, `version` = version + 1 WHERE `id` = ? AND `deleted` = ?").ExpectExec().
+			WithArgs("abc", orm.AnyTime{}, 1, 0).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+		_, err := db.Update[orm.User](nil).Entity(&orm.User{Name: new("abc")}).Cond(func(c *orm.Cond) {
+			c.Eq("id", 1)
+		}).Do()
+		r.NoError(err)
+
+		mock.ExpectPrepare("UPDATE `user` SET `name` = ?, `update_at` = ?, `version` = version + 1 WHERE `id` = ?").ExpectExec().
+			WithArgs("abc", orm.AnyTime{}, 1).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+		_, err = db.Update[orm.User](nil).Entity(&orm.User{Id: new(int64(1)), Name: new("abc"), CreateAt: new(time.Now()), Version: new(int64(5))}).
+			Required("update_at").IncludeDeleted().Do()
+		r.NoError(err)
+	}
+}
+
+func TestUpdateRow(t *testing.T) {
+	r := require.New(t)
+	{
+		db, _ := orm.MockDB(r, nil)
+		r.PanicsWithError("not a valid entity type", func() {
+			db.UpdateRows[int](nil).Must().Entities(new(1)).Do()
+		})
+	}
+	{
+		db, _ := orm.MockDB(r, nil)
+		affected, err := db.UpdateRows[orm.DemoMulPk](nil).Entities(&orm.DemoMulPk{}, &orm.DemoMulPk{}).Do()
+		r.Equal(int64(0), affected)
+		r.EqualError(err, "orm.DemoMulPk\" must have exactly one field with the \"pk\" tag")
+	}
+	{
+		db, mock := orm.MockDB(r, nil)
+		mock.ExpectPrepare("")
+		affected, err := db.UpdateRows[orm.User](nil).Entities(&orm.User{Name: new("abc")}).Do()
+		r.Equal(int64(0), affected)
+		r.EqualError(err, "field 'Id' is nil at index 0 of entities")
+	}
+	{
+		db, _ := orm.MockDB(r, nil)
+		affected, err := db.UpdateRows[orm.User](nil).Do()
+		r.Equal(int64(0), affected)
+		r.NoError(err)
+	}
+	{
+		db, _ := orm.MockDB(r, nil)
+		affected, err := db.UpdateRows[orm.User](nil).Entities(&orm.User{Id: new(int64(1))}, &orm.User{Id: new(int64(2))}).Do()
+		r.Equal(int64(0), affected)
+		r.NoError(err)
+	}
+	{
+		ctx := context.WithValue(context.Background(), "test", "test")
+		db, logger, mock := orm.MockDBAndLogger(r, nil)
+		mock.ExpectPrepare("UPDATE `user` SET `name` = CASE `id` WHEN ? THEN ? WHEN ? THEN ? END, `phone` = NULL, "+
+			"`email` = CASE `id` WHEN ? THEN NULL WHEN ? THEN ? END, `status` = ?, `level` = '2', `properties` = NULL, `tags` = NULL "+
+			"WHERE `id` IN(?, ?) AND `level` = ?").ExpectExec().
+			WithArgs(1, "a", 2, "b", 1, 2, "email", 2, 1, 2, 5).WillReturnResult(sqlmock.NewResult(1, 1))
+		affected, err := db.UpdateRows[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
+			Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b"), Email: new("email")}).
+			Required("properties").Set("status", orm.UserStatus(2)).Set("tags", nil).SetExpr("level", "'2'").
+			Cond(func(c *orm.Cond) {
+				c.Eq("level", 5)
+			}).Do()
+		r.NoError(err)
+		r.Equal(int64(1), affected)
+		lm := logger.Messages[0]
+		r.Equal(ctx, lm.Ctx)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
+		r.Contains(lm.Msg, "desc: test desc")
+	}
+	{
+		db, mock := orm.MockDB(r, &orm.Config{
+			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
+				orm.NewColumnPolicyConfig("create_at").UseCreateTime(),
+				orm.NewColumnPolicyConfig("update_at").UseUpdateTime(),
+				orm.NewColumnPolicyConfig("version").UseRowVersion(),
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
+			},
+		})
+		mock.ExpectPrepare("UPDATE `user` SET `name` = CASE `id` WHEN ? THEN ? WHEN ? THEN ? END, `update_at` = ?, `version` = version + 1 WHERE `id` IN(?, ?) AND `level` = ? AND `deleted` = ?").ExpectExec().
+			WithArgs(1, "a", 2, "b", orm.AnyTime{}, 1, 2, 5, 0).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		affected, err := db.UpdateRows[orm.User](nil).Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b")}).
+			Cond(func(c *orm.Cond) {
+				c.Eq("level", 5)
+			}).Do()
+		r.NoError(err)
+		r.Equal(int64(1), affected)
+
+		mock.ExpectPrepare("UPDATE `user` SET `name` = CASE `id` WHEN ? THEN ? WHEN ? THEN ? END, `update_at` = ?, `version` = version + 1 WHERE `id` IN(?, ?)").ExpectExec().
+			WithArgs(1, "a", 2, "b", orm.AnyTime{}, 1, 2).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		affected, err = db.UpdateRows[orm.User](nil).Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b"), Version: new(int64(5))}).
+			Required("update_at", "version").IncludeDeleted().Do()
+		r.NoError(err)
+		r.Equal(int64(1), affected)
+	}
+	{
+		ctx := context.WithValue(context.Background(), "test", "test")
+		db, mock := orm.MockDB(r, nil)
+		mock.ExpectPrepare("UPDATE `user` SET `name` = ?, `phone` = NULL, `email` = NULL, `status` = ?, `level` = '2', `properties` = NULL, `tags` = NULL "+
+			"WHERE `id` = ? AND `level` = ?").ExpectExec().
+			WithArgs("a", 2, 1, 5).WillReturnResult(sqlmock.NewResult(1, 1))
+		affected, err := db.UpdateRows[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
+			Entities(&orm.User{Id: new(int64(1)), Name: new("a")}).Required("properties").
+			Set("status", orm.UserStatus(2)).Set("tags", nil).SetExpr("level", "'2'").
+			Cond(func(c *orm.Cond) {
+				c.Eq("level", 5)
+			}).Do()
+		r.NoError(err)
+		r.Equal(int64(1), affected)
+	}
+}
+
+func TestDelete(t *testing.T) {
+	r := require.New(t)
+	{
+		db, _ := orm.MockDB(r, nil)
+		r.PanicsWithError("not a valid entity type", func() {
+			db.Delete[int](nil).Must().Do()
+		})
+	}
+	{
+		db, mock := orm.MockDB(r, nil)
+		affected, err := db.Delete[orm.User](nil).Do()
+		r.Equal(int64(0), affected)
+		r.EqualError(err, "full table modification blocked")
+
+		mock.ExpectPrepare("DELETE FROM `user`").ExpectExec().WithoutArgs().WillReturnResult(sqlmock.NewResult(0, 2))
+		affected, err = db.Delete[orm.User](nil).SkipSafety().Do()
+		r.Equal(int64(2), affected)
+		r.NoError(err)
+	}
+	{
+		ctx := context.WithValue(context.Background(), "test", "test")
+		db, logger, mock := orm.MockDBAndLogger(r, nil)
+		mock.ExpectPrepare("DELETE FROM `user` WHERE `id` = ?").ExpectExec().WithArgs(1).WillReturnResult(sqlmock.NewResult(0, 1))
+		affected, err := db.Delete[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").Cond(func(c *orm.Cond) {
+			c.Eq("id", 1)
+		}).Do()
+		r.NoError(err)
+		r.Equal(int64(1), affected)
+		lm := logger.Messages[0]
+		r.Equal(ctx, lm.Ctx)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
+		r.Contains(lm.Msg, "desc: test desc")
+	}
+}
+
+func TestDeleteSoftly(t *testing.T) {
+	r := require.New(t)
+	{
+		db, _ := orm.MockDB(r, nil)
+		r.PanicsWithError("not a valid entity type", func() {
+			db.DeleteSoftly[int](nil).Must().Do()
+		})
+	}
+	{
+		db, _ := orm.MockDB(r, nil)
+		r.PanicsWithError("delete softly mode is undefined", func() {
+			db.DeleteSoftly[orm.User](nil).Must().Do()
+		})
+	}
+	{
+		db, mock := orm.MockDB(r, &orm.Config{
+			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
+			},
+		})
+		affected, err := db.DeleteSoftly[orm.User](nil).Do()
+		r.EqualError(err, "full table modification blocked")
+		r.Equal(int64(0), affected)
+
+		mock.ExpectPrepare("UPDATE `user` SET `deleted` = `id` WHERE `deleted` = ?").ExpectExec().WithArgs(0).
+			WillReturnResult(sqlmock.NewResult(0, 2))
+		affected, err = db.DeleteSoftly[orm.User](nil).SkipSafety().Do()
+		r.NoError(err)
+		r.Equal(int64(2), affected)
+	}
+	{
+		db, _ := orm.MockDB(r, &orm.Config{
+			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
+			},
+		})
+		_, err := db.DeleteSoftly[int](nil).Do()
+		r.EqualError(err, "not a valid entity type")
+	}
+	{
+		ctx := context.WithValue(context.Background(), "test", "test")
+		log := &orm.MockLogger{}
+		db, mock := orm.MockDB(r, &orm.Config{
+			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
+			},
+			Logger: log,
+		})
+		mock.ExpectPrepare("UPDATE `user` SET `deleted` = `id` WHERE `id` = ? AND `deleted` = ?").ExpectExec().WithArgs(1, 0).WillReturnResult(sqlmock.NewResult(0, 1))
+		affected, err := db.DeleteSoftly[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").Cond(func(c *orm.Cond) {
+			c.Eq("id", 1)
+		}).Do()
+		r.NoError(err)
+		r.Equal(int64(1), affected)
+		lm := log.Messages[0]
+		r.Equal(ctx, lm.Ctx)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
+		r.Contains(lm.Msg, "desc: test desc")
+	}
+	{
+		db, mock := orm.MockDB(r, &orm.Config{
+			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
+			},
+		})
+		mock.ExpectPrepare("UPDATE `user` SET `deleted` = `id` WHERE `id` = ? AND `deleted` = ?").ExpectExec().WithArgs(1, 0).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		affected, err := db.DeleteSoftly[orm.User](nil).Cond(func(c *orm.Cond) {
+			c.Eq("id", 1)
+		}).Do()
+		r.NoError(err)
+		r.Equal(int64(1), affected)
+	}
+	{
+		db, mock := orm.MockDB(r, &orm.Config{
+			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedNullMode(0),
+			},
+		})
+		mock.ExpectPrepare("UPDATE `user` SET `deleted` = NULL WHERE `id` = ? AND `deleted` = ?").ExpectExec().WithArgs(1, 0).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		affected, err := db.DeleteSoftly[orm.User](nil).Cond(func(c *orm.Cond) {
+			c.Eq("id", 1)
+		}).Do()
+		r.NoError(err)
+		r.Equal(int64(1), affected)
+	}
+
+}
+
+func TestCount(t *testing.T) {
+	r := require.New(t)
+	{
+		db, _ := orm.MockDB(r, nil)
+		r.PanicsWithError("not a valid entity type", func() {
+			db.Count[int](nil).Must().Do()
+		})
+	}
+	{
+		ctx := context.WithValue(context.Background(), "test", "test")
+		db, logger, mock := orm.MockDBAndLogger(r, nil)
+		mock.ExpectPrepare("SELECT COUNT(*) FROM `user` WHERE `level` = ?").ExpectQuery().WithArgs(2).WillReturnRows(mock.NewRows([]string{"count"}).AddRow(10))
+		count, err := db.Count[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").Cond(func(c *orm.Cond) {
+			c.Eq("level", 2)
+		}).Do()
+		r.NoError(err)
+		r.Equal(int64(10), count)
+		lm := logger.Messages[0]
+		r.Equal(ctx, lm.Ctx)
+		r.Equal(orm.LogLevel_.Info, lm.Level)
+		r.Contains(lm.Msg, "desc: test desc")
+	}
+	{
+		db, mock := orm.MockDB(r, &orm.Config{
+			ColumnPolicyConfigs: orm.ColumnPolicyConfigs{
+				orm.NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
+			},
+		})
+		mock.ExpectPrepare("SELECT COUNT(*) FROM `user` WHERE `level` = ? AND `deleted` = ?").ExpectQuery().WithArgs(2, 0).
+			WillReturnRows(mock.NewRows([]string{"count"}).AddRow(10))
+		_, err := db.Count[orm.User](nil).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").Cond(func(c *orm.Cond) {
+			c.Eq("level", 2)
+		}).Do()
+		r.NoError(err)
+
+		mock.ExpectPrepare("SELECT COUNT(*) FROM `user` WHERE `level` = ?").ExpectQuery().WithArgs(2).
+			WillReturnRows(mock.NewRows([]string{"count"}).AddRow(10))
+		_, err = db.Count[orm.User](nil).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").Cond(func(c *orm.Cond) {
+			c.Eq("level", 2)
+		}).IncludeDeleted().Do()
+		r.NoError(err)
+	}
+}
