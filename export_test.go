@@ -1,54 +1,287 @@
-/*
- * Copyright 2024-present jishaocong0910
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2024-present jishaocong0910
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package orm
 
 import (
+	"context"
+	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"reflect"
+	"strconv"
+	"strings"
+	"time"
+	"uuid"
+
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/stretchr/testify/require"
 )
 
-type DaoExport struct {
-	Table                  string
-	ColumnsWithComma       string
-	Columns                []string
-	ColumnToFieldIndex     map[string]int
-	ColumnToFieldConvertor map[string]fieldConvertor
-	FieldNameToColumn      map[string]string
-	AutoIncrementColumns   []string
-	AutoIncrementStep      int64
-	AutoIncrementConvertor func(id int64) reflect.Value
+func MockDB(r *require.Assertions, config *Config) (*DB, sqlmock.Sqlmock) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	r.NoError(err)
+
+	if config == nil {
+		config = &Config{}
+	}
+
+	config.RawDB = db
+	if config.IdentifierDelimiter.IsUndefined() {
+		config.IdentifierDelimiter = IdentifierDelimiter_.Backtick
+	}
+	return config.Build(), mock
 }
 
-func ExportDao[T Entity](dao *Dao[T]) DaoExport {
-	return DaoExport{
-		Table:                  dao.table,
-		ColumnsWithComma:       dao.commaColumns,
-		Columns:                dao.columns,
-		ColumnToFieldIndex:     dao.columnToFieldIndex,
-		ColumnToFieldConvertor: dao.columnToFieldConvertor,
-		FieldNameToColumn:      dao.fieldNameToColumn,
-		AutoIncrementColumns:   dao.autoIncrementColumns,
-		AutoIncrementStep:      dao.autoIncrementStep,
-		AutoIncrementConvertor: dao.autoIncrementConvert,
+func MockDBAndLogger(r *require.Assertions, config *Config) (*DB, *MockLogger, sqlmock.Sqlmock) {
+	db, mock := MockDB(r, config)
+	logger := &MockLogger{}
+	db.logger = logger
+	return db, logger, mock
+}
+
+var NewTxContext = newTxContext
+
+func convertId[T any](id int64) any {
+	return identityConverterMap[reflect.TypeFor[T]()](id).Elem().Interface()
+}
+
+func checkMapKeys[K comparable, V any](r *require.Assertions, keys []K, actual map[K]V) {
+	r.Len(keys, len(actual))
+	for _, key := range keys {
+		r.Contains(actual, key)
 	}
 }
 
-func ConvertLastInsertId(typeName string, id int64) any {
-	return lastInsertIdConvertor_.OfString(typeName).convert(id).Elem().Interface()
+func checkNoKey[K comparable, V any](r *require.Assertions, key K, actual map[K]V) {
+	_, ok := actual[key]
+	r.False(ok)
 }
 
-var PrintSql = printSql
-var PrintWarn = printWarn
+func checkEqualFunc(r *require.Assertions, f1, f2 any) {
+	r.Equal(reflect.ValueOf(f1).Pointer(), reflect.ValueOf(f2).Pointer())
+}
+
+type logMsg struct {
+	Ctx   context.Context
+	Level LogLevel
+	Msg   string
+}
+
+type MockLogger struct {
+	Messages []logMsg
+}
+
+func (d *MockLogger) Debug(ctx context.Context, msg string) {
+	d.Messages = append(d.Messages, logMsg{Ctx: ctx, Level: LogLevel_.Debug, Msg: msg})
+}
+
+func (d *MockLogger) Info(ctx context.Context, msg string) {
+	d.Messages = append(d.Messages, logMsg{Ctx: ctx, Level: LogLevel_.Info, Msg: msg})
+}
+
+func (d *MockLogger) Warn(ctx context.Context, msg string) {
+	d.Messages = append(d.Messages, logMsg{Ctx: ctx, Level: LogLevel_.Warn, Msg: msg})
+}
+
+func (d *MockLogger) Error(ctx context.Context, msg string) {
+	d.Messages = append(d.Messages, logMsg{Ctx: ctx, Level: LogLevel_.Error, Msg: msg})
+}
+
+type UnsupportedLastInsertIdResult struct {
+}
+
+func (u UnsupportedLastInsertIdResult) LastInsertId() (int64, error) {
+	return 0, errors.New("lastInsertId is not supported")
+}
+
+func (u UnsupportedLastInsertIdResult) RowsAffected() (int64, error) {
+	return 0, nil
+}
+
+type UserSimple struct {
+	Name  string
+	Phone string
+	Email string
+	Level string
+}
+
+type User struct {
+	Id         *int64  `orm:"column=id;pk;auto"`
+	Name       *string `orm:"column=name"`
+	Password   *string `orm:"column=password;ignore"`
+	Address    *string `orm:"ignore"`
+	Phone      *string `orm:"column=phone"`
+	Email      *string
+	AvatarUrl  []byte `orm:"column=avatar_url"`
+	Status     *UserStatus
+	Level      *UserLevel
+	Properties *UserProperties
+	Category   *UserCategory
+	Tags       UserTags
+	Attributes UserAttributes
+	Uuid       *uuid.UUID
+	CreateAt   *time.Time
+	UpdateAt   *time.Time
+	Version    *int64
+	Deleted    *int64
+}
+
+type UserStatus int
+
+type UserLevel string
+
+func (u UserLevel) ToArg() int8 {
+	i, _ := strconv.ParseInt(string(u), 10, 8)
+	return int8(i)
+}
+
+func (u *UserLevel) ToField(src int8) {
+	str := strconv.FormatInt(int64(src), 10)
+	*u = UserLevel(str)
+}
+
+type UserProperties struct {
+	Source  string `json:"source"`
+	Country string `json:"country"`
+}
+
+func (p *UserProperties) ToArg() string {
+	bs, _ := json.Marshal(p)
+	return string(bs)
+}
+
+func (p *UserProperties) ToField(src string) {
+	json.Unmarshal([]byte(src), p)
+}
+
+type UserTags []string
+
+func (s UserTags) ToArg() string {
+	return strings.Join(s, ",")
+}
+
+func (s *UserTags) ToField(src string) {
+	*s = strings.Split(src, ",")
+}
+
+type UserAttributes map[string]string
+
+func (a UserAttributes) ToArg() string {
+	bs, _ := json.Marshal(a)
+	return string(bs)
+}
+
+func (a *UserAttributes) ToField(src string) {
+	json.Unmarshal([]byte(src), a)
+}
+
+type UserCategory struct {
+	Organization string `json:"organization"`
+	Class        int    `json:"class"`
+}
+
+func (c UserCategory) Value() (driver.Value, error) {
+	bs, _ := json.Marshal(c)
+	return string(bs), nil
+}
+
+func (c *UserCategory) Scan(src any) error {
+	if src != nil {
+		if s, ok := src.(string); ok {
+			json.Unmarshal([]byte(s), &c)
+		}
+	}
+	return nil
+}
+
+type DemoEntityTag struct {
+	_ struct{} `orm:"table=demo"`
+}
+
+type DemoIgnoreField struct {
+	Id *string `orm:"column=id;auto=2"`
+
+	DemoIgnoreField2                                // ignore
+	ignoreUnexported              *string           `orm:"column=ignore1"`
+	IgnoreNotPointer              string            `orm:"column=ignore2"`
+	IgnoreNotBaseType             *any              `orm:"column=ignore3"`
+	IgnoreNotBaseTypeElem         []any             `orm:"column=ignore4"`
+	IgnoreInvalidImplementConvert *DemoIgnoreField2 `orm:"column=ignore5"`
+}
+
+type DemoIgnoreField2 struct {
+	Field *string
+}
+
+type DemoMulPk struct {
+	Id1  *string `orm:"pk;auto"`
+	Id2  *string `orm:"pk;auto"`
+	Name *string `orm:"column=name"`
+}
+
+type DemoDemand struct {
+	DemoDemandAnon
+	Name  string
+	Phone string
+	Email string
+	level string
+	Field string
+}
+
+type DemoDemandAnon struct {
+	CreateAt *time.Time
+	UpdateAt *time.Time
+	Version  *int64
+	Deleted  *int64
+}
+
+type TxInfoData struct {
+	Owner  *tx
+	RawTx  *sql.Tx
+	TxHook []*txHook
+}
+
+func GetTxInfoData(ctx context.Context, db *DB) *TxInfoData {
+	if tc, ok := ctx.(*TxContext); ok {
+		if ti := tc.getTxInfo(db); ti != nil {
+			return &TxInfoData{
+				Owner:  ti.owner,
+				RawTx:  ti.rawTx,
+				TxHook: ti.txHooks,
+			}
+		}
+	}
+	return nil
+}
+
+type AnyTime struct{}
+
+func (a AnyTime) Match(v driver.Value) bool {
+	_, ok := v.(time.Time)
+	return ok
+}
+
+type OutArg struct {
+	MockValue any
+}
+
+func (a OutArg) Match(v driver.Value) bool {
+	if o, ok := v.(sql.Out); ok {
+		reflect.ValueOf(o.Dest).Elem().Set(reflect.ValueOf(a.MockValue))
+		return true
+	}
+	return false
+}
