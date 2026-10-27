@@ -101,6 +101,16 @@ func (f *find[E]) LastClause(lastClause string) *find[E] {
 
 func (f *find[E]) Do() (entities []*E, err error) {
 	entities, err = f.query.BuildSql(func(b *SQLBuilder) {
+		if f.cond != nil && f.cond.err != nil {
+			b.Error(f.cond.err)
+			return
+		}
+
+		if f.orderBy != nil && f.orderBy.err != nil {
+			b.Error(f.orderBy.err)
+			return
+		}
+
 		ei, err := f.query.db.getEntityInfo(reflect.TypeFor[E]())
 		if err != nil {
 			b.Error(err)
@@ -112,19 +122,19 @@ func (f *find[E]) Do() (entities []*E, err error) {
 			columns = ei.columns
 		}
 
-		b.Text("SELECT ")
-		b.ForEach(b.Sep(", "), columns, func(_ int, column string) {
+		b.Text("SELECT ").ForEach(b.Sep(", "), columns, func(_ int, column string) {
 			b.Quoted(column)
-		})
-		b.Text(" FROM ").Quoted(ei.table).accept(where{
+		}).Text(" FROM ").Quoted(ei.table).accept(where{
 			cond:           f.cond,
 			policy:         ei.deleteSoftlyPolicy,
 			includeDeleted: f.includeDeleted,
 		}).accept(f.orderBy)
+
 		if f.page != nil {
 			f.page.pageMode = f.query.db.pageMode
 			b.accept(f.page)
 		}
+
 		if f.lastClause != "" {
 			b.Text(" ").Text(f.lastClause)
 		}
@@ -443,6 +453,11 @@ func (u *update[E]) Do() (affected int64, err error) {
 		return 0, nil
 	}
 	return u.mutation.BuildSql(func(b *SQLBuilder) {
+		if u.cond != nil && u.cond.err != nil {
+			b.Error(u.cond.err)
+			return
+		}
+
 		ei, err := u.mutation.db.getEntityInfo(reflect.TypeFor[E]())
 		if err != nil {
 			b.Error(err)
@@ -469,12 +484,9 @@ func (u *update[E]) Do() (affected int64, err error) {
 		c.add(u.cond)
 
 		am := newAssignedManager[E](u.mutation.ctx, ei.updatePolicy, []map[string]any{ei.getValueMap(u.entity, updatedColumns)}, &u.setColumns, "")
-		b.Text("UPDATE ").Quoted(ei.table).Text(" SET ")
-		b.ForEach(b.Sep(", "), updatedColumns, func(_ int, column string) {
+		b.Text("UPDATE ").Quoted(ei.table).Text(" SET ").ForEach(b.Sep(", "), updatedColumns, func(_ int, column string) {
 			b.Quoted(column).Text(" = ").accept(am.getValueWriter(column, 0))
-		})
-
-		b.accept(where{
+		}).accept(where{
 			cond:           c,
 			policy:         ei.deleteSoftlyPolicy,
 			includeDeleted: u.includeDeleted,
@@ -552,6 +564,11 @@ func (u *updateRows[E]) Do() (affected int64, err error) {
 		return 0, nil
 	}
 	return u.mutation.BuildSql(func(b *SQLBuilder) {
+		if u.cond != nil && u.cond.err != nil {
+			b.Error(u.cond.err)
+			return
+		}
+
 		ei, err := u.mutation.db.getEntityInfo(reflect.TypeFor[E]())
 		if err != nil {
 			b.Error(err)
@@ -586,8 +603,7 @@ func (u *updateRows[E]) Do() (affected int64, err error) {
 		}
 
 		am := newAssignedManager[E](u.mutation.ctx, ei.updatePolicy, entityValueMaps, &u.setColumns, pkColumn)
-		b.Text("UPDATE ").Quoted(ei.table).Text(" SET ")
-		b.ForEach(b.Sep(", "), updatedColumns, func(i int, column string) {
+		b.Text("UPDATE ").Quoted(ei.table).Text(" SET ").ForEach(b.Sep(", "), updatedColumns, func(i int, column string) {
 			b.Quoted(column).Text(" = ").accept(am.getValueWriter(column, -1))
 		})
 
@@ -643,11 +659,17 @@ func (d *delete[E]) SkipSafety() *delete[E] {
 
 func (d *delete[E]) Do() (affected int64, err error) {
 	return d.mutation.BuildSql(func(b *SQLBuilder) {
+		if d.cond != nil && d.cond.err != nil {
+			b.Error(d.cond.err)
+			return
+		}
+
 		ei, err := d.mutation.db.getEntityInfo(reflect.TypeFor[E]())
 		if err != nil {
 			b.Error(err)
 			return
 		}
+
 		b.Text("DELETE FROM ").Quoted(ei.table).accept(where{
 			cond:   d.cond,
 			safety: !d.skipSafety,
@@ -691,12 +713,19 @@ func (d *deleteSoftly[E]) SkipSafety() *deleteSoftly[E] {
 
 func (d *deleteSoftly[E]) Do() (affected int64, err error) {
 	return d.mutation.BuildSql(func(b *SQLBuilder) {
+		if d.cond != nil && d.cond.err != nil {
+			b.Error(d.cond.err)
+			return
+		}
+
 		ei, err := d.mutation.db.getEntityInfo(reflect.TypeFor[E]())
 		if err != nil {
 			b.Error(err)
 			return
 		}
+
 		b.Text("UPDATE ").Quoted(ei.table).Text(" SET ").Quoted(ei.deleteSoftlyPolicy.deletedColumn).Text(" = ")
+
 		switch ei.deleteSoftlyPolicy.mode.ID {
 		case deleteSoftlyMode_.assignedPk.ID:
 			b.Quoted(ei.deleteSoftlyPolicy.pkColumn)
@@ -706,6 +735,7 @@ func (d *deleteSoftly[E]) Do() (affected int64, err error) {
 			b.Error(errors.New("delete softly mode is undefined"))
 			return
 		}
+
 		b.accept(where{
 			cond:   d.cond,
 			policy: ei.deleteSoftlyPolicy,
@@ -750,11 +780,17 @@ func (c *count[E]) IncludeDeleted() *count[E] {
 
 func (c *count[E]) Do() (num int64, err error) {
 	entities, err := c.query.BuildSql(func(b *SQLBuilder) {
+		if c.cond != nil && c.cond.err != nil {
+			b.Error(c.cond.err)
+			return
+		}
+
 		ei, err := c.query.db.getEntityInfo(reflect.TypeFor[E]())
 		if err != nil {
 			b.Error(err)
 			return
 		}
+
 		b.Text("SELECT COUNT(*) FROM ").Quoted(ei.table).accept(where{
 			cond:           c.cond,
 			policy:         ei.deleteSoftlyPolicy,
@@ -929,6 +965,7 @@ func (w where) writeSQL(b *SQLBuilder) {
 
 type OrderBy struct {
 	items []orderByItem
+	err   error
 }
 
 func (o *OrderBy) Asc(column string) *OrderBy {
@@ -939,6 +976,10 @@ func (o *OrderBy) Asc(column string) *OrderBy {
 func (o *OrderBy) Desc(column string) *OrderBy {
 	o.items = append(o.items, orderByItem{column: column, seq: "DESC"})
 	return o
+}
+
+func (o *OrderBy) Error(err error) {
+	o.err = err
 }
 
 func (o *OrderBy) writeSQL(b *SQLBuilder) {

@@ -21,6 +21,7 @@ type Cond struct {
 	nextNot bool
 	nextOr  bool
 	items   []condItem
+	err     error
 }
 
 func (c *Cond) writeSQL(b *SQLBuilder) {
@@ -103,16 +104,24 @@ func (c *Cond) Sub(handler func(c *Cond)) *Cond {
 	if handler != nil {
 		c2 := &Cond{}
 		handler(c2)
-		c.add(c2)
+		if c2.err != nil {
+			c.err = c2.err
+		} else {
+			c.add(c2)
+		}
 	}
 	return c
 }
 
 func (c *Cond) Expr(handler func(c *CondExpr)) *Cond {
 	if handler != nil {
-		e := &CondExpr{}
-		handler(e)
-		c.add(e)
+		c2 := &CondExpr{}
+		handler(c2)
+		if c2.err != nil {
+			c.err = c2.err
+		} else {
+			c.add(c2)
+		}
 	}
 	return c
 }
@@ -171,6 +180,10 @@ func (c *Cond) IsNull(column string) *Cond {
 
 func (c *Cond) IsNotNull(column string) *Cond {
 	return c.add(&condIsNotNull{column: column})
+}
+
+func (c *Cond) Error(err error) {
+	c.err = err
 }
 
 type condItem interface {
@@ -289,6 +302,7 @@ type CondExpr struct {
 	condBase
 	items []any
 	args  []any
+	err   error
 }
 
 func (c *CondExpr) isEmpty() bool {
@@ -320,4 +334,8 @@ func (c *CondExpr) Arg(a any) *CondExpr {
 	c.args = append(c.args, a)
 	c.items = append(c.items, len(c.args)-1)
 	return c
+}
+
+func (c *CondExpr) Error(err error) {
+	c.err = err
 }
