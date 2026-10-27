@@ -157,8 +157,8 @@ func (c *Cond) LikePattern(column string, pattern string) *Cond {
 	return c.add(&condBinOp{column: column, op: "LIKE", arg: pattern})
 }
 
-func (c *Cond) In(column string, args []any) *Cond {
-	return c.add(&condIn{column: column, args: args})
+func (c *Cond) In[T any](column string, args []T) *Cond {
+	return c.add(&condIn[T]{column: column, args: args})
 }
 
 func (c *Cond) Between(column string, min, max any) *Cond {
@@ -232,13 +232,13 @@ func (c condBinOp) writeSQL(b *SQLBuilder) {
 	})
 }
 
-type condIn struct {
+type condIn[T any] struct {
 	condBase
 	column string
-	args   []any
+	args   []T
 }
 
-func (c condIn) writeSQL(b *SQLBuilder) {
+func (c condIn[T]) writeSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
 		b.Quoted(c.column).Text(" IN(")
 		for i := 0; i < len(c.args); i++ {

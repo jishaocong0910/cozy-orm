@@ -100,7 +100,7 @@ func (f *find[E]) LastClause(lastClause string) *find[E] {
 }
 
 func (f *find[E]) Do() (entities []*E, err error) {
-	es, err := f.query.BuildSql(func(b *SQLBuilder) {
+	entities, err = f.query.BuildSql(func(b *SQLBuilder) {
 		ei, err := f.query.db.getEntityInfo(reflect.TypeFor[E]())
 		if err != nil {
 			b.Error(err)
@@ -129,7 +129,7 @@ func (f *find[E]) Do() (entities []*E, err error) {
 			b.Text(" ").Text(f.lastClause)
 		}
 	}).Do()
-	return es, err
+	return
 }
 
 type findOne[E any] struct {
@@ -749,7 +749,7 @@ func (c *count[E]) IncludeDeleted() *count[E] {
 }
 
 func (c *count[E]) Do() (num int64, err error) {
-	es, err := c.query.BuildSql(func(b *SQLBuilder) {
+	entities, err := c.query.BuildSql(func(b *SQLBuilder) {
 		ei, err := c.query.db.getEntityInfo(reflect.TypeFor[E]())
 		if err != nil {
 			b.Error(err)
@@ -762,7 +762,7 @@ func (c *count[E]) Do() (num int64, err error) {
 		})
 	}).Do()
 	if err == nil {
-		num = es[0].Field
+		num = entities[0].Field
 	}
 	return
 }

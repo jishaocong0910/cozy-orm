@@ -32,7 +32,7 @@ func TestCond(t *testing.T) {
 			LikeLeft("LikeLeft", a.next2("LikeLeft", func(next string) any { return next + "%" })).
 			LikeRight("LikeRight", a.next2("LikeRight", func(next string) any { return "%" + next })).
 			LikePattern("LikePattern", a.next("LikePattern")).
-			In("In", []any{a.next("In"), a.next("In")}).
+			In("In", []string{a.next("In"), a.next("In")}).
 			Between("Between", a.next("Between"), a.next("Between")).
 			IsNull("IsNull").IsNotNull("IsNull").
 			Not().Eq("Not", a.next("Not")).
