@@ -16,6 +16,7 @@ package orm_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -31,6 +32,20 @@ func TestFind(t *testing.T) {
 		r.PanicsWithError("not a valid entity type", func() {
 			db.Find[int](nil).Must().Do()
 		})
+	}
+	{
+		db, _ := orm.MockDB(r, nil)
+		_, err := db.FindOne[orm.User](nil).Cond(func(c *orm.Cond) {
+			c.Error(errors.New("cond error"))
+		}).Do()
+		r.Error(err, "cond error")
+	}
+	{
+		db, _ := orm.MockDB(r, nil)
+		_, err := db.FindOne[orm.User](nil).OrderBy(func(c *orm.OrderBy) {
+			c.Error(errors.New("order by error"))
+		}).Do()
+		r.Error(err, "order by error")
 	}
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")
@@ -351,6 +366,20 @@ func TestUpdate(t *testing.T) {
 		})
 	}
 	{
+		db, _ := orm.MockDB(r, nil)
+		_, err := db.Update[orm.User](nil).Entity(&orm.User{Phone: new("123")}).Cond(func(c *orm.Cond) {
+			c.Error(errors.New("cond error"))
+		}).Do()
+		r.EqualError(err, "cond error")
+	}
+	{
+		db, _ := orm.MockDB(r, nil)
+		_, err := db.Update[orm.User](nil).Entity(&orm.User{Phone: new("123")}).Assignment(func(a *orm.Assignment) {
+			a.Error(errors.New("assignment error"))
+		}).Do()
+		r.EqualError(err, "assignment error")
+	}
+	{
 		db, mock := orm.MockDB(r, nil)
 		affected, err := db.Update[orm.User](nil).Entity(&orm.User{Phone: new("123")}).Do()
 		r.Equal(int64(0), affected)
@@ -439,6 +468,20 @@ func TestUpdateBatch(t *testing.T) {
 		r.PanicsWithError("not a valid entity type", func() {
 			db.UpdateBatch[int](nil).Must().Entities(new(1)).Do()
 		})
+	}
+	{
+		db, _ := orm.MockDB(r, nil)
+		_, err := db.UpdateBatch[orm.User](nil).Entities(&orm.User{Phone: new("123")}).Cond(func(c *orm.Cond) {
+			c.Error(errors.New("cond error"))
+		}).Do()
+		r.EqualError(err, "cond error")
+	}
+	{
+		db, _ := orm.MockDB(r, nil)
+		_, err := db.UpdateBatch[orm.User](nil).Entities(&orm.User{Phone: new("123")}).Assignment(func(a *orm.Assignment) {
+			a.Error(errors.New("assignment error"))
+		}).Do()
+		r.EqualError(err, "assignment error")
 	}
 	{
 		db, _ := orm.MockDB(r, nil)
@@ -539,6 +582,13 @@ func TestDelete(t *testing.T) {
 		})
 	}
 	{
+		db, _ := orm.MockDB(r, nil)
+		_, err := db.Delete[orm.User](nil).Cond(func(c *orm.Cond) {
+			c.Error(errors.New("cond error"))
+		}).Do()
+		r.EqualError(err, "cond error")
+	}
+	{
 		db, mock := orm.MockDB(r, nil)
 		affected, err := db.Delete[orm.User](nil).Do()
 		r.Equal(int64(0), affected)
@@ -575,9 +625,22 @@ func TestDeleteSoftly(t *testing.T) {
 	}
 	{
 		db, _ := orm.MockDB(r, nil)
-		r.PanicsWithError("delete softly mode is undefined", func() {
-			db.DeleteSoftly[orm.User](nil).Must().Do()
-		})
+		_, err := db.DeleteSoftly[orm.User](nil).Do()
+		r.EqualError(err, "delete softly mode is undefined")
+	}
+	{
+		db, _ := orm.MockDB(r, nil)
+		_, err := db.DeleteSoftly[orm.User](nil).Cond(func(c *orm.Cond) {
+			c.Error(errors.New("cond error"))
+		}).Do()
+		r.EqualError(err, "cond error")
+	}
+	{
+		db, _ := orm.MockDB(r, nil)
+		_, err := db.DeleteSoftly[orm.User](nil).Assignment(func(a *orm.Assignment) {
+			a.Error(errors.New("assignment error"))
+		}).Do()
+		r.EqualError(err, "assignment error")
 	}
 	{
 		db, mock := orm.MockDB(r, &orm.Config{
@@ -613,8 +676,11 @@ func TestDeleteSoftly(t *testing.T) {
 			},
 			Logger: log,
 		})
-		mock.ExpectPrepare("UPDATE `user` SET `deleted` = `id` WHERE `id` = ? AND `deleted` = ?").ExpectExec().WithArgs(1, 0).WillReturnResult(sqlmock.NewResult(0, 1))
-		affected, err := db.DeleteSoftly[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").Cond(func(c *orm.Cond) {
+		mock.ExpectPrepare("UPDATE `user` SET `deleted` = `id`, `status` = ?, `name` = 'anon' WHERE `id` = ? AND `deleted` = ?").ExpectExec().
+			WithArgs(4, 1, 0).WillReturnResult(sqlmock.NewResult(0, 1))
+		affected, err := db.DeleteSoftly[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").Assignment(func(a *orm.Assignment) {
+			a.SetValue("status", 4).SetExpr("name", "'anon'")
+		}).Cond(func(c *orm.Cond) {
 			c.Eq("id", 1)
 		}).Do()
 		r.NoError(err)
@@ -662,6 +728,13 @@ func TestCount(t *testing.T) {
 		r.PanicsWithError("not a valid entity type", func() {
 			db.Count[int](nil).Must().Do()
 		})
+	}
+	{
+		db, _ := orm.MockDB(r, nil)
+		_, err := db.Count[orm.User](nil).Cond(func(c *orm.Cond) {
+			c.Error(errors.New("cond error"))
+		}).Do()
+		r.EqualError(err, "cond error")
 	}
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")

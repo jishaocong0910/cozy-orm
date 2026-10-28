@@ -685,6 +685,7 @@ func (d *delete[E]) Do() (affected int64, err error) {
 
 type deleteSoftly[E any] struct {
 	mutation   *mutation
+	assignment *Assignment
 	cond       *Cond
 	skipSafety bool
 }
@@ -701,6 +702,14 @@ func (d *deleteSoftly[E]) Description(desc string) *deleteSoftly[E] {
 
 func (d *deleteSoftly[E]) SqlLogLevel(level LogLevel) *deleteSoftly[E] {
 	d.mutation.SqlLogLevel(level)
+	return d
+}
+
+func (d *deleteSoftly[E]) Assignment(handler func(a *Assignment)) *deleteSoftly[E] {
+	if handler != nil {
+		d.assignment = newAssignment()
+		handler(d.assignment)
+	}
 	return d
 }
 
@@ -724,6 +733,11 @@ func (d *deleteSoftly[E]) Do() (affected int64, err error) {
 			return
 		}
 
+		if d.assignment != nil && d.assignment.err != nil {
+			b.Error(d.assignment.err)
+			return
+		}
+
 		ei, err := d.mutation.db.getEntityInfo(reflect.TypeFor[E]())
 		if err != nil {
 			b.Error(err)
@@ -740,6 +754,12 @@ func (d *deleteSoftly[E]) Do() (affected int64, err error) {
 		default:
 			b.Error(errors.New("delete softly mode is undefined"))
 			return
+		}
+
+		if d.assignment != nil {
+			for _, column := range d.assignment.columns {
+				b.Text(", ").Quoted(column).Text(" = ").accept(d.assignment.valueWriterMap[column])
+			}
 		}
 
 		b.accept(where{
@@ -814,16 +834,23 @@ func newAssignment() *Assignment {
 }
 
 type Assignment struct {
+	columns        []string
 	valueWriterMap map[string]sqlWriter
 	err            error
 }
 
 func (a *Assignment) SetValue(column string, value any) *Assignment {
+	if _, ok := a.valueWriterMap[column]; !ok {
+		a.columns = append(a.columns, column)
+	}
 	a.valueWriterMap[column] = assignedValue{value: value}
 	return a
 }
 
 func (a *Assignment) SetExpr(column string, expr string) *Assignment {
+	if _, ok := a.valueWriterMap[column]; !ok {
+		a.columns = append(a.columns, column)
+	}
 	a.valueWriterMap[column] = assignedExpr{expr: expr}
 	return a
 }
@@ -840,11 +867,7 @@ func (a *Assignment) columnSet() set[string] {
 	if a.isEmpty() {
 		return nil
 	}
-	s := newSetWithCap[string](len(a.valueWriterMap))
-	for c, _ := range a.valueWriterMap {
-		s.add(c)
-	}
-	return s
+	return newSet(a.columns...)
 }
 
 type assignedValue struct {
