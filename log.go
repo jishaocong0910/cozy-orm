@@ -48,27 +48,27 @@ func printSql(ctx context.Context, logger Logger, level LogLevel, desc string, s
 	if desc != "" {
 		builder.WriteString("desc: ")
 		builder.WriteString(desc)
-		builder.WriteString(", ")
+		builder.WriteString("; ")
 	}
 	builder.WriteString("SQL: ")
 	builder.WriteString(sql)
 	builder.WriteString("; args:")
 	builder.WriteString(formatArg(args))
 	if rowCount >= 0 {
-		builder.WriteString(", rows: ")
+		builder.WriteString("; rows: ")
 		builder.WriteString(strconv.FormatInt(rowCount, 10))
 	}
 	if affected >= 0 {
-		builder.WriteString(", affected: ")
+		builder.WriteString("; affected: ")
 		builder.WriteString(strconv.FormatInt(affected, 10))
 	}
 	if cost >= 0 {
-		builder.WriteString(", cost: ")
+		builder.WriteString("; cost: ")
 		builder.WriteString(strconv.FormatInt(int64(cost/time.Millisecond), 10))
 		builder.WriteString("ms")
 	}
 	if err != nil {
-		builder.WriteString(", error: ")
+		builder.WriteString("; error: ")
 		builder.WriteString(err.Error())
 	}
 	printLog(ctx, logger, level, builder.String())

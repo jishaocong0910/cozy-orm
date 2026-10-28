@@ -15,6 +15,7 @@
 package orm
 
 import (
+	"errors"
 	"strconv"
 	"testing"
 
@@ -44,6 +45,63 @@ func TestCond(t *testing.T) {
 			" AND LikeRight LIKE ? AND LikePattern LIKE ? AND In IN(?, ?) AND Between BETWEEN ? AND ? AND IsNull IS NULL"+
 			" AND IsNull IS NOT NULL AND NOT Not = ? OR OrEq1 = ? AND OrEq2 = ?", b.b.String())
 		r.Equal(a.args, b.args)
+	}
+}
+
+func TestCond_Sub(t *testing.T) {
+	r := require.New(t)
+	{
+		a := &argFetcher{}
+		c := (&Cond{}).Sub(nil).Sub(func(c *Cond) {
+			c.Eq("c1", a.next("c1")).Or().Eq("c2", a.next("c2"))
+		})
+		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
+		b.accept(c)
+		r.Equal("c1 = ? OR c2 = ?", b.b.String())
+		r.Equal([]any{"c1_1", "c2_2"}, b.args)
+	}
+	{
+		a := &argFetcher{}
+		c := (&Cond{}).Sub(func(c *Cond) {
+			c.Eq("c1", a.next("c1")).Or().Eq("c2", a.next("c2"))
+		}).Eq("c3", a.next("c3"))
+		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
+		b.accept(c)
+		r.Equal("(c1 = ? OR c2 = ?) AND c3 = ?", b.b.String())
+		r.Equal([]any{"c1_1", "c2_2", "c3_3"}, b.args)
+	}
+	{
+		a := &argFetcher{}
+		c := (&Cond{}).Eq("c1", a.next("c1")).Sub(func(c *Cond) {
+			c.Eq("c2", a.next("c2")).Or().Eq("c3", a.next("c3"))
+		})
+		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
+		b.accept(c)
+		r.Equal("c1 = ? AND (c2 = ? OR c3 = ?)", b.b.String())
+		r.Equal([]any{"c1_1", "c2_2", "c3_3"}, b.args)
+	}
+	{
+		a := &argFetcher{}
+		c := (&Cond{}).Not().Sub(func(c *Cond) {
+			c.Eq("c1", a.next("c1")).Eq("c2", a.next("c2"))
+		}).Not().Sub(func(c *Cond) {
+			c.Eq("c3", a.next("c3")).Eq("c4", a.next("c4"))
+		})
+		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
+		b.accept(c)
+		r.Equal("NOT (c1 = ? AND c2 = ?) AND NOT (c3 = ? AND c4 = ?)", b.b.String())
+		r.Equal([]any{"c1_1", "c2_2", "c3_3", "c4_4"}, b.args)
+	}
+	{
+		a := &argFetcher{}
+		c := (&Cond{}).Eq("c1", a.next("c1")).Sub(func(c *Cond) {
+			c.Error(errors.New("expr error"))
+		})
+		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
+		b.accept(c)
+		r.Equal("c1 = ?", b.b.String())
+		r.Equal(a.args, b.args)
+		r.EqualError(c.err, "expr error")
 	}
 }
 
@@ -97,51 +155,16 @@ func TestCond_Expr(t *testing.T) {
 		r.Equal("c1 = ? AND (c2 = 'c2' AND c3 = ?)", b.b.String())
 		r.Equal(a.args, b.args)
 	}
-}
-
-func TestCond_Sub(t *testing.T) {
-	r := require.New(t)
 	{
 		a := &argFetcher{}
-		c := (&Cond{}).Sub(nil).Sub(func(c *Cond) {
-			c.Eq("c1", a.next("c1")).Or().Eq("c2", a.next("c2"))
+		c := (&Cond{}).Eq("c1", a.next("c1")).Expr(func(c *CondExpr) {
+			c.Error(errors.New("expr error"))
 		})
 		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
 		b.accept(c)
-		r.Equal("c1 = ? OR c2 = ?", b.b.String())
-		r.Equal([]any{"c1_1", "c2_2"}, b.args)
-	}
-	{
-		a := &argFetcher{}
-		c := (&Cond{}).Sub(func(c *Cond) {
-			c.Eq("c1", a.next("c1")).Or().Eq("c2", a.next("c2"))
-		}).Eq("c3", a.next("c3"))
-		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
-		b.accept(c)
-		r.Equal("(c1 = ? OR c2 = ?) AND c3 = ?", b.b.String())
-		r.Equal([]any{"c1_1", "c2_2", "c3_3"}, b.args)
-	}
-	{
-		a := &argFetcher{}
-		c := (&Cond{}).Eq("c1", a.next("c1")).Sub(func(c *Cond) {
-			c.Eq("c2", a.next("c2")).Or().Eq("c3", a.next("c3"))
-		})
-		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
-		b.accept(c)
-		r.Equal("c1 = ? AND (c2 = ? OR c3 = ?)", b.b.String())
-		r.Equal([]any{"c1_1", "c2_2", "c3_3"}, b.args)
-	}
-	{
-		a := &argFetcher{}
-		c := (&Cond{}).Not().Sub(func(c *Cond) {
-			c.Eq("c1", a.next("c1")).Eq("c2", a.next("c2"))
-		}).Not().Sub(func(c *Cond) {
-			c.Eq("c3", a.next("c3")).Eq("c4", a.next("c4"))
-		})
-		b := newSQLBuilder("", IdentifierDelimiter_.UNDEFINED)
-		b.accept(c)
-		r.Equal("NOT (c1 = ? AND c2 = ?) AND NOT (c3 = ? AND c4 = ?)", b.b.String())
-		r.Equal([]any{"c1_1", "c2_2", "c3_3", "c4_4"}, b.args)
+		r.Equal("c1 = ?", b.b.String())
+		r.Equal(a.args, b.args)
+		r.EqualError(c.err, "expr error")
 	}
 }
 
