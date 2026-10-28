@@ -392,11 +392,13 @@ func TestUpdate(t *testing.T) {
 	{
 		ctx := context.WithValue(context.Background(), "test", "test")
 		db, mock := orm.MockDB(r, nil)
-		mock.ExpectPrepare("UPDATE `user` SET `name` = ?, `phone` = NULL, `email` = NULL, `status` = ?, `level` = '2', `properties` = NULL, `tags` = NULL WHERE `id` = ? AND `status` = ?").
-			ExpectExec().WithArgs("abc", 2, 1, 4).WillReturnResult(sqlmock.NewResult(0, 1))
-		affected, err := db.Update[orm.User](ctx).Entity(&orm.User{Id: new(int64(1)), Name: new("abc"), Category: &orm.UserCategory{Organization: "none", Class: 1}}).
+		mock.ExpectPrepare("UPDATE `user` SET `name` = ?, `phone` = NULL, `email` = ?, `status` = ?, `level` = '2', `properties` = NULL, `tags` = NULL WHERE `id` = ? AND `status` = ?").
+			ExpectExec().WithArgs("abc", "bbb@example.com", 2, 1, 4).WillReturnResult(sqlmock.NewResult(0, 1))
+		affected, err := db.Update[orm.User](ctx).Entity(&orm.User{Id: new(int64(1)), Name: new("abc"), Email: new("abc@example.com"), Category: &orm.UserCategory{Organization: "none", Class: 1}}).
 			OnDemand(orm.DemandFor[orm.UserSimple]()).Required("properties").Assignment(func(a *orm.Assignment) {
-			a.SetValue("status", orm.UserStatus(2)).SetValue("tags", "'t1,t2'").SetValue("tags", nil).SetExpr("level", "'2'")
+			a.SetValue("status", orm.UserStatus(2)).SetValue("tags", "'t1,t2'").
+				SetValue("email", "bbb@example.com").
+				SetValue("tags", nil).SetExpr("level", "'2'")
 		}).Cond(func(c *orm.Cond) {
 			c.Eq("status", 4)
 		}).Do()

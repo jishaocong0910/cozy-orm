@@ -566,7 +566,7 @@ func (u *updateBatch[E]) SkipSafety() *updateBatch[E] {
 }
 
 func (u *updateBatch[E]) Do() (affected int64, err error) {
-	if len(u.entities) == 0 && u.assignment.isEmpty() {
+	if len(u.entities) == 0 {
 		return 0, nil
 	}
 	return u.mutation.BuildSql(func(b *SQLBuilder) {
@@ -894,13 +894,13 @@ func (a assignedCaseItem) writeSQL(b *SQLBuilder) {
 	b.Text(" WHEN ").Arg(a.caseValue).Text(" THEN ").accept(a.thenValue)
 }
 
-func newAssignedManager[E any](ctx context.Context, policy assignedPolicy, entitiesValueMap []map[string]any, assignment *Assignment, pk string) *assignedManager[E] {
+func newAssignedManager[E any](ctx context.Context, policy assignedPolicy, entitiesValueMap []map[string]any, assignment *Assignment, pkColumn string) *assignedManager[E] {
 	return &assignedManager[E]{
 		ctx:                    ctx,
 		policy:                 policy,
 		entitiesValueMaps:      entitiesValueMap,
 		assignment:             assignment,
-		pkColumn:               pk,
+		pkColumn:               pkColumn,
 		reusePolicyValueWriter: make(map[string]sqlWriter, len(policy.reusedColumnSet)),
 	}
 }
