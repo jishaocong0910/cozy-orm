@@ -68,8 +68,8 @@ func (d *DB) Update[E any](ctx context.Context) *update[E] {
 	return &update[E]{mutation: d.Mutation(ctx)}
 }
 
-func (d *DB) UpdateRows[E any](ctx context.Context) *updateRows[E] {
-	return &updateRows[E]{mutation: d.Mutation(ctx)}
+func (d *DB) UpdateBatch[E any](ctx context.Context) *updateBatch[E] {
+	return &updateBatch[E]{mutation: d.Mutation(ctx)}
 }
 
 func (d *DB) Delete[E any](ctx context.Context) *delete[E] {

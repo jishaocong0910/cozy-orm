@@ -383,7 +383,7 @@ type update[E any] struct {
 	mutation       *mutation
 	entity         *E
 	demand         *Demand
-	setColumns     setColumns
+	assignment     *Assignment
 	requiredSet    set[string]
 	cond           *Cond
 	includeDeleted bool
@@ -415,13 +415,11 @@ func (u *update[E]) OnDemand(demand *Demand) *update[E] {
 	return u
 }
 
-func (u *update[E]) Set(column string, value any) *update[E] {
-	u.setColumns.add(column, assignedValue{value: value})
-	return u
-}
-
-func (u *update[E]) SetExpr(column string, expr string) *update[E] {
-	u.setColumns.add(column, assignedExpr{expr: expr})
+func (u *update[E]) Assignment(handler func(a *Assignment)) *update[E] {
+	if handler != nil {
+		u.assignment = newAssignment()
+		handler(u.assignment)
+	}
 	return u
 }
 
@@ -449,12 +447,17 @@ func (u *update[E]) SkipSafety() *update[E] {
 }
 
 func (u *update[E]) Do() (affected int64, err error) {
-	if u.entity == nil && len(u.setColumns.columnSet) == 0 {
+	if u.entity == nil && u.assignment.isEmpty() {
 		return 0, nil
 	}
 	return u.mutation.BuildSql(func(b *SQLBuilder) {
 		if u.cond != nil && u.cond.err != nil {
 			b.Error(u.cond.err)
+			return
+		}
+
+		if u.assignment != nil && u.assignment.err != nil {
+			b.Error(u.assignment.err)
 			return
 		}
 
@@ -465,7 +468,7 @@ func (u *update[E]) Do() (affected int64, err error) {
 		}
 
 		updatedColumns := ei.getColumns(u.entity, u.demand,
-			u.requiredSet.concat(u.setColumns.columnSet, ei.updatePolicy.forceColumnSet, ei.updatePolicy.defaultColumnSet),
+			u.requiredSet.concat(u.assignment.columnSet(), ei.updatePolicy.forceColumnSet, ei.updatePolicy.defaultColumnSet),
 			ei.updatePolicy.ignoredColumnSet)
 		if len(updatedColumns) == 0 {
 			b.Cancel()
@@ -483,7 +486,7 @@ func (u *update[E]) Do() (affected int64, err error) {
 		}
 		c.add(u.cond)
 
-		am := newAssignedManager[E](u.mutation.ctx, ei.updatePolicy, []map[string]any{ei.getValueMap(u.entity, updatedColumns)}, &u.setColumns, "")
+		am := newAssignedManager[E](u.mutation.ctx, ei.updatePolicy, []map[string]any{ei.getValueMap(u.entity, updatedColumns)}, u.assignment, "")
 		b.Text("UPDATE ").Quoted(ei.table).Text(" SET ").ForEach(b.Sep(", "), updatedColumns, func(_ int, column string) {
 			b.Quoted(column).Text(" = ").accept(am.getValueWriter(column, 0))
 		}).accept(where{
@@ -495,58 +498,56 @@ func (u *update[E]) Do() (affected int64, err error) {
 	}).Do()
 }
 
-type updateRows[E any] struct {
+type updateBatch[E any] struct {
 	mutation       *mutation
 	entities       []*E
 	demand         *Demand
-	setColumns     setColumns
+	assignment     *Assignment
 	requiredSet    set[string]
 	cond           *Cond
 	includeDeleted bool
 	skipSafety     bool
 }
 
-func (u *updateRows[E]) Must() *updateRows[E] {
+func (u *updateBatch[E]) Must() *updateBatch[E] {
 	u.mutation.Must()
 	return u
 }
 
-func (u *updateRows[E]) Description(desc string) *updateRows[E] {
+func (u *updateBatch[E]) Description(desc string) *updateBatch[E] {
 	u.mutation.Description(desc)
 	return u
 }
 
-func (u *updateRows[E]) SqlLogLevel(level LogLevel) *updateRows[E] {
+func (u *updateBatch[E]) SqlLogLevel(level LogLevel) *updateBatch[E] {
 	u.mutation.SqlLogLevel(level)
 	return u
 }
 
-func (u *updateRows[E]) Entities(entities ...*E) *updateRows[E] {
+func (u *updateBatch[E]) Entities(entities ...*E) *updateBatch[E] {
 	u.entities = entities
 	return u
 }
 
-func (u *updateRows[E]) Required(columns ...string) *updateRows[E] {
+func (u *updateBatch[E]) Required(columns ...string) *updateBatch[E] {
 	u.requiredSet = newSet(columns...)
 	return u
 }
 
-func (u *updateRows[E]) OnDemand(demand *Demand) *updateRows[E] {
+func (u *updateBatch[E]) OnDemand(demand *Demand) *updateBatch[E] {
 	u.demand = demand
 	return u
 }
 
-func (u *updateRows[E]) Set(column string, value any) *updateRows[E] {
-	u.setColumns.add(column, assignedValue{value: value})
+func (u *updateBatch[E]) Assignment(handler func(a *Assignment)) *updateBatch[E] {
+	if handler != nil {
+		u.assignment = newAssignment()
+		handler(u.assignment)
+	}
 	return u
 }
 
-func (u *updateRows[E]) SetExpr(column string, expr string) *updateRows[E] {
-	u.setColumns.add(column, assignedExpr{expr: expr})
-	return u
-}
-
-func (u *updateRows[E]) Cond(handler func(c *Cond)) *updateRows[E] {
+func (u *updateBatch[E]) Cond(handler func(c *Cond)) *updateBatch[E] {
 	if handler != nil {
 		u.cond = &Cond{}
 		handler(u.cond)
@@ -554,18 +555,28 @@ func (u *updateRows[E]) Cond(handler func(c *Cond)) *updateRows[E] {
 	return u
 }
 
-func (u *updateRows[E]) IncludeDeleted() *updateRows[E] {
+func (u *updateBatch[E]) IncludeDeleted() *updateBatch[E] {
 	u.includeDeleted = true
 	return u
 }
 
-func (u *updateRows[E]) Do() (affected int64, err error) {
-	if len(u.entities) == 0 {
+func (u *updateBatch[E]) SkipSafety() *updateBatch[E] {
+	u.skipSafety = true
+	return u
+}
+
+func (u *updateBatch[E]) Do() (affected int64, err error) {
+	if len(u.entities) == 0 && u.assignment.isEmpty() {
 		return 0, nil
 	}
 	return u.mutation.BuildSql(func(b *SQLBuilder) {
 		if u.cond != nil && u.cond.err != nil {
 			b.Error(u.cond.err)
+			return
+		}
+
+		if u.assignment != nil && u.assignment.err != nil {
+			b.Error(u.assignment.err)
 			return
 		}
 
@@ -582,7 +593,7 @@ func (u *updateRows[E]) Do() (affected int64, err error) {
 
 		pkColumn := ei.pkColumns[0]
 		updatedColumns := ei.getColumns(u.entities[0], u.demand,
-			u.requiredSet.concat(u.setColumns.columnSet, ei.updatePolicy.forceColumnSet, ei.updatePolicy.defaultColumnSet),
+			u.requiredSet.concat(u.assignment.columnSet(), ei.updatePolicy.forceColumnSet, ei.updatePolicy.defaultColumnSet),
 			ei.updatePolicy.ignoredColumnSet)
 		if len(updatedColumns) == 0 {
 			b.Cancel()
@@ -602,7 +613,7 @@ func (u *updateRows[E]) Do() (affected int64, err error) {
 			entityValueMaps = append(entityValueMaps, entityValueMap)
 		}
 
-		am := newAssignedManager[E](u.mutation.ctx, ei.updatePolicy, entityValueMaps, &u.setColumns, pkColumn)
+		am := newAssignedManager[E](u.mutation.ctx, ei.updatePolicy, entityValueMaps, u.assignment, pkColumn)
 		b.Text("UPDATE ").Quoted(ei.table).Text(" SET ").ForEach(b.Sep(", "), updatedColumns, func(i int, column string) {
 			b.Quoted(column).Text(" = ").accept(am.getValueWriter(column, -1))
 		})
@@ -803,12 +814,92 @@ func (c *count[E]) Do() (num int64, err error) {
 	return
 }
 
-func newAssignedManager[E any](ctx context.Context, policy assignedPolicy, entitiesValueMap []map[string]any, setColumns *setColumns, pk string) *assignedManager[E] {
+func newAssignment() *Assignment {
+	return &Assignment{valueWriterMap: make(map[string]sqlWriter)}
+}
+
+type Assignment struct {
+	valueWriterMap map[string]sqlWriter
+	err            error
+}
+
+func (a *Assignment) SetValue(column string, value any) *Assignment {
+	a.valueWriterMap[column] = assignedValue{value: value}
+	return a
+}
+
+func (a *Assignment) SetExpr(column string, expr string) *Assignment {
+	a.valueWriterMap[column] = assignedExpr{expr: expr}
+	return a
+}
+
+func (a *Assignment) Error(err error) {
+	a.err = err
+}
+
+func (a *Assignment) isEmpty() bool {
+	return a == nil || len(a.valueWriterMap) == 0
+}
+
+func (a *Assignment) columnSet() set[string] {
+	if a.isEmpty() {
+		return nil
+	}
+	s := newSetWithCap[string](len(a.valueWriterMap))
+	for c, _ := range a.valueWriterMap {
+		s.add(c)
+	}
+	return s
+}
+
+type assignedValue struct {
+	value any
+}
+
+func (a assignedValue) writeSQL(b *SQLBuilder) {
+	if a.value == nil {
+		b.Text("NULL")
+	} else {
+		b.Arg(a.value)
+	}
+}
+
+type assignedExpr struct {
+	expr string
+}
+
+func (a assignedExpr) writeSQL(b *SQLBuilder) {
+	b.Text(a.expr)
+}
+
+type assignedCases struct {
+	pkColumn  string
+	caseItems []assignedCaseItem
+}
+
+func (a assignedCases) writeSQL(b *SQLBuilder) {
+	b.Text("CASE ").Quoted(a.pkColumn)
+	for _, item := range a.caseItems {
+		b.accept(item)
+	}
+	b.Text(" END")
+}
+
+type assignedCaseItem struct {
+	caseValue any
+	thenValue assignedValue
+}
+
+func (a assignedCaseItem) writeSQL(b *SQLBuilder) {
+	b.Text(" WHEN ").Arg(a.caseValue).Text(" THEN ").accept(a.thenValue)
+}
+
+func newAssignedManager[E any](ctx context.Context, policy assignedPolicy, entitiesValueMap []map[string]any, assignment *Assignment, pk string) *assignedManager[E] {
 	return &assignedManager[E]{
 		ctx:                    ctx,
 		policy:                 policy,
 		entitiesValueMaps:      entitiesValueMap,
-		setColumns:             setColumns,
+		assignment:             assignment,
 		pkColumn:               pk,
 		reusePolicyValueWriter: make(map[string]sqlWriter, len(policy.reusedColumnSet)),
 	}
@@ -818,7 +909,7 @@ type assignedManager[E any] struct {
 	ctx                    context.Context
 	policy                 assignedPolicy
 	entitiesValueMaps      []map[string]any
-	setColumns             *setColumns
+	assignment             *Assignment
 	pkColumn               string
 	reusePolicyValueWriter map[string]sqlWriter
 }
@@ -827,8 +918,8 @@ func (a *assignedManager[E]) getValueWriter(column string, entityIndex int) sqlW
 	if a.policy.forceColumnSet.contain(column) {
 		return a._getPolicyValueWriter(column)
 	}
-	if a.setColumns != nil {
-		if vw, ok := a.setColumns.valueWriterMap[column]; ok {
+	if a.assignment != nil {
+		if vw, ok := a.assignment.valueWriterMap[column]; ok {
 			return vw
 		}
 	}
@@ -878,66 +969,6 @@ func (a *assignedManager[E]) _getPolicyValueWriter(column string) sqlWriter {
 		a.reusePolicyValueWriter[column] = vm
 	}
 	return vm
-}
-
-type setColumns struct {
-	columnSet      set[string]
-	valueWriterMap map[string]sqlWriter
-}
-
-func (s *setColumns) add(column string, valueWriter sqlWriter) {
-	if s.columnSet.contain(column) {
-		s.valueWriterMap[column] = valueWriter
-	} else {
-		if s.columnSet == nil {
-			s.columnSet = newSet[string]()
-			s.valueWriterMap = make(map[string]sqlWriter)
-		}
-		s.columnSet.add(column)
-		s.valueWriterMap[column] = valueWriter
-	}
-}
-
-type assignedValue struct {
-	value any
-}
-
-func (a assignedValue) writeSQL(b *SQLBuilder) {
-	if a.value == nil {
-		b.Text("NULL")
-	} else {
-		b.Arg(a.value)
-	}
-}
-
-type assignedExpr struct {
-	expr string
-}
-
-func (a assignedExpr) writeSQL(b *SQLBuilder) {
-	b.Text(a.expr)
-}
-
-type assignedCases struct {
-	pkColumn  string
-	caseItems []assignedCaseItem
-}
-
-func (a assignedCases) writeSQL(b *SQLBuilder) {
-	b.Text("CASE ").Quoted(a.pkColumn)
-	for _, item := range a.caseItems {
-		b.accept(item)
-	}
-	b.Text(" END")
-}
-
-type assignedCaseItem struct {
-	caseValue any
-	thenValue assignedValue
-}
-
-func (a assignedCaseItem) writeSQL(b *SQLBuilder) {
-	b.Text(" WHEN ").Arg(a.caseValue).Text(" THEN ").accept(a.thenValue)
 }
 
 type where struct {

@@ -227,7 +227,9 @@ func TestTxHook(t *testing.T) {
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectRollback()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
-			_, err := db.Update[orm.User](ctx).Set("email", "a1").Cond(func(c *orm.Cond) {
+			_, err := db.Update[orm.User](ctx).Assignment(func(a *orm.Assignment) {
+				a.SetValue("email", "a1")
+			}).Cond(func(c *orm.Cond) {
 				c.Eq("id", 1)
 			}).Do()
 			if err != nil {
@@ -265,7 +267,9 @@ func TestTxHook(t *testing.T) {
 		mock.ExpectCommit()
 		ctx := context.WithValue(context.Background(), "key", "value")
 		err := db.Tx(ctx).Do(func(ctx context.Context) error {
-			_, err := db.Update[orm.User](ctx).Set("email", "a1").Cond(func(c *orm.Cond) {
+			_, err := db.Update[orm.User](ctx).Assignment(func(a *orm.Assignment) {
+				a.SetValue("email", "a1")
+			}).Cond(func(c *orm.Cond) {
 				c.Eq("id", 1)
 			}).Do()
 			if err != nil {
@@ -276,7 +280,9 @@ func TestTxHook(t *testing.T) {
 
 			if h, ok := db.TxHook(ctx); ok {
 				h.BeforeCommitSync(func(ctx context.Context) error {
-					_, err := db.Update[orm.User](ctx).Set("email", "a2").Cond(func(c *orm.Cond) {
+					_, err := db.Update[orm.User](ctx).Assignment(func(a *orm.Assignment) {
+						a.SetValue("email", "a2")
+					}).Cond(func(c *orm.Cond) {
 						c.Eq("id", 2)
 					}).Do()
 					return err

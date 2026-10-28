@@ -395,11 +395,11 @@ func TestUpdate(t *testing.T) {
 		mock.ExpectPrepare("UPDATE `user` SET `name` = ?, `phone` = NULL, `email` = NULL, `status` = ?, `level` = '2', `properties` = NULL, `tags` = NULL WHERE `id` = ? AND `status` = ?").
 			ExpectExec().WithArgs("abc", 2, 1, 4).WillReturnResult(sqlmock.NewResult(0, 1))
 		affected, err := db.Update[orm.User](ctx).Entity(&orm.User{Id: new(int64(1)), Name: new("abc"), Category: &orm.UserCategory{Organization: "none", Class: 1}}).
-			OnDemand(orm.DemandFor[orm.UserSimple]()).Required("properties").Set("status", orm.UserStatus(2)).Set("tags", "'t1,t2'").Set("tags", nil).
-			SetExpr("level", "'2'").
-			Cond(func(c *orm.Cond) {
-				c.Eq("status", 4)
-			}).Do()
+			OnDemand(orm.DemandFor[orm.UserSimple]()).Required("properties").Assignment(func(a *orm.Assignment) {
+			a.SetValue("status", orm.UserStatus(2)).SetValue("tags", "'t1,t2'").SetValue("tags", nil).SetExpr("level", "'2'")
+		}).Cond(func(c *orm.Cond) {
+			c.Eq("status", 4)
+		}).Do()
 		r.NoError(err)
 		r.Equal(int64(1), affected)
 	}
@@ -430,36 +430,36 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
-func TestUpdateRow(t *testing.T) {
+func TestUpdateBatch(t *testing.T) {
 	r := require.New(t)
 	{
 		db, _ := orm.MockDB(r, nil)
 		r.PanicsWithError("not a valid entity type", func() {
-			db.UpdateRows[int](nil).Must().Entities(new(1)).Do()
+			db.UpdateBatch[int](nil).Must().Entities(new(1)).Do()
 		})
 	}
 	{
 		db, _ := orm.MockDB(r, nil)
-		affected, err := db.UpdateRows[orm.DemoMulPk](nil).Entities(&orm.DemoMulPk{}, &orm.DemoMulPk{}).Do()
+		affected, err := db.UpdateBatch[orm.DemoMulPk](nil).Entities(&orm.DemoMulPk{}, &orm.DemoMulPk{}).Do()
 		r.Equal(int64(0), affected)
 		r.EqualError(err, "orm.DemoMulPk\" must have exactly one field with the \"pk\" tag")
 	}
 	{
 		db, mock := orm.MockDB(r, nil)
 		mock.ExpectPrepare("")
-		affected, err := db.UpdateRows[orm.User](nil).Entities(&orm.User{Name: new("abc")}).Do()
+		affected, err := db.UpdateBatch[orm.User](nil).Entities(&orm.User{Name: new("abc")}).Do()
 		r.Equal(int64(0), affected)
 		r.EqualError(err, "field 'Id' is nil at index 0 of entities")
 	}
 	{
 		db, _ := orm.MockDB(r, nil)
-		affected, err := db.UpdateRows[orm.User](nil).Do()
+		affected, err := db.UpdateBatch[orm.User](nil).Do()
 		r.Equal(int64(0), affected)
 		r.NoError(err)
 	}
 	{
 		db, _ := orm.MockDB(r, nil)
-		affected, err := db.UpdateRows[orm.User](nil).Entities(&orm.User{Id: new(int64(1))}, &orm.User{Id: new(int64(2))}).Do()
+		affected, err := db.UpdateBatch[orm.User](nil).Entities(&orm.User{Id: new(int64(1))}, &orm.User{Id: new(int64(2))}).Do()
 		r.Equal(int64(0), affected)
 		r.NoError(err)
 	}
@@ -470,12 +470,13 @@ func TestUpdateRow(t *testing.T) {
 			"`email` = CASE `id` WHEN ? THEN NULL WHEN ? THEN ? END, `status` = ?, `level` = '2', `properties` = NULL, `tags` = NULL "+
 			"WHERE `id` IN(?, ?) AND `level` = ?").ExpectExec().
 			WithArgs(1, "a", 2, "b", 1, 2, "email", 2, 1, 2, 5).WillReturnResult(sqlmock.NewResult(1, 1))
-		affected, err := db.UpdateRows[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
+		affected, err := db.UpdateBatch[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
 			Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b"), Email: new("email")}).
-			Required("properties").Set("status", orm.UserStatus(2)).Set("tags", nil).SetExpr("level", "'2'").
-			Cond(func(c *orm.Cond) {
-				c.Eq("level", 5)
-			}).Do()
+			Required("properties").Assignment(func(a *orm.Assignment) {
+			a.SetValue("status", orm.UserStatus(2)).SetValue("tags", nil).SetExpr("level", "'2'")
+		}).Cond(func(c *orm.Cond) {
+			c.Eq("level", 5)
+		}).Do()
 		r.NoError(err)
 		r.Equal(int64(1), affected)
 		lm := logger.Messages[0]
@@ -495,7 +496,7 @@ func TestUpdateRow(t *testing.T) {
 		mock.ExpectPrepare("UPDATE `user` SET `name` = CASE `id` WHEN ? THEN ? WHEN ? THEN ? END, `update_at` = ?, `version` = version + 1 WHERE `id` IN(?, ?) AND `level` = ? AND `deleted` = ?").ExpectExec().
 			WithArgs(1, "a", 2, "b", orm.AnyTime{}, 1, 2, 5, 0).
 			WillReturnResult(sqlmock.NewResult(1, 1))
-		affected, err := db.UpdateRows[orm.User](nil).Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b")}).
+		affected, err := db.UpdateBatch[orm.User](nil).Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b")}).
 			Cond(func(c *orm.Cond) {
 				c.Eq("level", 5)
 			}).Do()
@@ -505,7 +506,7 @@ func TestUpdateRow(t *testing.T) {
 		mock.ExpectPrepare("UPDATE `user` SET `name` = CASE `id` WHEN ? THEN ? WHEN ? THEN ? END, `update_at` = ?, `version` = version + 1 WHERE `id` IN(?, ?)").ExpectExec().
 			WithArgs(1, "a", 2, "b", orm.AnyTime{}, 1, 2).
 			WillReturnResult(sqlmock.NewResult(1, 1))
-		affected, err = db.UpdateRows[orm.User](nil).Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b"), Version: new(int64(5))}).
+		affected, err = db.UpdateBatch[orm.User](nil).Entities(&orm.User{Id: new(int64(1)), Name: new("a")}, &orm.User{Id: new(int64(2)), Name: new("b"), Version: new(int64(5))}).
 			Required("update_at", "version").IncludeDeleted().Do()
 		r.NoError(err)
 		r.Equal(int64(1), affected)
@@ -516,12 +517,12 @@ func TestUpdateRow(t *testing.T) {
 		mock.ExpectPrepare("UPDATE `user` SET `name` = ?, `phone` = NULL, `email` = NULL, `status` = ?, `level` = '2', `properties` = NULL, `tags` = NULL "+
 			"WHERE `id` = ? AND `level` = ?").ExpectExec().
 			WithArgs("a", 2, 1, 5).WillReturnResult(sqlmock.NewResult(1, 1))
-		affected, err := db.UpdateRows[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
-			Entities(&orm.User{Id: new(int64(1)), Name: new("a")}).Required("properties").
-			Set("status", orm.UserStatus(2)).Set("tags", nil).SetExpr("level", "'2'").
-			Cond(func(c *orm.Cond) {
-				c.Eq("level", 5)
-			}).Do()
+		affected, err := db.UpdateBatch[orm.User](ctx).SqlLogLevel(orm.LogLevel_.Info).Description("test desc").OnDemand(orm.DemandFor[orm.UserSimple]()).
+			Entities(&orm.User{Id: new(int64(1)), Name: new("a")}).Required("properties").Assignment(func(a *orm.Assignment) {
+			a.SetValue("status", orm.UserStatus(2)).SetValue("tags", nil).SetExpr("level", "'2'")
+		}).Cond(func(c *orm.Cond) {
+			c.Eq("level", 5)
+		}).Do()
 		r.NoError(err)
 		r.Equal(int64(1), affected)
 	}
