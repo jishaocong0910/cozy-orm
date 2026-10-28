@@ -560,11 +560,6 @@ func (u *updateBatch[E]) IncludeDeleted() *updateBatch[E] {
 	return u
 }
 
-func (u *updateBatch[E]) SkipSafety() *updateBatch[E] {
-	u.skipSafety = true
-	return u
-}
-
 func (u *updateBatch[E]) Do() (affected int64, err error) {
 	if len(u.entities) == 0 {
 		return 0, nil
