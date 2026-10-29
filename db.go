@@ -261,7 +261,7 @@ func (c *columnPolicyConfig) UseUpdateTime() *columnPolicyConfig {
 func (c *columnPolicyConfig) UseRowVersion() *columnPolicyConfig {
 	c.OnInsert().Value(false, true, func(ctx context.Context) any {
 		return 1
-	}).OnUpdate().Expr(true, true, func(ctx context.Context) string {
+	}).OnUpdate().Text(true, true, func(ctx context.Context) string {
 		return c.column + " + 1"
 	})
 	return c
@@ -276,9 +276,9 @@ type assignedPolicyConfig struct {
 	force              bool
 	batchReuse         bool
 	never              bool
-	trueExprFalseValue bool
+	trueTextFalseValue bool
 	value              func(ctx context.Context) any
-	expr               func(ctx context.Context) string
+	text               func(ctx context.Context) string
 }
 
 func (c *assignedPolicyConfig) Never() *columnPolicyConfig {
@@ -293,11 +293,11 @@ func (c *assignedPolicyConfig) Value(force bool, batchReuse bool, value func(ctx
 	return c.parent
 }
 
-func (c *assignedPolicyConfig) Expr(force bool, batchReuse bool, expr func(ctx context.Context) string) *columnPolicyConfig {
+func (c *assignedPolicyConfig) Text(force bool, batchReuse bool, text func(ctx context.Context) string) *columnPolicyConfig {
 	c.force = force
 	c.batchReuse = batchReuse
-	c.trueExprFalseValue = true
-	c.expr = expr
+	c.trueTextFalseValue = true
+	c.text = text
 	return c.parent
 }
 

@@ -284,9 +284,9 @@ func (p *assignedPolicy) loadConfig(columnOnInsertMap map[string]*assignedPolicy
 			defaultColumnSet.add(column)
 		}
 		assignedValueMap[column] = assignedValuePolicy{
-			trueExprFalseValue: config.trueExprFalseValue,
+			trueTextFalseValue: config.trueTextFalseValue,
 			value:              config.value,
-			expr:               config.expr,
+			text:               config.text,
 		}
 	}
 	if len(ignoredColumnSet) > 0 {
@@ -312,9 +312,9 @@ func (p *assignedPolicy) loadConfig(columnOnInsertMap map[string]*assignedPolicy
 }
 
 type assignedValuePolicy struct {
-	trueExprFalseValue bool
+	trueTextFalseValue bool
 	value              func(ctx context.Context) any
-	expr               func(ctx context.Context) string
+	text               func(ctx context.Context) string
 }
 
 type deleteSoftlyPolicy struct {
