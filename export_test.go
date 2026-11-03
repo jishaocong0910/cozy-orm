@@ -52,8 +52,6 @@ func MockDBAndLogger(r *require.Assertions, config *Config) (*DB, *MockLogger, s
 	return db, logger, mock
 }
 
-var NewTxContext = newTxContext
-
 func convertId[T any](id int64) any {
 	return identityConverterMap[reflect.TypeFor[T]()](id).Elem().Interface()
 }
@@ -132,6 +130,7 @@ type User struct {
 	Category   *UserCategory
 	Tags       UserTags
 	Attributes UserAttributes
+	Gender     *UserGender
 	Uuid       *uuid.UUID
 	CreateAt   *time.Time
 	UpdateAt   *time.Time
@@ -207,45 +206,33 @@ func (c *UserCategory) Scan(src any) error {
 	return nil
 }
 
-type DemoEntityTag struct {
-	_ struct{} `orm:"table=demo"`
+type UserGender string
+
+func (c *UserGender) Value() (driver.Value, error) {
+	if c == nil {
+		return nil, nil
+	}
+	switch *c {
+	case "male":
+		return int64(1), nil
+	case "female":
+		return int64(2), nil
+	}
+	return nil, nil
 }
 
-type DemoIgnoreField struct {
-	Id *string `orm:"column=id;auto=2"`
-
-	DemoIgnoreField2                                // ignore
-	ignoreUnexported              *string           `orm:"column=ignore1"`
-	IgnoreNotPointer              string            `orm:"column=ignore2"`
-	IgnoreNotBaseType             *any              `orm:"column=ignore3"`
-	IgnoreNotBaseTypeElem         []any             `orm:"column=ignore4"`
-	IgnoreInvalidImplementConvert *DemoIgnoreField2 `orm:"column=ignore5"`
-}
-
-type DemoIgnoreField2 struct {
-	Field *string
-}
-
-type DemoMulPk struct {
-	Id1  *string `orm:"pk;auto"`
-	Id2  *string `orm:"pk;auto"`
-	Name *string `orm:"column=name"`
-}
-
-type DemoDemand struct {
-	DemoDemandAnon
-	Name  string
-	Phone string
-	Email string
-	level string
-	Field string
-}
-
-type DemoDemandAnon struct {
-	CreateAt *time.Time
-	UpdateAt *time.Time
-	Version  *int64
-	Deleted  *int64
+func (c *UserGender) Scan(src any) error {
+	if src != nil {
+		if s, ok := src.(int64); ok {
+			switch s {
+			case 1:
+				*c = "male"
+			case 2:
+				*c = "female"
+			}
+		}
+	}
+	return nil
 }
 
 type TxInfoData struct {
@@ -255,13 +242,11 @@ type TxInfoData struct {
 }
 
 func GetTxInfoData(ctx context.Context, db *DB) *TxInfoData {
-	if tc, ok := ctx.(*TxContext); ok {
-		if ti := tc.getTxInfo(db); ti != nil {
-			return &TxInfoData{
-				Owner:  ti.owner,
-				RawTx:  ti.rawTx,
-				TxHook: ti.txHooks,
-			}
+	if ti := db.getTxInfo(ctx); ti != nil {
+		return &TxInfoData{
+			Owner:  ti.owner,
+			RawTx:  ti.rawTx,
+			TxHook: ti.txHooks,
 		}
 	}
 	return nil

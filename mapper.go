@@ -75,6 +75,8 @@ func (m tupleMapper) mapping(columns []string, target any) (dest []any, afterSca
 				conv = append(conv, func() {
 					if value := medium.value(); value != nil {
 						field.Addr().Elem().Set(reflect.ValueOf(value))
+					} else {
+						field.SetZero()
 					}
 				})
 				continue

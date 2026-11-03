@@ -24,7 +24,7 @@ import (
 
 type query[E any] struct {
 	*executor
-	mapTargets []*E
+	mapIntoEntities []*E
 }
 
 func (q *query[E]) Must() *query[E] {
@@ -47,8 +47,8 @@ func (q *query[E]) BuildSql(buildSQL func(b *SQLBuilder)) *query[E] {
 	return q
 }
 
-func (q *query[E]) MapTo(entities ...*E) *query[E] {
-	q.mapTargets = entities
+func (q *query[E]) MapInto(entities ...*E) *query[E] {
+	q.mapIntoEntities = entities
 	return q
 }
 
@@ -72,8 +72,8 @@ func (q *query[E]) Do() (entities []*E, err error) {
 	}
 
 	var rowCount int
-	if len(q.mapTargets) > 0 {
-		rowCount, err = q._mapTargetEntities(rows, columns, mp)
+	if len(q.mapIntoEntities) > 0 {
+		rowCount, err = q._mapIntoEntities(rows, columns, mp)
 	} else {
 		rowCount, entities, err = q._mapNewEntities(rows, columns, mp)
 	}
@@ -85,10 +85,10 @@ func (q *query[E]) Do() (entities []*E, err error) {
 	return
 }
 
-func (q *query[E]) _mapTargetEntities(rows *sql.Rows, columns []string, mp mapper) (rowCount int, err error) {
+func (q *query[E]) _mapIntoEntities(rows *sql.Rows, columns []string, mp mapper) (rowCount int, err error) {
 	for rows.Next() {
-		if len(q.mapTargets) > rowCount {
-			e := q.mapTargets[rowCount]
+		if len(q.mapIntoEntities) > rowCount {
+			e := q.mapIntoEntities[rowCount]
 			dest_, afterScan := mp.mapping(columns, e)
 			err = rows.Scan(dest_...)
 			if err != nil {
@@ -131,8 +131,8 @@ func newQuery[E any](e *executor) *query[E] {
 
 type mutation struct {
 	*executor
-	mapTargetType reflect.Type
-	mapTargets    []any
+	mapLastInsertIdIntoEntityType reflect.Type
+	mapLastInsertIdIntoEntities   []any
 }
 
 func (m *mutation) Must() *mutation {
@@ -155,11 +155,11 @@ func (m *mutation) BuildSql(buildSQL func(b *SQLBuilder)) *mutation {
 	return m
 }
 
-func (m *mutation) MapTo[E any](entities ...*E) *mutation {
-	m.mapTargetType = reflect.TypeFor[E]()
-	m.mapTargets = make([]any, 0, len(entities))
+func (m *mutation) MapLastInsertIdInto[E any](entities ...*E) *mutation {
+	m.mapLastInsertIdIntoEntityType = reflect.TypeFor[E]()
+	m.mapLastInsertIdIntoEntities = make([]any, 0, len(entities))
 	for _, e := range entities {
-		m.mapTargets = append(m.mapTargets, e)
+		m.mapLastInsertIdIntoEntities = append(m.mapLastInsertIdIntoEntities, e)
 	}
 	return m
 }
@@ -181,33 +181,37 @@ func (m *mutation) Do() (affected int64, err error) {
 }
 
 func (m *mutation) _handleResult(result sql.Result) {
-	if m.executor.db.getGeneratedKeyMode.Not(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) {
-		return
-	}
-	if len(m.mapTargets) == 0 {
+	if len(m.mapLastInsertIdIntoEntities) == 0 || m.executor.db.getGeneratedKeyMode.Not(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) {
 		return
 	}
 	id, err := result.LastInsertId()
 	if err != nil {
 		return
 	}
-	ei, err := m.db.getEntityInfo(m.mapTargetType)
+	ei, err := m.db.getEntityInfo(m.mapLastInsertIdIntoEntityType)
 	if err != nil {
 		return
 	}
 	if ei.identityConverter == nil {
 		return
 	}
-	if m.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.LastInsertId) {
-		id = id - int64(len(m.mapTargets)-1)*ei.autoStep
+	for _, entity := range m.mapLastInsertIdIntoEntities {
+		v := reflect.ValueOf(entity).Elem()
+		field := v.Field(ei.columnToFieldIndexMap[ei.autoColumns[0]])
+		if !field.IsNil() {
+			return
+		}
 	}
-	for _, entity := range m.mapTargets {
-		m.getIdentity(entity, ei, id)
+	if m.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.LastInsertId) {
+		id = id - int64(len(m.mapLastInsertIdIntoEntities)-1)*ei.autoStep
+	}
+	for _, entity := range m.mapLastInsertIdIntoEntities {
+		m.setIdentity(entity, ei, id)
 		id += ei.autoStep
 	}
 }
 
-func (m *mutation) getIdentity(entity any, ei *entityInfo, id int64) {
+func (m *mutation) setIdentity(entity any, ei *entityInfo, id int64) {
 	v := reflect.ValueOf(entity).Elem()
 	field := v.Field(ei.columnToFieldIndexMap[ei.autoColumns[0]])
 	field.Set(ei.identityConverter(id))
@@ -328,10 +332,8 @@ func (e *executor) doExec() (sql.Result, time.Duration, bool, error) {
 }
 
 func (e *executor) _prepare(sqlStr string) (*sql.Stmt, error) {
-	if tc, ok := e.ctx.(*TxContext); ok {
-		if ti := tc.getTxInfo(e.db); ti != nil {
-			return ti.rawTx.PrepareContext(e.ctx, sqlStr)
-		}
+	if ti := e.db.getTxInfo(e.ctx); ti != nil {
+		return ti.rawTx.PrepareContext(e.ctx, sqlStr)
 	}
 	if e.db.rawDB == nil {
 		return nil, errors.New("no available *sql.DB")

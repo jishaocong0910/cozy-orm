@@ -25,13 +25,12 @@ type SQLWriter interface {
 }
 
 type SQLBuilder struct {
-	b        strings.Builder
-	logIndex []int
-	args     []any
-	cancel   bool
-	err      error
-	ph       SQLWriter
-	delim    IdentifierDelimiter
+	b      strings.Builder
+	args   []any
+	cancel bool
+	err    error
+	ph     SQLWriter
+	delim  IdentifierDelimiter
 }
 
 func (b *SQLBuilder) Text(str string) *SQLBuilder {
@@ -39,9 +38,9 @@ func (b *SQLBuilder) Text(str string) *SQLBuilder {
 	return b
 }
 
-func (b *SQLBuilder) Quoted(column string) *SQLBuilder {
-	if b.delim.quoted != nil {
-		column = b.delim.quoted(column)
+func (b *SQLBuilder) Quote(column string) *SQLBuilder {
+	if b.delim.quote != nil {
+		column = b.delim.quote(column)
 	}
 	b.Text(column)
 	return b
@@ -142,12 +141,12 @@ func (p *prefixPh) WriteSQL(b *SQLBuilder) {
 	b.Text(ph)
 }
 
-func newSQLBuilder(paramPrefix string, qit IdentifierDelimiter) *SQLBuilder {
+func newSQLBuilder(paramPrefix string, delim IdentifierDelimiter) *SQLBuilder {
 	var ph SQLWriter
 	if paramPrefix != "" {
 		ph = &prefixPh{prefix: paramPrefix}
 	} else {
 		ph = defaultPh{}
 	}
-	return &SQLBuilder{ph: ph, delim: qit}
+	return &SQLBuilder{ph: ph, delim: delim}
 }

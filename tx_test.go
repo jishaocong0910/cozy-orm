@@ -50,7 +50,7 @@ func TestTx(t *testing.T) {
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
 		l := logger.Messages[0]
-		r.Equal("SQL: UPDATE user set status=1 WHERE id=?; args: 1(int), affected: 1, cost: 0ms", l.Msg)
+		r.Equal("SQL: UPDATE user set status=1 WHERE id=?; args: 1(int); affected: 1; cost: 0ms", l.Msg)
 
 		ti := orm.GetTxInfoData(ctx2, db)
 		r.Nil(ti)
@@ -212,7 +212,7 @@ func TestTxHook(t *testing.T) {
 	r := require.New(t)
 	{
 		db, _ := orm.MockDB(r, nil)
-		h, ok := db.TxHook(nil)
+		h, ok := db.TxHook(context.Background())
 		r.Nil(h)
 		r.False(ok)
 		h, ok = db.TxHook(context.Background())
@@ -227,7 +227,9 @@ func TestTxHook(t *testing.T) {
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectRollback()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
-			_, err := db.Update[orm.User](ctx).Set("email", "a1").Cond(func(c *orm.Cond) {
+			_, err := db.Update[orm.User](ctx).Assignment(func(a *orm.Assignment) {
+				a.SetValue("email", "a1")
+			}).Cond(func(c *orm.Cond) {
 				c.Eq("id", 1)
 			}).Do()
 			if err != nil {
@@ -265,7 +267,9 @@ func TestTxHook(t *testing.T) {
 		mock.ExpectCommit()
 		ctx := context.WithValue(context.Background(), "key", "value")
 		err := db.Tx(ctx).Do(func(ctx context.Context) error {
-			_, err := db.Update[orm.User](ctx).Set("email", "a1").Cond(func(c *orm.Cond) {
+			_, err := db.Update[orm.User](ctx).Assignment(func(a *orm.Assignment) {
+				a.SetValue("email", "a1")
+			}).Cond(func(c *orm.Cond) {
 				c.Eq("id", 1)
 			}).Do()
 			if err != nil {
@@ -276,7 +280,9 @@ func TestTxHook(t *testing.T) {
 
 			if h, ok := db.TxHook(ctx); ok {
 				h.BeforeCommitSync(func(ctx context.Context) error {
-					_, err := db.Update[orm.User](ctx).Set("email", "a2").Cond(func(c *orm.Cond) {
+					_, err := db.Update[orm.User](ctx).Assignment(func(a *orm.Assignment) {
+						a.SetValue("email", "a2")
+					}).Cond(func(c *orm.Cond) {
 						c.Eq("id", 2)
 					}).Do()
 					return err
@@ -313,19 +319,47 @@ func TestTxHook(t *testing.T) {
 		r.Equal(orm.LogLevel_.Error, logger.Messages[0].Level)
 		r.Contains(logger.Messages[0].Msg, "panic in transaction after-hook after-hook panic")
 	}
-}
-
-func TestTxContext(t *testing.T) {
-	r := require.New(t)
-	tc := orm.NewTxContext(nil)
-	_, ok := tc.Deadline()
-	r.False(ok)
-
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
-	tc = orm.NewTxContext(ctx)
-	_, ok = tc.Deadline()
-	r.True(ok)
-
-	cancelFunc()
-	r.Equal(tc.Err(), context.Canceled)
+	{
+		db, mock := orm.MockDB(r, nil)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		var i int
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
+			db.Tx(ctx).Must().Do(func(ctx context.Context) error {
+				if hook, ok := db.TxHook(ctx); ok {
+					hook.BeforeCommitSync(func(ctx context.Context) error {
+						i++
+						return nil
+					})
+				}
+				return nil
+			})
+			return nil
+		})
+		r.NoError(err)
+		r.Equal(1, i)
+	}
+	{
+		db, mock := orm.MockDB(r, nil)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		var i int
+		err := db.Tx(nil).Do(func(ctx context.Context) error {
+			if hook, ok := db.TxHook(ctx); ok {
+				hook.BeforeCommitSync(func(ctx context.Context) error {
+					i++
+					if hook, ok := db.TxHook(ctx); ok {
+						hook.BeforeCommitSync(func(ctx context.Context) error {
+							i++
+							return nil
+						})
+					}
+					return nil
+				})
+			}
+			return nil
+		})
+		r.NoError(err)
+		r.Equal(1, i)
+	}
 }

@@ -15,6 +15,7 @@
 package orm
 
 import (
+	"database/sql"
 	"reflect"
 	"testing"
 	"time"
@@ -98,11 +99,16 @@ func TestConvertArgs(t *testing.T) {
 		1, 1,
 		"a,b,c", "a,b,c",
 		`{"key1":"a","key2":"b"}`, `{"key1":"a","key2":"b"}`,
+		`{"organization":"organization","class":30}`,
+		1, `{"source":"a","country":"b"}`,
 	).WillReturnRows(mock.NewRows([]string{"unused"}))
 	_, err := db.Query[User](nil).BuildSql(func(b *SQLBuilder) {
 		b.Args(nil, (*string)(nil), "test", UserProperties{Source: "a", Country: "b"},
 			&UserProperties{Source: "a", Country: "b"}, UserLevel("1"), new(UserLevel("1")), UserTags{"a", "b", "c"},
-			&UserTags{"a", "b", "c"}, UserAttributes{"key1": "a", "key2": "b"}, &UserAttributes{"key1": "a", "key2": "b"})
+			&UserTags{"a", "b", "c"}, UserAttributes{"key1": "a", "key2": "b"}, &UserAttributes{"key1": "a", "key2": "b"},
+			UserCategory{Organization: "organization", Class: 30},
+			UserGender("male"),
+			sql.Named("properties", UserProperties{Source: "a", Country: "b"}))
 	}).Do()
 	r.NoError(err)
 	r.NoError(mock.ExpectationsWereMet())

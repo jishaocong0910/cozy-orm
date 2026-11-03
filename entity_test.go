@@ -18,6 +18,7 @@ import (
 	"context"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -39,14 +40,14 @@ func TestGetEntity(t *testing.T) {
 		r.NoError(err)
 		r.Equal("user", ei.table)
 		r.Equal([]string{"id", "name", "phone", "email", "avatar_url", "status", "level", "properties", "category", "tags", "attributes",
-			"uuid", "create_at", "update_at", "version", "deleted"}, ei.columns)
+			"gender", "uuid", "create_at", "update_at", "version", "deleted"}, ei.columns)
 		r.Equal(map[string]int{"id": 0, "name": 1, "phone": 4, "email": 5, "avatar_url": 6, "status": 7, "level": 8,
-			"properties": 9, "category": 10, "tags": 11, "attributes": 12, "uuid": 13, "create_at": 14, "update_at": 15,
-			"version": 16, "deleted": 17},
+			"properties": 9, "category": 10, "tags": 11, "attributes": 12, "gender": 13, "uuid": 14, "create_at": 15, "update_at": 16,
+			"version": 17, "deleted": 18},
 			ei.columnToFieldIndexMap)
 		r.Equal(map[string]string{"id": "Id", "name": "Name", "phone": "Phone",
 			"email": "Email", "avatar_url": "AvatarUrl", "status": "Status", "level": "Level",
-			"properties": "Properties", "category": "Category", "tags": "Tags", "attributes": "Attributes",
+			"properties": "Properties", "category": "Category", "tags": "Tags", "attributes": "Attributes", "gender": "Gender",
 			"uuid": "Uuid", "create_at": "CreateAt", "update_at": "UpdateAt", "version": "Version", "deleted": "Deleted"},
 			ei.columnToFieldNameMap)
 		r.Equal([]string{"id"}, ei.pkColumns)
@@ -59,24 +60,24 @@ func TestGetEntity(t *testing.T) {
 		r.Nil(ei.insertPolicy.forceColumnSet)
 		r.Equal(newSet[string]("create_at", "update_at", "version"), ei.insertPolicy.defaultColumnSet)
 		checkMapKeys(r, []string{"create_at", "update_at", "version"}, ei.insertPolicy.assignedValueMap)
-		r.False(ei.insertPolicy.assignedValueMap["create_at"].trueExprFalseValue)
+		r.False(ei.insertPolicy.assignedValueMap["create_at"].isText)
 		r.NotNil(ei.insertPolicy.assignedValueMap["create_at"].value)
-		r.Nil(ei.insertPolicy.assignedValueMap["create_at"].expr)
-		r.False(ei.insertPolicy.assignedValueMap["update_at"].trueExprFalseValue)
+		r.Nil(ei.insertPolicy.assignedValueMap["create_at"].text)
+		r.False(ei.insertPolicy.assignedValueMap["update_at"].isText)
 		r.NotNil(ei.insertPolicy.assignedValueMap["update_at"].value)
-		r.Nil(ei.insertPolicy.assignedValueMap["update_at"].expr)
+		r.Nil(ei.insertPolicy.assignedValueMap["update_at"].text)
 
 		r.Equal(newSet[string]("create_at", "id"), ei.updatePolicy.ignoredColumnSet)
 		r.Equal(newSet[string]("update_at", "version"), ei.updatePolicy.reusedColumnSet)
 		r.Equal(newSet[string]("update_at", "version"), ei.updatePolicy.forceColumnSet)
 		r.Nil(ei.updatePolicy.defaultColumnSet)
 		checkMapKeys(r, []string{"update_at", "version"}, ei.updatePolicy.assignedValueMap)
-		r.False(ei.updatePolicy.assignedValueMap["update_at"].trueExprFalseValue)
+		r.False(ei.updatePolicy.assignedValueMap["update_at"].isText)
 		r.NotNil(ei.updatePolicy.assignedValueMap["update_at"].value)
-		r.Nil(ei.updatePolicy.assignedValueMap["update_at"].expr)
-		r.True(ei.updatePolicy.assignedValueMap["version"].trueExprFalseValue)
+		r.Nil(ei.updatePolicy.assignedValueMap["update_at"].text)
+		r.True(ei.updatePolicy.assignedValueMap["version"].isText)
 		r.Nil(ei.updatePolicy.assignedValueMap["version"].value)
-		r.NotNil(ei.updatePolicy.assignedValueMap["version"].expr)
+		r.NotNil(ei.updatePolicy.assignedValueMap["version"].text)
 
 		r.Equal(deleteSoftlyMode_.assignedPk, ei.deleteSoftlyPolicy.mode)
 		r.Equal("deleted", ei.deleteSoftlyPolicy.deletedColumn)
@@ -84,9 +85,22 @@ func TestGetEntity(t *testing.T) {
 		r.Equal(0, ei.deleteSoftlyPolicy.normalValue)
 	}
 	{
-		ei, err := newEntityInfo(reflect.TypeFor[DemoIgnoreField](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, nil)
+		type DemoIgnoreField struct {
+			Field *string
+		}
+		type DemoEntity struct {
+			Id *string `orm:"column=id;auto=2"`
+
+			DemoIgnoreField                                // ignore
+			ignoreUnexported              *string          `orm:"column=ignore1"`
+			IgnoreNotPointer              string           `orm:"column=ignore2"`
+			IgnoreNotBaseType             *any             `orm:"column=ignore3"`
+			IgnoreNotBaseTypeElem         []any            `orm:"column=ignore4"`
+			IgnoreInvalidImplementConvert *DemoIgnoreField `orm:"column=ignore5"`
+		}
+		ei, err := newEntityInfo(reflect.TypeFor[DemoEntity](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, nil)
 		r.NoError(err)
-		r.Equal("demo_ignore_field", ei.table)
+		r.Equal("demo_entity", ei.table)
 		r.Equal([]string{"id"}, ei.columns)
 		r.Len(ei.columnToFieldIndexMap, 1)
 		r.Equal(map[string]int{"id": 0}, ei.columnToFieldIndexMap)
@@ -97,14 +111,22 @@ func TestGetEntity(t *testing.T) {
 		r.NotNil(ei.identityConverter)
 	}
 	{
-		ei, err := newEntityInfo(reflect.TypeFor[DemoEntityTag](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, nil)
+		type DemoEntity struct {
+			_ struct{} `orm:"table=demo"`
+		}
+		ei, err := newEntityInfo(reflect.TypeFor[DemoEntity](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, nil)
 		r.NoError(err)
 		r.Equal("demo", ei.table)
 	}
 	{
-		ei, err := newEntityInfo(reflect.TypeFor[DemoMulPk](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, nil)
+		type DemoEntity struct {
+			Id1  *string `orm:"pk;auto"`
+			Id2  *string `orm:"pk;auto"`
+			Name *string `orm:"column=name"`
+		}
+		ei, err := newEntityInfo(reflect.TypeFor[DemoEntity](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, nil)
 		r.NoError(err)
-		r.Equal("demo_mul_pk", ei.table)
+		r.Equal("demo_entity", ei.table)
 		r.Equal([]string{"id1", "id2", "name"}, ei.columns)
 		r.Equal(map[string]int{"id1": 0, "id2": 1, "name": 2}, ei.columnToFieldIndexMap)
 		r.Equal(map[string]string{"id1": "Id1", "id2": "Id2", "name": "Name"}, ei.columnToFieldNameMap)
@@ -159,6 +181,20 @@ func TestEntity_getOnDemandColumnSet(t *testing.T) {
 	ei, err := newEntityInfo(reflect.TypeFor[User](), defaultNameMapper, defaultNameMapper, GetGeneratedKeyMode_.FirstInsertId, nil)
 	r.NoError(err)
 	{
+		type DemoDemandAnon struct {
+			CreateAt *time.Time
+			UpdateAt *time.Time
+			Version  *int64
+			Deleted  *int64
+		}
+		type DemoDemand struct {
+			DemoDemandAnon
+			Name  string
+			Phone string
+			Email string
+			level string
+			Field string
+		}
 		r.Nil(ei._getDemandColumnSet(nil))
 		r.Nil(ei._getDemandColumnSet(&Demand{}))
 		r.Nil(ei._getDemandColumnSet(DemandFor[string]()))

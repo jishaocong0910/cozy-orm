@@ -44,13 +44,13 @@ func deferStack() []byte {
 
 type set[T comparable] map[T]struct{}
 
-func (s set[T]) contain(e T) bool {
+func (s set[T]) contains(e T) bool {
 	_, ok := s[e]
 	return ok
 }
 
-func (s set[T]) add(es ...T) {
-	for _, e := range es {
+func (s set[T]) add(ee ...T) {
+	for _, e := range ee {
 		s[e] = struct{}{}
 	}
 }
@@ -80,10 +80,10 @@ func (s set[T]) concat(sources ...set[T]) set[T] {
 	return m
 }
 
-func newSet[T comparable](es ...T) set[T] {
-	m := make(set[T], len(es))
-	if len(es) > 0 {
-		for _, e := range es {
+func newSet[T comparable](ee ...T) set[T] {
+	m := make(set[T], len(ee))
+	if len(ee) > 0 {
+		for _, e := range ee {
 			m[e] = struct{}{}
 		}
 	}

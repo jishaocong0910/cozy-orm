@@ -36,8 +36,11 @@ func printWarn(ctx context.Context, logger Logger, err error) {
 	}
 }
 
-func printSql(ctx context.Context, logger Logger, level LogLevel, desc string, sql string, args []any,
-	rowCount int64, affected int64, cost time.Duration, err error) {
+func printSql(ctx context.Context, logger Logger, level LogLevel, desc string, sql string, args []any, rowCount int64, affected int64, cost time.Duration, err error) {
+	if logger == nil {
+		return
+	}
+
 	if err != nil {
 		level = LogLevel_.Error
 	} else if level.IsUndefined() {
@@ -48,47 +51,48 @@ func printSql(ctx context.Context, logger Logger, level LogLevel, desc string, s
 	if desc != "" {
 		builder.WriteString("desc: ")
 		builder.WriteString(desc)
-		builder.WriteString(", ")
+		builder.WriteString("; ")
 	}
 	builder.WriteString("SQL: ")
 	builder.WriteString(sql)
 	builder.WriteString("; args:")
 	builder.WriteString(formatArg(args))
 	if rowCount >= 0 {
-		builder.WriteString(", rows: ")
+		builder.WriteString("; rows: ")
 		builder.WriteString(strconv.FormatInt(rowCount, 10))
 	}
 	if affected >= 0 {
-		builder.WriteString(", affected: ")
+		builder.WriteString("; affected: ")
 		builder.WriteString(strconv.FormatInt(affected, 10))
 	}
 	if cost >= 0 {
-		builder.WriteString(", cost: ")
+		builder.WriteString("; cost: ")
 		builder.WriteString(strconv.FormatInt(int64(cost/time.Millisecond), 10))
 		builder.WriteString("ms")
 	}
 	if err != nil {
-		builder.WriteString(", error: ")
+		builder.WriteString("; error: ")
 		builder.WriteString(err.Error())
 	}
 	printLog(ctx, logger, level, builder.String())
 }
 
 func printLog(ctx context.Context, logger Logger, level LogLevel, msg string, args ...any) {
-	if logger != nil {
-		if len(args) > 0 {
-			msg = fmt.Sprintf(msg, args...)
-		}
-		switch level.ID {
-		case LogLevel_.Debug.ID:
-			logger.Debug(ctx, msg)
-		case LogLevel_.Info.ID:
-			logger.Info(ctx, msg)
-		case LogLevel_.Warn.ID:
-			logger.Warn(ctx, msg)
-		case LogLevel_.Error.ID:
-			logger.Error(ctx, msg)
-		}
+	if logger == nil {
+		return
+	}
+	if len(args) > 0 {
+		msg = fmt.Sprintf(msg, args...)
+	}
+	switch level.ID {
+	case LogLevel_.Debug.ID:
+		logger.Debug(ctx, msg)
+	case LogLevel_.Info.ID:
+		logger.Info(ctx, msg)
+	case LogLevel_.Warn.ID:
+		logger.Warn(ctx, msg)
+	case LogLevel_.Error.ID:
+		logger.Error(ctx, msg)
 	}
 }
 
