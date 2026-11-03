@@ -15,6 +15,7 @@
 package orm
 
 import (
+	"database/sql"
 	"reflect"
 	"sync"
 )
@@ -124,6 +125,7 @@ type fieldConverter struct {
 
 func (c *fieldConverter) convert(field reflect.Value, value any) {
 	if value == nil {
+		field.SetZero()
 		return
 	}
 	switch c.fieldKind {
@@ -131,7 +133,7 @@ func (c *fieldConverter) convert(field reflect.Value, value any) {
 		field.Set(reflect.New(field.Type().Elem()))
 		field.MethodByName(toFieldMethodName).Call([]reflect.Value{reflect.ValueOf(value)})
 	case reflect.Slice, reflect.Map:
-		field.Set(reflect.New(field.Type()).Elem())
+		field.SetZero()
 		fallthrough
 	default:
 		field.Addr().MethodByName(toFieldMethodName).Call([]reflect.Value{reflect.ValueOf(value)})
@@ -139,16 +141,40 @@ func (c *fieldConverter) convert(field reflect.Value, value any) {
 }
 
 func convertArgs(args []any) []any {
-	for i, a := range args {
-		if a != nil {
-			v := reflect.ValueOf(a)
-			if isValidKind(v.Kind()) && v.IsNil() {
-				continue
-			}
-			if c := getArgConverter(v.Type()); c != nil {
-				args[i] = c.convert(v)
-			}
+	for i, arg := range args {
+		if named, ok := arg.(sql.NamedArg); ok {
+			named.Value = convertArg(named.Value)
+			args[i] = named
+		} else {
+			args[i] = convertArg(arg)
 		}
 	}
 	return args
+}
+
+func convertArg(arg any) any {
+	if arg == nil {
+		return nil
+	}
+
+	v := reflect.ValueOf(arg)
+	if isValidKind(v.Kind()) && v.IsNil() {
+		return nil
+	}
+
+	if c := getArgConverter(v.Type()); c != nil {
+		return c.convert(v)
+	}
+
+	if isImplementValuer(v.Type()) {
+		return arg
+	}
+
+	if v.Kind() != reflect.Pointer && isImplementValuer(reflect.PointerTo(v.Type())) {
+		pv := reflect.New(v.Type())
+		pv.Elem().Set(v)
+		return pv.Interface()
+	}
+
+	return arg
 }

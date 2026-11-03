@@ -30,7 +30,7 @@ var isValidKind = func() func(t reflect.Kind) bool {
 		reflect.Map,
 	)
 	return func(k reflect.Kind) bool {
-		return s.contain(k)
+		return s.contains(k)
 	}
 }()
 
@@ -86,14 +86,14 @@ var isBaseScalarKind = func() func(t reflect.Type) bool {
 	}
 
 	return func(t reflect.Type) bool {
-		return baseScalarKinds.contain(t.Kind())
+		return baseScalarKinds.contains(t.Kind())
 	}
 }()
 
 var isBaseStructType = func() func(t reflect.Type) bool {
 	s := newSet(reflect.TypeFor[time.Time]())
 	return func(t reflect.Type) bool {
-		return s.contain(t)
+		return s.contains(t)
 	}
 }()
 
@@ -149,13 +149,19 @@ func isImplementConverter(t reflect.Type) bool {
 }
 
 var isImplementScannerValuer = func() func(t reflect.Type) bool {
-	valuerType := reflect.TypeFor[driver.Valuer]()
 	scannerType := reflect.TypeFor[sql.Scanner]()
 	return func(t reflect.Type) bool {
 		if t.Kind() != reflect.Pointer {
 			t = reflect.PointerTo(t)
 		}
-		return t.Implements(valuerType) && t.Implements(scannerType)
+		return t.Implements(scannerType) && isImplementValuer(t)
+	}
+}()
+
+var isImplementValuer = func() func(t reflect.Type) bool {
+	valuerType := reflect.TypeFor[driver.Valuer]()
+	return func(t reflect.Type) bool {
+		return t.Implements(valuerType)
 	}
 }()
 

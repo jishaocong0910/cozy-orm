@@ -19,11 +19,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
 )
 
 type tx struct {
-	ctx       *TxContext
+	ctx       context.Context
 	db        *DB
 	must      bool
 	txOptions *sql.TxOptions
@@ -57,7 +56,11 @@ func (t *tx) _safeDo(do func(ctx context.Context) error) (err error) {
 
 		if r := recover(); r != nil {
 			printWarn(t.ctx, t.db.logger, t._rollback())
-			err = fmt.Errorf("%v\n%s", r, deferStack())
+			if cause, ok := r.(error); ok {
+				err = fmt.Errorf("%w\n%s", cause, deferStack())
+			} else {
+				err = fmt.Errorf("%v\n%s", r, deferStack())
+			}
 			return
 		}
 
@@ -65,20 +68,19 @@ func (t *tx) _safeDo(do func(ctx context.Context) error) (err error) {
 	}()
 
 	err = do(t.ctx)
+	if err != nil {
+		return
+	}
 
-	for _, hook := range t.ctx.getTxInfo(t.db).txHooks {
-		if hook.beforeHandler != nil {
-			err = hook.beforeHandler(t.ctx)
-			if err != nil {
-				break
-			}
-		}
+	err = t._runBeforeCommitHook()
+	if err != nil {
+		return
 	}
 	return
 }
 
 func (t *tx) _open() error {
-	if ti := t.ctx.getTxInfo(t.db); ti == nil {
+	if ti := t.db.getTxInfo(t.ctx); ti == nil {
 		if t.db.rawDB == nil {
 			return checkMust(t.must, errors.New("no available *sql.DB"))
 		}
@@ -88,41 +90,62 @@ func (t *tx) _open() error {
 			return checkMust(t.must, err)
 		}
 
-		t.ctx.setTxInfo(&txInfo{&txInfoData{rawTx: rawTx, owner: t}})
+		t.ctx = context.WithValue(t.ctx, t.db, &txInfo{&txInfoData{rawTx: rawTx, owner: t}})
 	}
 	return nil
 }
 
 func (t *tx) _commit() error {
-	if ti := t.ctx.getTxInfo(t.db); ti != nil && ti.owner == t {
+	if ti := t.db.getTxInfo(t.ctx); ti != nil && ti.owner == t {
 		err := ti.rawTx.Commit()
 		if err == nil {
-			t._runAfterHook(true)
+			t._runAfterCompleteHook(true)
 		}
-		t.ctx.cleanTxInfo(t.db)
+		t._cleanTxInfo(t.db)
 		return err
 	}
 	return nil
 }
 
 func (t *tx) _rollback() error {
-	if ti := t.ctx.getTxInfo(t.db); ti != nil && ti.owner == t {
+	if ti := t.db.getTxInfo(t.ctx); ti != nil && ti.owner == t {
 		err := ti.rawTx.Rollback()
 		if err == nil {
-			t._runAfterHook(false)
+			t._runAfterCompleteHook(false)
 		}
-		t.ctx.cleanTxInfo(t.db)
+		t._cleanTxInfo(t.db)
 		return err
 	}
 	return nil
 }
 
-func (t *tx) _runAfterHook(commit bool) {
-	for _, hook := range t.ctx.getTxInfo(t.db).txHooks {
+func (t *tx) _cleanTxInfo(db *DB) {
+	if ti := db.getTxInfo(t.ctx); ti != nil {
+		*ti = txInfo{}
+	}
+}
+
+func (t *tx) _runBeforeCommitHook() error {
+	if ti := t.db.getTxInfo(t.ctx); ti.owner == t {
+		ti.hookRunning = true
+		for _, hook := range t.db.getTxInfo(t.ctx).txHooks {
+			if hook.beforeHandler != nil {
+				err := hook.beforeHandler(hook.ctx)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (t *tx) _runAfterCompleteHook(commit bool) {
+	for _, hook := range t.db.getTxInfo(t.ctx).txHooks {
 		if hook.afterHandler != nil {
 			ctx := context.Background()
 			for _, key := range hook.copyCtxKeys {
-				val := t.ctx.Value(key)
+				val := hook.ctx.Value(key)
 				if val != nil {
 					ctx = context.WithValue(ctx, key, val)
 				}
@@ -140,10 +163,14 @@ func (t *tx) _runAfterHook(commit bool) {
 }
 
 func newTx(ctx context.Context, db *DB) *tx {
-	return &tx{ctx: newTxContext(ctx), db: db}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return &tx{ctx: ctx, db: db}
 }
 
 type txHook struct {
+	ctx           context.Context
 	beforeHandler func(ctx context.Context) error
 	afterHandler  func(ctx context.Context, commit bool)
 	copyCtxKeys   []any
@@ -162,57 +189,22 @@ func (t *txHook) AfterCompleteAsync(handler func(ctx context.Context, commit boo
 	}
 }
 
-type TxContext struct {
-	ctx context.Context
-}
-
-func (t *TxContext) Deadline() (deadline time.Time, ok bool) {
-	return t.ctx.Deadline()
-}
-
-func (t *TxContext) Done() <-chan struct{} {
-	return t.ctx.Done()
-}
-
-func (t *TxContext) Err() error {
-	return t.ctx.Err()
-}
-
-func (t *TxContext) Value(key any) any {
-	return t.ctx.Value(key)
-}
-
-func (t *TxContext) setTxInfo(ti *txInfo) {
-	t.ctx = context.WithValue(t.ctx, ti.owner.db, ti)
-}
-
-func (t *TxContext) getTxInfo(db *DB) *txInfo {
-	ti, _ := t.ctx.Value(db).(*txInfo)
-	if ti != nil && ti.txInfoData != nil {
-		return ti
-	}
-	return nil
-}
-
-func (t *TxContext) cleanTxInfo(db *DB) {
-	if ti := t.getTxInfo(db); ti != nil {
-		*ti = txInfo{}
-	}
-}
-
-func newTxContext(ctx context.Context) *TxContext {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return &TxContext{ctx: ctx}
+type txInfoData struct {
+	owner       *tx
+	rawTx       *sql.Tx
+	hookRunning bool
+	txHooks     []*txHook
 }
 
 type txInfo struct {
 	*txInfoData
 }
 
-type txInfoData struct {
-	owner   *tx
-	rawTx   *sql.Tx
-	txHooks []*txHook
+func (t *txInfo) registerHook(ctx context.Context) (*txHook, bool) {
+	if t.hookRunning {
+		return nil, false
+	}
+	th := &txHook{ctx: ctx}
+	t.txHooks = append(t.txHooks, th)
+	return th, true
 }

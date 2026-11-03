@@ -33,10 +33,10 @@ user`,
 			[]any{2, nil, (*int)(nil), new("abc"), time.UnixMilli(1703659380000).In(time.UTC)},
 			100, 20, 15*time.Millisecond, errors.New("error"))
 		r.True(LogLevel_.Error.Is(log.Messages[0].Level))
-		r.Equal(`desc: update a user, SQL:   
+		r.Equal(`desc: update a user; SQL:   
 SELECT *
   FROM
-user; args: 2(int) <nil> <nil> abc(string) 2023-12-27 06:43:00 +0000 UTC(time.Time), rows: 100, affected: 20, cost: 15ms, error: error`, log.Messages[0].Msg)
+user; args: 2(int) <nil> <nil> abc(string) 2023-12-27 06:43:00 +0000 UTC(time.Time); rows: 100; affected: 20; cost: 15ms; error: error`, log.Messages[0].Msg)
 	}
 	{
 		log := &MockLogger{}
@@ -47,13 +47,13 @@ user; args: 2(int) <nil> <nil> abc(string) 2023-12-27 06:43:00 +0000 UTC(time.Ti
 		log := &MockLogger{}
 		printSql(nil, log, LogLevel_.Debug, "test", "", nil, -1, -1, -1, nil)
 		r.True(log.Messages[0].Level.Is(LogLevel_.Debug))
-		r.Equal("desc: test, SQL: ; args: ", log.Messages[0].Msg)
+		r.Equal("desc: test; SQL: ; args: ", log.Messages[0].Msg)
 	}
 	{
 		log := &MockLogger{}
 		printSql(nil, log, LogLevel_.Info, "test", "", nil, -1, -1, -1, nil)
 		r.True(log.Messages[0].Level.Is(LogLevel_.Info))
-		r.Equal("desc: test, SQL: ; args: ", log.Messages[0].Msg)
+		r.Equal("desc: test; SQL: ; args: ", log.Messages[0].Msg)
 	}
 }
 

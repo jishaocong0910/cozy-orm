@@ -101,10 +101,10 @@ func (e *entityInfo) getColumns(entity any, demand *Demand, requiredSet set[stri
 	}
 
 	for _, column := range e.columns {
-		if ignoredSet.contain(column) {
+		if ignoredSet.contains(column) {
 			continue
 		}
-		if requiredSet.contain(column) {
+		if requiredSet.contains(column) {
 			columns = append(columns, column)
 			continue
 		}
@@ -116,7 +116,7 @@ func (e *entityInfo) getColumns(entity any, demand *Demand, requiredSet set[stri
 				columns = append(columns, column)
 				continue
 			}
-		} else if demandColumnSet.contain(column) {
+		} else if demandColumnSet.contains(column) {
 			columns = append(columns, column)
 			continue
 		}
@@ -124,7 +124,7 @@ func (e *entityInfo) getColumns(entity any, demand *Demand, requiredSet set[stri
 	return columns
 }
 
-func (e *entityInfo) getValueMap(entity any, column2s ...[]string) map[string]any {
+func (e *entityInfo) getValueMap(entity any, columns ...[]string) map[string]any {
 	var v reflect.Value
 	if entity != nil {
 		v = reflect.ValueOf(entity).Elem()
@@ -134,12 +134,12 @@ func (e *entityInfo) getValueMap(entity any, column2s ...[]string) map[string]an
 	}
 	var valueMap map[string]any
 	size := 0
-	for _, columns := range column2s {
-		size += len(columns)
+	for _, cols := range columns {
+		size += len(cols)
 	}
 	valueMap = make(map[string]any, size)
-	for _, columns := range column2s {
-		for _, column := range columns {
+	for _, cols := range columns {
+		for _, column := range cols {
 			if i, ok := e.columnToFieldIndexMap[column]; ok {
 				vf := v.Field(i)
 				if !vf.IsNil() {
@@ -215,21 +215,23 @@ func (e *entityInfo) _registerField(tf reflect.StructField, tag fieldTag, column
 }
 
 func (e *entityInfo) _registerPolicy(columnPolicyConfigs ColumnPolicyConfigs) {
+	configs := make(ColumnPolicyConfigs, len(columnPolicyConfigs), len(columnPolicyConfigs)+len(e.pkColumns))
+	copy(configs, columnPolicyConfigs)
 	for _, pk := range e.pkColumns {
-		columnPolicyConfigs = append(columnPolicyConfigs, NewColumnPolicyConfig(pk).ForTable(e.table).OnUpdate().Never())
+		configs = append(configs, NewColumnPolicyConfig(pk).ForTable(e.table).OnUpdate().Never())
 	}
 	columnSet := newSet(e.columns...)
 	columnOnInsertMap := map[string]*assignedPolicyConfig{}
 	columnOnUpdateMap := map[string]*assignedPolicyConfig{}
 	var finalDeleteSoftlyPolicyConfig *deleteSoftlyPolicyConfig
-	for _, config := range columnPolicyConfigs {
-		if config.exceptTableSet.contain(e.table) {
+	for _, config := range configs {
+		if config.exceptTableSet.contains(e.table) {
 			continue
 		}
-		if !config.isDefault() && !config.forTableSet.contain(e.table) {
+		if !config.isDefault() && !config.forTableSet.contains(e.table) {
 			continue
 		}
-		if !columnSet.contain(config.column) {
+		if !columnSet.contains(config.column) {
 			continue
 		}
 		if config.onInsert != nil {
@@ -284,9 +286,9 @@ func (p *assignedPolicy) loadConfig(columnOnInsertMap map[string]*assignedPolicy
 			defaultColumnSet.add(column)
 		}
 		assignedValueMap[column] = assignedValuePolicy{
-			trueExprFalseValue: config.trueExprFalseValue,
-			value:              config.value,
-			expr:               config.expr,
+			isText: config.isText,
+			value:  config.value,
+			text:   config.text,
 		}
 	}
 	if len(ignoredColumnSet) > 0 {
@@ -312,9 +314,9 @@ func (p *assignedPolicy) loadConfig(columnOnInsertMap map[string]*assignedPolicy
 }
 
 type assignedValuePolicy struct {
-	trueExprFalseValue bool
-	value              func(ctx context.Context) any
-	expr               func(ctx context.Context) string
+	isText bool
+	value  func(ctx context.Context) any
+	text   func(ctx context.Context) string
 }
 
 type deleteSoftlyPolicy struct {
@@ -328,9 +330,11 @@ func (p *deleteSoftlyPolicy) loadConfig(config *deleteSoftlyPolicyConfig, pkColu
 	if config == nil || config.mode.IsUndefined() || config.normalValue == nil || config.mode.Is(deleteSoftlyMode_.assignedPk) && len(pkColumns) != 1 {
 		return
 	}
+	if config.mode.Is(deleteSoftlyMode_.assignedPk) {
+		p.pkColumn = pkColumns[0]
+	}
 	p.mode = config.mode
 	p.deletedColumn = config.parent.column
-	p.pkColumn = pkColumns[0]
 	p.normalValue = config.normalValue
 }
 

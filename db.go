@@ -18,6 +18,8 @@ import (
 	"context"
 	"database/sql"
 	"reflect"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -33,6 +35,7 @@ type DB struct {
 	pageMode            PageMode
 	identifierDelimiter IdentifierDelimiter
 	columnPolicyConfigs ColumnPolicyConfigs
+	insertAllMode       bool
 
 	entities           sync.Map
 	mappers            sync.Map
@@ -68,8 +71,8 @@ func (d *DB) Update[E any](ctx context.Context) *update[E] {
 	return &update[E]{mutation: d.Mutation(ctx)}
 }
 
-func (d *DB) UpdateRows[E any](ctx context.Context) *updateRows[E] {
-	return &updateRows[E]{mutation: d.Mutation(ctx)}
+func (d *DB) UpdateBatch[E any](ctx context.Context) *updateBatch[E] {
+	return &updateBatch[E]{mutation: d.Mutation(ctx)}
 }
 
 func (d *DB) Delete[E any](ctx context.Context) *delete[E] {
@@ -88,13 +91,9 @@ func (d *DB) Tx(ctx context.Context) *tx {
 	return newTx(ctx, d)
 }
 
-func (d *DB) TxHook(ctx context.Context) (*txHook, bool) {
-	if tc, ok := ctx.(*TxContext); ok {
-		if ti := tc.getTxInfo(d); ti != nil {
-			th := &txHook{}
-			ti.txHooks = append(ti.txHooks, th)
-			return th, true
-		}
+func (d *DB) TxHook(ctx context.Context) (hook *txHook, ok bool) {
+	if ti := d.getTxInfo(ctx); ti != nil {
+		return ti.registerHook(ctx)
 	}
 	return nil, false
 }
@@ -138,6 +137,14 @@ func (d *DB) getMapper(t reflect.Type) (mapper, error) {
 	return m, err
 }
 
+func (d *DB) getTxInfo(ctx context.Context) *txInfo {
+	ti, _ := ctx.Value(d).(*txInfo)
+	if ti != nil && ti.txInfoData != nil {
+		return ti
+	}
+	return nil
+}
+
 type Config struct {
 	RawDB               *sql.DB
 	Logger              Logger
@@ -179,7 +186,7 @@ func (c Config) Build() *DB {
 		c.PageMode = PageMode_.OffsetFetch
 	case DBType_.SQLite.ID:
 		c.IdentifierDelimiter = IdentifierDelimiter_.DoubleQuote
-		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.InsertReturning
+		c.GetGeneratedKeyMode = GetGeneratedKeyMode_.LastInsertId
 		c.PageMode = PageMode_.LimitOffset
 	}
 	if c.TabNameMapper == nil {
@@ -199,7 +206,37 @@ func (c Config) Build() *DB {
 		pageMode:            c.PageMode,
 		identifierDelimiter: c.IdentifierDelimiter,
 		columnPolicyConfigs: c.ColumnPolicyConfigs,
+		insertAllMode:       c._isInsertAllMode(),
 	}
+}
+
+func (c Config) _isInsertAllMode() bool {
+	version := c._getOracleMajorVersion()
+	if version > -1 && version < 23 {
+		return true
+	}
+	return false
+}
+
+func (c Config) _getOracleMajorVersion() int {
+	if c.RawDB != nil && c.DBType.Is(DBType_.Oracle, DBType_.UNDEFINED) {
+		rows, err := c.RawDB.Query("SELECT VERSION FROM PRODUCT_COMPONENT_VERSION")
+		if err == nil {
+			defer rows.Close()
+			if rows.Next() {
+				var version string
+				err := rows.Scan(&version)
+				if err == nil {
+					major, _, _ := strings.Cut(strings.TrimSpace(version), ".")
+					num, err := strconv.Atoi(major)
+					if err == nil {
+						return num
+					}
+				}
+			}
+		}
+	}
+	return -1
 }
 
 type ColumnPolicyConfigs []*columnPolicyConfig
@@ -261,7 +298,7 @@ func (c *columnPolicyConfig) UseUpdateTime() *columnPolicyConfig {
 func (c *columnPolicyConfig) UseRowVersion() *columnPolicyConfig {
 	c.OnInsert().Value(false, true, func(ctx context.Context) any {
 		return 1
-	}).OnUpdate().Expr(true, true, func(ctx context.Context) string {
+	}).OnUpdate().Text(true, true, func(ctx context.Context) string {
 		return c.column + " + 1"
 	})
 	return c
@@ -272,13 +309,13 @@ func (c *columnPolicyConfig) isDefault() bool {
 }
 
 type assignedPolicyConfig struct {
-	parent             *columnPolicyConfig
-	force              bool
-	batchReuse         bool
-	never              bool
-	trueExprFalseValue bool
-	value              func(ctx context.Context) any
-	expr               func(ctx context.Context) string
+	parent     *columnPolicyConfig
+	force      bool
+	batchReuse bool
+	never      bool
+	isText     bool
+	value      func(ctx context.Context) any
+	text       func(ctx context.Context) string
 }
 
 func (c *assignedPolicyConfig) Never() *columnPolicyConfig {
@@ -293,11 +330,11 @@ func (c *assignedPolicyConfig) Value(force bool, batchReuse bool, value func(ctx
 	return c.parent
 }
 
-func (c *assignedPolicyConfig) Expr(force bool, batchReuse bool, expr func(ctx context.Context) string) *columnPolicyConfig {
+func (c *assignedPolicyConfig) Text(force bool, batchReuse bool, text func(ctx context.Context) string) *columnPolicyConfig {
 	c.force = force
 	c.batchReuse = batchReuse
-	c.trueExprFalseValue = true
-	c.expr = expr
+	c.isText = true
+	c.text = text
 	return c.parent
 }
 
