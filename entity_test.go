@@ -240,7 +240,7 @@ func TestEntity_getValueMap(t *testing.T) {
 	r.Nil((*User)(nil), ei.getValueMap(nil, []string{"name", "status", "level"}))
 }
 
-func TestLastInsertIdConversion(t *testing.T) {
+func TestIdentityConverter(t *testing.T) {
 	r := require.New(t)
 	id := int64(123)
 	r.Equal(123, convertId[*int](id))
