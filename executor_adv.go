@@ -261,7 +261,7 @@ func (i *insert[E]) Do() (affected int64, err error) {
 	if len(ei.autoColumns) > 0 {
 		switch i.executor.db.getGeneratedKeyMode.ID {
 		case GetGeneratedKeyMode_.FirstInsertId.ID, GetGeneratedKeyMode_.LastInsertId.ID:
-			return i._doGetGeneratedKeyByLastInsertId(ei, insertedColumns)
+			return i._doGetGeneratedKeyByIdentity(ei, insertedColumns)
 		case GetGeneratedKeyMode_.InsertReturning.ID:
 			return i._doGetGeneratedKeyByInsertReturning(ei, insertedColumns)
 		case GetGeneratedKeyMode_.SQLServer.ID:
@@ -299,15 +299,15 @@ func (i *insert[E]) _doInsertAllMode(ei *entityInfo, insertedColumns []string) (
 	}).Do()
 }
 
-func (i *insert[E]) _doGetGeneratedKeyByLastInsertId(ei *entityInfo, insertedColumns []string) (int64, error) {
-	return newMutation(i.executor).MapLastInsertIdInto[E](i.entities...).BuildSql(func(b *SQLBuilder) {
+func (i *insert[E]) _doGetGeneratedKeyByIdentity(ei *entityInfo, insertedColumns []string) (int64, error) {
+	return newMutation(i.executor).MapIdentity[E](i.entities...).BuildSql(func(b *SQLBuilder) {
 		i._writeColumnList(b, ei, insertedColumns)
 		i._writeValuesListAndSetArgs(b, ei, insertedColumns)
 	}).Do()
 }
 
 func (i *insert[E]) _doGetGeneratedKeyByInsertReturning(ei *entityInfo, insertedColumns []string) (affected int64, err error) {
-	_, err = newQuery[E](i.executor).MapInto(i.entities...).BuildSql(func(b *SQLBuilder) {
+	_, err = newQuery[E](i.executor).Map(i.entities...).BuildSql(func(b *SQLBuilder) {
 		i._writeColumnList(b, ei, insertedColumns)
 		i._writeValuesListAndSetArgs(b, ei, insertedColumns)
 		b.ForEach(b.SepWrapOpt(" RETURNING ", ", ", ""), ei.autoColumns, func(_ int, column string) {
@@ -321,7 +321,7 @@ func (i *insert[E]) _doGetGeneratedKeyByInsertReturning(ei *entityInfo, inserted
 }
 
 func (i *insert[E]) _doGetGeneratedKeyForSQLServer(ei *entityInfo, insertedColumns []string) (affected int64, err error) {
-	_, err = newQuery[E](i.executor).MapInto(i.entities...).BuildSql(func(b *SQLBuilder) {
+	_, err = newQuery[E](i.executor).Map(i.entities...).BuildSql(func(b *SQLBuilder) {
 		i._writeColumnList(b, ei, insertedColumns)
 		b.ForEach(b.SepWrapOpt(" OUTPUT ", ", ", ""), ei.autoColumns, func(_ int, column string) {
 			b.Text("INSERTED.").Quote(column)

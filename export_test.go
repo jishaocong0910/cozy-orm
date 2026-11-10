@@ -244,7 +244,7 @@ type TxInfoData struct {
 func GetTxInfoData(ctx context.Context, db *DB) *TxInfoData {
 	if ti := db.getTxInfo(ctx); ti != nil {
 		return &TxInfoData{
-			Owner:  ti.owner,
+			Owner:  ti.creator,
 			RawTx:  ti.rawTx,
 			TxHook: ti.txHooks,
 		}

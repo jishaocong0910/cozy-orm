@@ -24,7 +24,7 @@ import (
 
 type query[E any] struct {
 	*executor
-	mapIntoEntities []*E
+	mapEntities []*E
 }
 
 func (q *query[E]) Must() *query[E] {
@@ -47,8 +47,8 @@ func (q *query[E]) BuildSql(buildSQL func(b *SQLBuilder)) *query[E] {
 	return q
 }
 
-func (q *query[E]) MapInto(entities ...*E) *query[E] {
-	q.mapIntoEntities = entities
+func (q *query[E]) Map(entities ...*E) *query[E] {
+	q.mapEntities = entities
 	return q
 }
 
@@ -72,8 +72,8 @@ func (q *query[E]) Do() (entities []*E, err error) {
 	}
 
 	var rowCount int
-	if len(q.mapIntoEntities) > 0 {
-		rowCount, err = q._mapIntoEntities(rows, columns, mp)
+	if len(q.mapEntities) > 0 {
+		rowCount, err = q._mapToEntities(rows, columns, mp)
 	} else {
 		rowCount, entities, err = q._mapNewEntities(rows, columns, mp)
 	}
@@ -85,10 +85,10 @@ func (q *query[E]) Do() (entities []*E, err error) {
 	return
 }
 
-func (q *query[E]) _mapIntoEntities(rows *sql.Rows, columns []string, mp mapper) (rowCount int, err error) {
+func (q *query[E]) _mapToEntities(rows *sql.Rows, columns []string, mp mapper) (rowCount int, err error) {
 	for rows.Next() {
-		if len(q.mapIntoEntities) > rowCount {
-			e := q.mapIntoEntities[rowCount]
+		if len(q.mapEntities) > rowCount {
+			e := q.mapEntities[rowCount]
 			dest_, afterScan := mp.mapping(columns, e)
 			err = rows.Scan(dest_...)
 			if err != nil {
@@ -131,8 +131,8 @@ func newQuery[E any](e *executor) *query[E] {
 
 type mutation struct {
 	*executor
-	mapLastInsertIdIntoEntityType reflect.Type
-	mapLastInsertIdIntoEntities   []any
+	mapIdentityEntityType reflect.Type
+	mapIdentityEntities   []any
 }
 
 func (m *mutation) Must() *mutation {
@@ -155,11 +155,11 @@ func (m *mutation) BuildSql(buildSQL func(b *SQLBuilder)) *mutation {
 	return m
 }
 
-func (m *mutation) MapLastInsertIdInto[E any](entities ...*E) *mutation {
-	m.mapLastInsertIdIntoEntityType = reflect.TypeFor[E]()
-	m.mapLastInsertIdIntoEntities = make([]any, 0, len(entities))
+func (m *mutation) MapIdentity[E any](entities ...*E) *mutation {
+	m.mapIdentityEntityType = reflect.TypeFor[E]()
+	m.mapIdentityEntities = make([]any, 0, len(entities))
 	for _, e := range entities {
-		m.mapLastInsertIdIntoEntities = append(m.mapLastInsertIdIntoEntities, e)
+		m.mapIdentityEntities = append(m.mapIdentityEntities, e)
 	}
 	return m
 }
@@ -181,21 +181,21 @@ func (m *mutation) Do() (affected int64, err error) {
 }
 
 func (m *mutation) _handleResult(result sql.Result) {
-	if len(m.mapLastInsertIdIntoEntities) == 0 || m.executor.db.getGeneratedKeyMode.Not(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) {
+	if len(m.mapIdentityEntities) == 0 || m.executor.db.getGeneratedKeyMode.Not(GetGeneratedKeyMode_.FirstInsertId, GetGeneratedKeyMode_.LastInsertId) {
 		return
 	}
 	id, err := result.LastInsertId()
 	if err != nil {
 		return
 	}
-	ei, err := m.db.getEntityInfo(m.mapLastInsertIdIntoEntityType)
+	ei, err := m.db.getEntityInfo(m.mapIdentityEntityType)
 	if err != nil {
 		return
 	}
 	if ei.identityConverter == nil {
 		return
 	}
-	for _, entity := range m.mapLastInsertIdIntoEntities {
+	for _, entity := range m.mapIdentityEntities {
 		v := reflect.ValueOf(entity).Elem()
 		field := v.Field(ei.columnToFieldIndexMap[ei.autoColumns[0]])
 		if !field.IsNil() {
@@ -203,9 +203,9 @@ func (m *mutation) _handleResult(result sql.Result) {
 		}
 	}
 	if m.db.getGeneratedKeyMode.Is(GetGeneratedKeyMode_.LastInsertId) {
-		id = id - int64(len(m.mapLastInsertIdIntoEntities)-1)*ei.autoStep
+		id = id - int64(len(m.mapIdentityEntities)-1)*ei.autoStep
 	}
-	for _, entity := range m.mapLastInsertIdIntoEntities {
+	for _, entity := range m.mapIdentityEntities {
 		m.setIdentity(entity, ei, id)
 		id += ei.autoStep
 	}

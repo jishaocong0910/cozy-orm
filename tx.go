@@ -90,13 +90,13 @@ func (t *tx) _open() error {
 			return checkMust(t.must, err)
 		}
 
-		t.ctx = context.WithValue(t.ctx, t.db, &txInfo{&txInfoData{rawTx: rawTx, owner: t}})
+		t.ctx = context.WithValue(t.ctx, t.db, &txInfo{&txInfoData{rawTx: rawTx, creator: t}})
 	}
 	return nil
 }
 
 func (t *tx) _commit() error {
-	if ti := t.db.getTxInfo(t.ctx); ti != nil && ti.owner == t {
+	if ti := t.db.getTxInfo(t.ctx); ti != nil && ti.creator == t {
 		err := ti.rawTx.Commit()
 		if err == nil {
 			t._runAfterCompleteHook(true)
@@ -108,7 +108,7 @@ func (t *tx) _commit() error {
 }
 
 func (t *tx) _rollback() error {
-	if ti := t.db.getTxInfo(t.ctx); ti != nil && ti.owner == t {
+	if ti := t.db.getTxInfo(t.ctx); ti != nil && ti.creator == t {
 		err := ti.rawTx.Rollback()
 		if err == nil {
 			t._runAfterCompleteHook(false)
@@ -126,7 +126,7 @@ func (t *tx) _cleanTxInfo(db *DB) {
 }
 
 func (t *tx) _runBeforeCommitHook() error {
-	if ti := t.db.getTxInfo(t.ctx); ti.owner == t {
+	if ti := t.db.getTxInfo(t.ctx); ti.creator == t {
 		ti.hookRunning = true
 		for _, hook := range t.db.getTxInfo(t.ctx).txHooks {
 			if hook.beforeHandler != nil {
@@ -190,7 +190,7 @@ func (t *txHook) AfterCompleteAsync(handler func(ctx context.Context, commit boo
 }
 
 type txInfoData struct {
-	owner       *tx
+	creator     *tx
 	rawTx       *sql.Tx
 	hookRunning bool
 	txHooks     []*txHook

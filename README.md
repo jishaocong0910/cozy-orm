@@ -1,4 +1,8 @@
+<a id="english"></a>
+
 # CozyORM
+
+[English](#english) | [中文](#chinese)
 
 Lightweight Go ORM with method chaining, minimalist API, and multi-database support.
 
@@ -6,9 +10,7 @@ Lightweight Go ORM with method chaining, minimalist API, and multi-database supp
 [![GoDoc](https://pkg.go.dev/badge/github.com/gookit/validate.svg)](https://pkg.go.dev/github.com/jishaocong0910/cozy-orm)
 ![coverage](https://raw.githubusercontent.com/jishaocong0910/cozy-orm/badges/.badges/main/coverage.svg)
 
-👉 [🇨🇳 切换至中文说明 ↓](#chinese-version)
-
-# Features
+## Features
 
 - **Method Chaining**: Adopting Go 1.27's revolutionary generic method feature.
 - **Minimalist API**: Only two base execution APIs (Query & Mutation), along with common CRUD APIs.
@@ -19,44 +21,44 @@ Lightweight Go ORM with method chaining, minimalist API, and multi-database supp
 - **Predefined Entity**: For dynamic mapping when selecting only a few fields.
 - **Code Generation**: Provides code generation for supported databases.
 
-# Installation
+## Installation
 
 ```shell
 go get github.com/jishaocong0910/cozy-orm
 ```
 
-# Documentation
+## Documentation
 
 https://jishaocong0910.github.io/cozy-orm-doc/
 
 ---
 
-<div id="chinese-version"></div>
+<a id="chinese"></a>
 
-# CozyORM (中文说明)
+# CozyORM (中文)
+
+[English](#english) | [中文](#chinese)
 
 轻量级Go语言ORM框架，链式调用模式，极少的API，灵活兼容各种数据库。
 
-👉 [Back to English ↑](#cozyorm)
-
-# 特色
+## 特色
 
 - **链式调用**：依托Go 1.27泛型方法的革命性特性，实现流畅的链式调用。
 - **轻量API**：仅查询、变更两个基础执行API，同时封装了CRUD等通用API。
 - **SQL构建**：支持动态SQL构建，兼容各种SQL方言与参数占位符。
 - **获取生成Key**：兼容各主流数据库插入记录后获取自动生成Key的不同机制。
 - **自定义映射**：提供更友好的自定义类型映射功能。
-- **事务传播**：基于Context实现事务传播，使数据库操作代码得到复用。
+- **事务传播**：基于上下文实现事务传播，使数据库操作代码得到复用。
 - **预定义实体**：用于查询少量字段场景下进行动态映射。
 - **代码生成**：提供多种常用数据库的实体代码生成器。
 
-# 安装
+## 安装
 
 ```shell
 go get github.com/jishaocong0910/cozy-orm
 ```
 
-# 文档
+## 文档
 
 https://jishaocong0910.github.io/cozy-orm-doc/zh/
 

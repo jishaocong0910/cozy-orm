@@ -91,6 +91,10 @@ func (d *DB) Tx(ctx context.Context) *tx {
 	return newTx(ctx, d)
 }
 
+func (d *DB) InTx(ctx context.Context) bool {
+	return d.getTxInfo(ctx) != nil
+}
+
 func (d *DB) TxHook(ctx context.Context) (hook *txHook, ok bool) {
 	if ti := d.getTxInfo(ctx); ti != nil {
 		return ti.registerHook(ctx)
