@@ -92,12 +92,12 @@ func (d *DB) Tx(ctx context.Context) *tx {
 }
 
 func (d *DB) InTx(ctx context.Context) bool {
-	return d.getTxInfo(ctx) != nil
+	return d.getTxState(ctx) != nil
 }
 
 func (d *DB) TxHook(ctx context.Context) (hook *txHook, ok bool) {
-	if ti := d.getTxInfo(ctx); ti != nil {
-		return ti.registerHook(ctx)
+	if ts := d.getTxState(ctx); ts != nil {
+		return ts.registerHook(ctx)
 	}
 	return nil, false
 }
@@ -141,10 +141,11 @@ func (d *DB) getMapper(t reflect.Type) (mapper, error) {
 	return m, err
 }
 
-func (d *DB) getTxInfo(ctx context.Context) *txInfo {
-	ti, _ := ctx.Value(d).(*txInfo)
-	if ti != nil && ti.txInfoData != nil {
-		return ti
+func (d *DB) getTxState(ctx context.Context) *txState {
+	if ctx != nil {
+		if ts, _ := ctx.Value(d).(*txState); ts.isValid() {
+			return ts
+		}
 	}
 	return nil
 }

@@ -35,13 +35,15 @@ func TestTx(t *testing.T) {
 		mock.ExpectPrepare("UPDATE user set status=1 WHERE id=?").ExpectExec().WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
 		ctx := context.Background()
+		r.False(db.InTx(ctx))
 		var ctx2 context.Context
 		tx := db.Tx(ctx)
 		err := tx.TxOptions(nil).Do(func(ctx context.Context) error {
+			r.True(db.InTx(ctx))
 			ctx2 = ctx
-			ti := orm.GetTxInfoData(ctx, db)
-			r.Equal(ti.Owner, tx)
-			r.NotNil(ti.RawTx)
+			ts := orm.GetTxStateData(ctx, db)
+			r.Equal(ts.Creator, tx)
+			r.NotNil(ts.RawTx)
 			_, err := db.Mutation(ctx).SqlLogLevel(orm.LogLevel_.Info).BuildSql(func(b *orm.SQLBuilder) {
 				b.Text("UPDATE user set status=1 WHERE id=?").Args(1)
 			}).Do()
@@ -52,8 +54,8 @@ func TestTx(t *testing.T) {
 		l := logger.Messages[0]
 		r.Equal("SQL: UPDATE user set status=1 WHERE id=?; args: 1(int); affected: 1; cost: 0ms", l.Msg)
 
-		ti := orm.GetTxInfoData(ctx2, db)
-		r.Nil(ti)
+		ts := orm.GetTxStateData(ctx2, db)
+		r.Nil(ts)
 	}
 	{
 		db, mock := orm.MockDB(r, nil)
@@ -174,6 +176,18 @@ func TestTx(t *testing.T) {
 	}
 	{
 		db, mock := orm.MockDB(r, nil)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		tx := db.Tx(nil)
+		err := tx.Do(func(ctx context.Context) error {
+			return tx.Do(func(ctx context.Context) error {
+				return nil
+			})
+		})
+		r.EqualError(err, "transaction instances cannot be reused")
+	}
+	{
+		db, mock := orm.MockDB(r, nil)
 		mock.ExpectBegin().WillReturnError(errors.New("begin error"))
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			return nil
@@ -247,9 +261,9 @@ func TestTxHook(t *testing.T) {
 				r.False(commit)
 				wg.Done()
 			})
-			ti := orm.GetTxInfoData(ctx, db)
-			r.Len(ti.TxHook, 1)
-			r.Equal(ti.TxHook[0], h)
+			ts := orm.GetTxStateData(ctx, db)
+			r.Len(ts.TxHook, 1)
+			r.Equal(ts.TxHook[0], h)
 			return nil
 		})
 		fmt.Println(err)
@@ -288,10 +302,10 @@ func TestTxHook(t *testing.T) {
 					return err
 				})
 				h.AfterCompleteAsync(func(ctx context.Context, commit bool) {
-					ti := orm.GetTxInfoData(ctx, db)
+					ts := orm.GetTxStateData(ctx, db)
 					val := ctx.Value("key").(string)
 					r.True(commit)
-					r.Nil(ti)
+					r.Nil(ts)
 					r.Equal(val, "value")
 					wg.Done()
 				}, "key")

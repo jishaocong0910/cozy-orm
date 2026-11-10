@@ -235,18 +235,18 @@ func (c *UserGender) Scan(src any) error {
 	return nil
 }
 
-type TxInfoData struct {
-	Owner  *tx
-	RawTx  *sql.Tx
-	TxHook []*txHook
+type TxStateData struct {
+	Creator *tx
+	RawTx   *sql.Tx
+	TxHook  []*txHook
 }
 
-func GetTxInfoData(ctx context.Context, db *DB) *TxInfoData {
-	if ti := db.getTxInfo(ctx); ti != nil {
-		return &TxInfoData{
-			Owner:  ti.creator,
-			RawTx:  ti.rawTx,
-			TxHook: ti.txHooks,
+func GetTxStateData(ctx context.Context, db *DB) *TxStateData {
+	if ts := db.getTxState(ctx); ts != nil {
+		return &TxStateData{
+			Creator: ts.creator,
+			RawTx:   ts.rawTx,
+			TxHook:  ts.txHooks,
 		}
 	}
 	return nil

@@ -332,8 +332,8 @@ func (e *executor) doExec() (sql.Result, time.Duration, bool, error) {
 }
 
 func (e *executor) _prepare(sqlStr string) (*sql.Stmt, error) {
-	if ti := e.db.getTxInfo(e.ctx); ti != nil {
-		return ti.rawTx.PrepareContext(e.ctx, sqlStr)
+	if ts := e.db.getTxState(e.ctx); ts != nil {
+		return ts.rawTx.PrepareContext(e.ctx, sqlStr)
 	}
 	if e.db.rawDB == nil {
 		return nil, errors.New("no available *sql.DB")

@@ -26,6 +26,7 @@ type tx struct {
 	db        *DB
 	must      bool
 	txOptions *sql.TxOptions
+	handler   func(ctx context.Context) error
 }
 
 func (t *tx) Must() *tx {
@@ -39,15 +40,19 @@ func (t *tx) TxOptions(txOptions *sql.TxOptions) *tx {
 }
 
 func (t *tx) Do(handler func(ctx context.Context) error) (err error) {
+	if t.handler != nil {
+		return checkMust(t.must, errors.New("transaction instances cannot be reused"))
+	}
+	t.handler = handler
 	err = t._open()
 	if err != nil {
 		return checkMust(t.must, err)
 	}
-	err = t._safeDo(handler)
+	err = t._safeDo()
 	return checkMust(t.must, err)
 }
 
-func (t *tx) _safeDo(do func(ctx context.Context) error) (err error) {
+func (t *tx) _safeDo() (err error) {
 	defer func() {
 		if err != nil {
 			printWarn(t.ctx, t.db.logger, t._rollback())
@@ -67,7 +72,7 @@ func (t *tx) _safeDo(do func(ctx context.Context) error) (err error) {
 		err = t._commit()
 	}()
 
-	err = do(t.ctx)
+	err = t.handler(t.ctx)
 	if err != nil {
 		return
 	}
@@ -80,7 +85,7 @@ func (t *tx) _safeDo(do func(ctx context.Context) error) (err error) {
 }
 
 func (t *tx) _open() error {
-	if ti := t.db.getTxInfo(t.ctx); ti == nil {
+	if ts := t.db.getTxState(t.ctx); ts == nil {
 		if t.db.rawDB == nil {
 			return checkMust(t.must, errors.New("no available *sql.DB"))
 		}
@@ -90,45 +95,45 @@ func (t *tx) _open() error {
 			return checkMust(t.must, err)
 		}
 
-		t.ctx = context.WithValue(t.ctx, t.db, &txInfo{&txInfoData{rawTx: rawTx, creator: t}})
+		t.ctx = context.WithValue(t.ctx, t.db, &txState{&txStateData{creator: t, rawTx: rawTx}})
 	}
 	return nil
 }
 
 func (t *tx) _commit() error {
-	if ti := t.db.getTxInfo(t.ctx); ti != nil && ti.creator == t {
-		err := ti.rawTx.Commit()
+	if ts := t.db.getTxState(t.ctx); ts.createdBy(t) {
+		err := ts.rawTx.Commit()
 		if err == nil {
 			t._runAfterCompleteHook(true)
 		}
-		t._cleanTxInfo(t.db)
+		t._cleanTxInfo()
 		return err
 	}
 	return nil
 }
 
 func (t *tx) _rollback() error {
-	if ti := t.db.getTxInfo(t.ctx); ti != nil && ti.creator == t {
-		err := ti.rawTx.Rollback()
+	if ts := t.db.getTxState(t.ctx); ts.createdBy(t) {
+		err := ts.rawTx.Rollback()
 		if err == nil {
 			t._runAfterCompleteHook(false)
 		}
-		t._cleanTxInfo(t.db)
+		t._cleanTxInfo()
 		return err
 	}
 	return nil
 }
 
-func (t *tx) _cleanTxInfo(db *DB) {
-	if ti := db.getTxInfo(t.ctx); ti != nil {
-		*ti = txInfo{}
+func (t *tx) _cleanTxInfo() {
+	if ts := t.db.getTxState(t.ctx); ts != nil {
+		ts.clean()
 	}
 }
 
 func (t *tx) _runBeforeCommitHook() error {
-	if ti := t.db.getTxInfo(t.ctx); ti.creator == t {
-		ti.hookRunning = true
-		for _, hook := range t.db.getTxInfo(t.ctx).txHooks {
+	if ts := t.db.getTxState(t.ctx); ts.createdBy(t) {
+		ts.hookRunning = true
+		for _, hook := range ts.txHooks {
 			if hook.beforeHandler != nil {
 				err := hook.beforeHandler(hook.ctx)
 				if err != nil {
@@ -141,7 +146,7 @@ func (t *tx) _runBeforeCommitHook() error {
 }
 
 func (t *tx) _runAfterCompleteHook(commit bool) {
-	for _, hook := range t.db.getTxInfo(t.ctx).txHooks {
+	for _, hook := range t.db.getTxState(t.ctx).txHooks {
 		if hook.afterHandler != nil {
 			ctx := context.Background()
 			for _, key := range hook.copyCtxKeys {
@@ -189,22 +194,34 @@ func (t *txHook) AfterCompleteAsync(handler func(ctx context.Context, commit boo
 	}
 }
 
-type txInfoData struct {
+type txStateData struct {
 	creator     *tx
 	rawTx       *sql.Tx
 	hookRunning bool
 	txHooks     []*txHook
 }
 
-type txInfo struct {
-	*txInfoData
+type txState struct {
+	*txStateData
 }
 
-func (t *txInfo) registerHook(ctx context.Context) (*txHook, bool) {
+func (t *txState) registerHook(ctx context.Context) (*txHook, bool) {
 	if t.hookRunning {
 		return nil, false
 	}
 	th := &txHook{ctx: ctx}
 	t.txHooks = append(t.txHooks, th)
 	return th, true
+}
+
+func (t *txState) clean() {
+	t.txStateData = nil
+}
+
+func (t *txState) createdBy(tx *tx) bool {
+	return t.creator == tx
+}
+
+func (t *txState) isValid() bool {
+	return t != nil && t.txStateData != nil
 }
