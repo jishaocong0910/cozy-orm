@@ -20,6 +20,7 @@ import (
 	"maps"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -29,10 +30,10 @@ func newEntityInfo(t reflect.Type, tableNameMapper, columnNameMapper *NameMapper
 	}
 
 	ei := &entityInfo{
-		typ:                   t,
-		columnToFieldIndexMap: make(map[string]int, t.NumField()),
-		columnToFieldNameMap:  make(map[string]string, t.NumField()),
-		fieldToColumnMap:      make(map[string]string, t.NumField()),
+		typ:                  t,
+		columnToFieldInfoMap: make(map[string]fieldInfo, t.NumField()),
+		fieldNameToColumnMap: make(map[string]string, t.NumField()),
+		aliasToColumnMap:     make(map[string]string, t.NumField()),
 	}
 
 	for i := 0; i < t.NumField(); i++ {
@@ -68,19 +69,19 @@ func newEntityInfo(t reflect.Type, tableNameMapper, columnNameMapper *NameMapper
 }
 
 type entityInfo struct {
-	typ                   reflect.Type
-	table                 string
-	columns               []string
-	columnToFieldIndexMap map[string]int
-	columnToFieldNameMap  map[string]string
-	fieldToColumnMap      map[string]string
-	pkColumns             []string
-	autoColumns           []string
-	autoStep              int64
-	identityConverter     func(id int64) reflect.Value
-	insertPolicy          assignedPolicy
-	updatePolicy          assignedPolicy
-	deleteSoftlyPolicy    deleteSoftlyPolicy
+	typ                  reflect.Type
+	table                string
+	columns              []string
+	columnToFieldInfoMap map[string]fieldInfo
+	fieldNameToColumnMap map[string]string
+	aliasToColumnMap     map[string]string
+	pkColumns            []string
+	autoColumns          []string
+	autoStep             int64
+	identityConverter    func(id int64) reflect.Value
+	insertPolicy         assignedPolicy
+	updatePolicy         assignedPolicy
+	deleteSoftlyPolicy   deleteSoftlyPolicy
 
 	demandColumns               sync.Map
 	registerOnDemandColumnsLock sync.Mutex
@@ -112,7 +113,7 @@ func (e *entityInfo) getColumns(entity any, demand *Demand, requiredSet set[stri
 			if !ev.IsValid() {
 				continue
 			}
-			if !ev.Field(e.columnToFieldIndexMap[column]).IsNil() {
+			if !ev.Field(e.columnToFieldInfoMap[column].index).IsNil() {
 				columns = append(columns, column)
 				continue
 			}
@@ -140,8 +141,8 @@ func (e *entityInfo) getValueMap(entity any, columns ...[]string) map[string]any
 	valueMap = make(map[string]any, size)
 	for _, cols := range columns {
 		for _, column := range cols {
-			if i, ok := e.columnToFieldIndexMap[column]; ok {
-				vf := v.Field(i)
+			if f, ok := e.columnToFieldInfoMap[column]; ok {
+				vf := v.Field(f.index)
 				if !vf.IsNil() {
 					valueMap[column] = vf.Interface()
 				}
@@ -178,7 +179,7 @@ func (e *entityInfo) _getDemandColumnSet(demand *Demand) set[string] {
 		if tf.Anonymous {
 			continue
 		}
-		if c, ok := e.fieldToColumnMap[tf.Name]; ok {
+		if c, ok := e.fieldNameToColumnMap[tf.Name]; ok {
 			columns = append(columns, c)
 		}
 	}
@@ -194,9 +195,10 @@ func (e *entityInfo) _registerField(tf reflect.StructField, tag fieldTag, column
 		column = columnNameMapper.Convert(tf.Name)
 	}
 	e.columns = append(e.columns, column)
-	e.columnToFieldIndexMap[column] = tf.Index[0]
-	e.columnToFieldNameMap[column] = tf.Name
-	e.fieldToColumnMap[tf.Name] = column
+	e.columnToFieldInfoMap[column] = fieldInfo{index: tf.Index[0], name: tf.Name}
+	e.fieldNameToColumnMap[tf.Name] = column
+	e.aliasToColumnMap[tf.Name] = column
+	e.aliasToColumnMap[strings.ToLower(tf.Name[:1])+tf.Name[1:]] = column
 	if tag.pk {
 		e.pkColumns = append(e.pkColumns, column)
 	}
@@ -253,6 +255,11 @@ func (e *entityInfo) _registerPolicy(columnPolicyConfigs ColumnPolicyConfigs) {
 	e.insertPolicy.loadConfig(columnOnInsertMap)
 	e.updatePolicy.loadConfig(columnOnUpdateMap)
 	e.deleteSoftlyPolicy.loadConfig(finalDeleteSoftlyPolicyConfig, e.pkColumns)
+}
+
+type fieldInfo struct {
+	index int
+	name  string
 }
 
 type assignedPolicy struct {

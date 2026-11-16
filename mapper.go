@@ -32,8 +32,8 @@ func (m entityMapper) mapping(columns []string, target any) (dest []any, afterSc
 	dest = make([]any, 0, len(columns))
 	conv := make([]func(), 0, len(columns))
 	for _, column := range columns {
-		if index, ok := m.ei.columnToFieldIndexMap[column]; ok {
-			field := v.Field(index)
+		if f, ok := m.ei.columnToFieldInfoMap[column]; ok {
+			field := v.Field(f.index)
 			if c := getFieldConverter(field.Type()); c != nil {
 				medium := newMappingMedium(c.ptrMediumType)
 				dest = append(dest, medium.dest())

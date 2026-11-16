@@ -63,16 +63,17 @@ func (s set[T]) concat(sources ...set[T]) set[T] {
 		return s
 	}
 
-	sets := make([]set[T], 0, 1+len(sources))
-	sets = append(sets, s)
+	if len(s) > 0 {
+		sources = append(sources, s)
+	}
+
 	size := len(s)
 	for _, source := range sources {
-		sets = append(sets, source)
 		size += len(source)
 	}
 
 	m := make(set[T], size)
-	for _, s2 := range sets {
+	for _, s2 := range sources {
 		for e := range s2 {
 			m[e] = struct{}{}
 		}

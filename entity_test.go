@@ -41,15 +41,12 @@ func TestGetEntity(t *testing.T) {
 		r.Equal("user", ei.table)
 		r.Equal([]string{"id", "name", "phone", "email", "avatar_url", "status", "level", "properties", "category", "tags", "attributes",
 			"gender", "uuid", "create_at", "update_at", "version", "deleted"}, ei.columns)
-		r.Equal(map[string]int{"id": 0, "name": 1, "phone": 4, "email": 5, "avatar_url": 6, "status": 7, "level": 8,
-			"properties": 9, "category": 10, "tags": 11, "attributes": 12, "gender": 13, "uuid": 14, "create_at": 15, "update_at": 16,
-			"version": 17, "deleted": 18},
-			ei.columnToFieldIndexMap)
-		r.Equal(map[string]string{"id": "Id", "name": "Name", "phone": "Phone",
-			"email": "Email", "avatar_url": "AvatarUrl", "status": "Status", "level": "Level",
-			"properties": "Properties", "category": "Category", "tags": "Tags", "attributes": "Attributes", "gender": "Gender",
-			"uuid": "Uuid", "create_at": "CreateAt", "update_at": "UpdateAt", "version": "Version", "deleted": "Deleted"},
-			ei.columnToFieldNameMap)
+		r.Equal(map[string]fieldInfo{"id": {0, "Id"}, "name": {1, "Name"}, "phone": {4, "Phone"}, "email": {5, "Email"},
+			"avatar_url": {6, "AvatarUrl"}, "status": {7, "Status"}, "level": {8, "Level"}, "properties": {9, "Properties"},
+			"category": {10, "Category"}, "tags": {11, "Tags"}, "attributes": {12, "Attributes"}, "gender": {13, "Gender"},
+			"uuid": {14, "Uuid"}, "create_at": {15, "CreateAt"}, "update_at": {16, "UpdateAt"}, "version": {17, "Version"},
+			"deleted": {18, "Deleted"}},
+			ei.columnToFieldInfoMap)
 		r.Equal([]string{"id"}, ei.pkColumns)
 		r.Equal([]string{"id"}, ei.autoColumns)
 		r.Equal(int64(1), ei.autoStep)
@@ -102,9 +99,8 @@ func TestGetEntity(t *testing.T) {
 		r.NoError(err)
 		r.Equal("demo_entity", ei.table)
 		r.Equal([]string{"id"}, ei.columns)
-		r.Len(ei.columnToFieldIndexMap, 1)
-		r.Equal(map[string]int{"id": 0}, ei.columnToFieldIndexMap)
-		r.Equal(map[string]string{"id": "Id"}, ei.columnToFieldNameMap)
+		r.Len(ei.columnToFieldInfoMap, 1)
+		r.Equal(map[string]fieldInfo{"id": {0, "Id"}}, ei.columnToFieldInfoMap)
 		r.Empty(ei.pkColumns)
 		r.Equal([]string{"id"}, ei.autoColumns)
 		r.Equal(int64(2), ei.autoStep)
@@ -128,8 +124,7 @@ func TestGetEntity(t *testing.T) {
 		r.NoError(err)
 		r.Equal("demo_entity", ei.table)
 		r.Equal([]string{"id1", "id2", "name"}, ei.columns)
-		r.Equal(map[string]int{"id1": 0, "id2": 1, "name": 2}, ei.columnToFieldIndexMap)
-		r.Equal(map[string]string{"id1": "Id1", "id2": "Id2", "name": "Name"}, ei.columnToFieldNameMap)
+		r.Equal(map[string]fieldInfo{"id1": {0, "Id1"}, "id2": {1, "Id2"}, "name": {2, "Name"}}, ei.columnToFieldInfoMap)
 		r.Equal([]string{"id1", "id2"}, ei.pkColumns)
 		r.Equal([]string{"id1", "id2"}, ei.autoColumns)
 		r.Equal(int64(0), ei.autoStep)

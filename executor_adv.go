@@ -33,14 +33,14 @@ type Demand struct {
 }
 
 type find[E any] struct {
-	query          *query[E]
-	selectedSet    set[string]
-	demand         *Demand
-	orderBy        *OrderBy
-	page           *page
-	cond           *Cond
-	includeDeleted bool
-	lastClause     string
+	query           *query[E]
+	selectedColumns []string
+	demand          *Demand
+	orderBy         *OrderBy
+	page            *page
+	cond            *Cond
+	includeDeleted  bool
+	lastClause      string
 }
 
 func (f *find[E]) Must() *find[E] {
@@ -59,7 +59,7 @@ func (f *find[E]) SqlLogLevel(level LogLevel) *find[E] {
 }
 
 func (f *find[E]) Select(columns ...string) *find[E] {
-	f.selectedSet = newSet(columns...)
+	f.selectedColumns = append(f.selectedColumns, columns...)
 	return f
 }
 
@@ -117,7 +117,14 @@ func (f *find[E]) Do() (entities []*E, err error) {
 			return
 		}
 
-		columns := ei.getColumns(nil, f.demand, f.selectedSet, nil)
+		b.aliasToColumnMap = ei.aliasToColumnMap
+		for i := range f.selectedColumns {
+			if column, ok := ei.aliasToColumnMap[f.selectedColumns[i]]; ok {
+				f.selectedColumns[i] = column
+			}
+		}
+
+		columns := ei.getColumns(nil, f.demand, newSet(f.selectedColumns...), nil)
 		if len(columns) == 0 {
 			columns = ei.columns
 		}
@@ -214,9 +221,9 @@ func (f *findOne[E]) Do() (e *E, err error) {
 }
 
 type insert[E any] struct {
-	executor    *executor
-	entities    []*E
-	requiredSet set[string]
+	executor        *executor
+	entities        []*E
+	requiredColumns []string
 }
 
 func (i *insert[E]) Must() *insert[E] {
@@ -240,7 +247,7 @@ func (i *insert[E]) Entities(entities ...*E) *insert[E] {
 }
 
 func (i *insert[E]) Required(columns ...string) *insert[E] {
-	i.requiredSet = newSet(columns...)
+	i.requiredColumns = append(i.requiredColumns, columns...)
 	return i
 }
 
@@ -253,9 +260,14 @@ func (i *insert[E]) Do() (affected int64, err error) {
 	if err != nil {
 		return 0, checkMust(i.executor.must, err)
 	}
+	for idx := range i.requiredColumns {
+		if column, ok := ei.aliasToColumnMap[i.requiredColumns[idx]]; ok {
+			i.requiredColumns[idx] = column
+		}
+	}
 
 	insertedColumns := ei.getColumns(i.entities[0], nil,
-		i.requiredSet.concat(ei.insertPolicy.forceColumnSet, ei.insertPolicy.defaultColumnSet),
+		newSet(i.requiredColumns...).concat(ei.insertPolicy.forceColumnSet, ei.insertPolicy.defaultColumnSet),
 		ei.insertPolicy.ignoredColumnSet)
 
 	if len(ei.autoColumns) > 0 {
@@ -408,14 +420,14 @@ func (i *insert[E]) _getAssignedManager(ei *entityInfo, insertedColumns []string
 }
 
 type update[E any] struct {
-	mutation       *mutation
-	entity         *E
-	demand         *Demand
-	assignment     *Assignment
-	requiredSet    set[string]
-	cond           *Cond
-	includeDeleted bool
-	skipSafety     bool
+	mutation        *mutation
+	entity          *E
+	demand          *Demand
+	assignment      *Assignment
+	requiredColumns []string
+	cond            *Cond
+	includeDeleted  bool
+	skipSafety      bool
 }
 
 func (u *update[E]) Must() *update[E] {
@@ -452,7 +464,7 @@ func (u *update[E]) Assignment(handler func(a *Assignment)) *update[E] {
 }
 
 func (u *update[E]) Required(columns ...string) *update[E] {
-	u.requiredSet = newSet(columns...)
+	u.requiredColumns = append(u.requiredColumns, columns...)
 	return u
 }
 
@@ -496,9 +508,15 @@ func (u *update[E]) Do() (affected int64, err error) {
 			b.Error(err)
 			return
 		}
+		b.aliasToColumnMap = ei.aliasToColumnMap
+		for i := range u.requiredColumns {
+			if column, ok := ei.aliasToColumnMap[u.requiredColumns[i]]; ok {
+				u.requiredColumns[i] = column
+			}
+		}
 
 		updatedColumns := ei.getColumns(u.entity, u.demand,
-			u.requiredSet.concat(u.assignment.columnSet(), ei.updatePolicy.forceColumnSet, ei.updatePolicy.defaultColumnSet),
+			newSet(u.requiredColumns...).concat(u.assignment.columnSet(), ei.updatePolicy.forceColumnSet, ei.updatePolicy.defaultColumnSet),
 			ei.updatePolicy.ignoredColumnSet)
 		if len(updatedColumns) == 0 {
 			b.Cancel()
@@ -529,13 +547,13 @@ func (u *update[E]) Do() (affected int64, err error) {
 }
 
 type updateBatch[E any] struct {
-	mutation       *mutation
-	entities       []*E
-	demand         *Demand
-	assignment     *Assignment
-	requiredSet    set[string]
-	cond           *Cond
-	includeDeleted bool
+	mutation        *mutation
+	entities        []*E
+	demand          *Demand
+	assignment      *Assignment
+	requiredColumns []string
+	cond            *Cond
+	includeDeleted  bool
 }
 
 func (u *updateBatch[E]) Must() *updateBatch[E] {
@@ -559,7 +577,7 @@ func (u *updateBatch[E]) Entities(entities ...*E) *updateBatch[E] {
 }
 
 func (u *updateBatch[E]) Required(columns ...string) *updateBatch[E] {
-	u.requiredSet = newSet(columns...)
+	u.requiredColumns = append(u.requiredColumns, columns...)
 	return u
 }
 
@@ -611,6 +629,12 @@ func (u *updateBatch[E]) Do() (affected int64, err error) {
 			b.Error(err)
 			return
 		}
+		b.aliasToColumnMap = ei.aliasToColumnMap
+		for i := range u.requiredColumns {
+			if column, ok := ei.aliasToColumnMap[u.requiredColumns[i]]; ok {
+				u.requiredColumns[i] = column
+			}
+		}
 
 		if len(ei.pkColumns) != 1 {
 			b.Error(errors.New("\"" + ei.typ.String() + "\" must have exactly one field with the \"pk\" tag"))
@@ -619,7 +643,7 @@ func (u *updateBatch[E]) Do() (affected int64, err error) {
 
 		pkColumn := ei.pkColumns[0]
 		updatedColumns := ei.getColumns(u.entities[0], u.demand,
-			u.requiredSet.concat(u.assignment.columnSet(), ei.updatePolicy.forceColumnSet, ei.updatePolicy.defaultColumnSet),
+			newSet(u.requiredColumns...).concat(u.assignment.columnSet(), ei.updatePolicy.forceColumnSet, ei.updatePolicy.defaultColumnSet),
 			ei.updatePolicy.ignoredColumnSet)
 		if len(updatedColumns) == 0 {
 			b.Cancel()
@@ -632,7 +656,7 @@ func (u *updateBatch[E]) Do() (affected int64, err error) {
 			entityValueMap := ei.getValueMap(entity, updatedColumns, ei.pkColumns)
 			pkValue := entityValueMap[pkColumn]
 			if pkValue == nil {
-				b.Error(fmt.Errorf("field '%s' is nil at index %d of entities", ei.columnToFieldNameMap[pkColumn], i))
+				b.Error(fmt.Errorf("field '%s' is nil at index %d of entities", ei.columnToFieldInfoMap[pkColumn].name, i))
 				return
 			}
 			pkValues = append(pkValues, pkValue)
@@ -705,6 +729,7 @@ func (d *delete[E]) Do() (affected int64, err error) {
 			b.Error(err)
 			return
 		}
+		b.aliasToColumnMap = ei.aliasToColumnMap
 
 		b.Text("DELETE FROM ").Quote(ei.table).accept(where{
 			cond:   d.cond,
@@ -773,6 +798,7 @@ func (d *deleteSoftly[E]) Do() (affected int64, err error) {
 			b.Error(err)
 			return
 		}
+		b.aliasToColumnMap = ei.aliasToColumnMap
 
 		b.Text("UPDATE ").Quote(ei.table).Text(" SET ").Quote(ei.deleteSoftlyPolicy.deletedColumn).Text(" = ")
 
@@ -846,6 +872,7 @@ func (c *count[E]) Do() (num int64, err error) {
 			b.Error(err)
 			return
 		}
+		b.aliasToColumnMap = ei.aliasToColumnMap
 
 		b.Text("SELECT COUNT(*) FROM ").Quote(ei.table).accept(where{
 			cond:           c.cond,
@@ -934,7 +961,7 @@ type assignedCases struct {
 }
 
 func (a assignedCases) writeSQL(b *SQLBuilder) {
-	b.Text("CASE ").Quote(a.pkColumn)
+	b.Text("CASE ").column(a.pkColumn)
 	for _, item := range a.caseItems {
 		b.accept(item)
 	}
@@ -1115,7 +1142,7 @@ type orderByItem struct {
 }
 
 func (o orderByItem) writeSQL(b *SQLBuilder) {
-	b.Quote(o.column).Text(" ").Text(o.seq)
+	b.column(o.column).Text(" ").Text(o.seq)
 }
 
 type page struct {
@@ -1391,7 +1418,7 @@ type condBinOp struct {
 
 func (c condBinOp) writeSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
-		b.Quote(c.column).Text(" ").Text(c.op).Text(" ").Arg(c.arg)
+		b.column(c.column).Text(" ").Text(c.op).Text(" ").Arg(c.arg)
 	})
 }
 
@@ -1403,7 +1430,7 @@ type condIn[T any] struct {
 
 func (c condIn[T]) writeSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
-		b.Quote(c.column).Text(" IN(")
+		b.column(c.column).Text(" IN(")
 		for i := 0; i < len(c.args); i++ {
 			if i != 0 {
 				b.Text(", ")
@@ -1422,7 +1449,7 @@ type condBetween struct {
 
 func (c condBetween) writeSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
-		b.Quote(c.column).Text(" BETWEEN ").Arg(c.min).Text(" AND ").Arg(c.max)
+		b.column(c.column).Text(" BETWEEN ").Arg(c.min).Text(" AND ").Arg(c.max)
 	})
 }
 
@@ -1433,7 +1460,7 @@ type condIsNull struct {
 
 func (c condIsNull) writeSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
-		b.Quote(c.column).Text(" IS NULL")
+		b.column(c.column).Text(" IS NULL")
 	})
 }
 
@@ -1444,7 +1471,7 @@ type condIsNotNull struct {
 
 func (c condIsNotNull) writeSQL(b *SQLBuilder) {
 	c.writeWrap(b, func() {
-		b.Quote(c.column).Text(" IS NOT NULL")
+		b.column(c.column).Text(" IS NOT NULL")
 	})
 }
 

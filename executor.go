@@ -197,7 +197,7 @@ func (m *mutation) _handleResult(result sql.Result) {
 	}
 	for _, entity := range m.mapIdentityEntities {
 		v := reflect.ValueOf(entity).Elem()
-		field := v.Field(ei.columnToFieldIndexMap[ei.autoColumns[0]])
+		field := v.Field(ei.columnToFieldInfoMap[ei.autoColumns[0]].index)
 		if !field.IsNil() {
 			return
 		}
@@ -213,7 +213,7 @@ func (m *mutation) _handleResult(result sql.Result) {
 
 func (m *mutation) setIdentity(entity any, ei *entityInfo, id int64) {
 	v := reflect.ValueOf(entity).Elem()
-	field := v.Field(ei.columnToFieldIndexMap[ei.autoColumns[0]])
+	field := v.Field(ei.columnToFieldInfoMap[ei.autoColumns[0]].index)
 	field.Set(ei.identityConverter(id))
 }
 
