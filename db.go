@@ -56,35 +56,35 @@ func (d *DB) Mutation(ctx context.Context) *mutation {
 }
 
 func (d *DB) Find[E any](ctx context.Context) *find[E] {
-	return &find[E]{query: d.Query[E](ctx)}
+	return newFind[E](ctx, d)
 }
 
 func (d *DB) FindOne[E any](ctx context.Context) *findOne[E] {
-	return &findOne[E]{find: d.Find[E](ctx)}
+	return newFindOne[E](ctx, d)
 }
 
 func (d *DB) Insert[E any](ctx context.Context) *insert[E] {
-	return &insert[E]{executor: newExecutor(ctx, d)}
+	return newInsert[E](ctx, d)
 }
 
 func (d *DB) Update[E any](ctx context.Context) *update[E] {
-	return &update[E]{mutation: d.Mutation(ctx)}
+	return newUpdate[E](ctx, d)
 }
 
 func (d *DB) UpdateBatch[E any](ctx context.Context) *updateBatch[E] {
-	return &updateBatch[E]{mutation: d.Mutation(ctx)}
+	return newUpdateBatch[E](ctx, d)
 }
 
 func (d *DB) Delete[E any](ctx context.Context) *delete[E] {
-	return &delete[E]{mutation: d.Mutation(ctx)}
+	return newDelete[E](ctx, d)
 }
 
 func (d *DB) DeleteSoftly[E any](ctx context.Context) *deleteSoftly[E] {
-	return &deleteSoftly[E]{mutation: d.Mutation(ctx)}
+	return newDeleteSoftly[E](ctx, d)
 }
 
 func (d *DB) Count[E any](ctx context.Context) *count[E] {
-	return &count[E]{query: d.Query[Tuple[int64]](ctx)}
+	return newCount[E](ctx, d)
 }
 
 func (d *DB) Tx(ctx context.Context) *tx {

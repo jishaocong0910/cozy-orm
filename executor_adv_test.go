@@ -30,7 +30,15 @@ func TestFind(t *testing.T) {
 	{
 		db, _ := MockDB(r, nil)
 		r.PanicsWithError("not a valid entity type", func() {
-			db.Find[int](nil).Must().Do()
+			db.Find[int](nil).Do()
+		})
+	}
+	{
+		db, _ := MockDB(r, nil)
+		r.PanicsWithError("test must", func() {
+			db.Find[User](nil).Must().Cond(func(c *Cond) {
+				c.Error(errors.New("test must"))
+			}).Do()
 		})
 	}
 	{
@@ -52,12 +60,12 @@ func TestFind(t *testing.T) {
 		db, logger, mock := MockDBAndLogger(r, &Config{IdentifierDelimiter: IdentifierDelimiter_.Backtick, PageMode: PageMode_.LimitOffset})
 		mock.ExpectPrepare("SELECT `id`, `name`, `phone`, `email`, `level`, `version` FROM `user` WHERE `level` = ? ORDER BY `id` DESC, `name` ASC LIMIT 1 OFFSET 10 FOR UPDATE").ExpectQuery().WithArgs(1).
 			WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(9, "abc").AddRow(10, "efg"))
-		users, err := db.Find[User](ctx).SqlLogLevel(LogLevel_.Info).Description("test desc").Select("id", "version").OnDemand(DemandFor[UserSimple]()).
+		users, err := db.Find[User](ctx).SqlLogLevel(LogLevel_.Info).Description("test desc").Select("id", "Version").OnDemand(DemandFor[UserSimple]()).
 			Cond(func(c *Cond) {
-				c.Eq("level", 1)
+				c.Eq("Level", 1)
 			}).
 			OrderBy(func(o *OrderBy) {
-				o.Desc("id").Asc("name")
+				o.Desc("id").Asc("Name")
 			}).Page(10, 1).LastClause("FOR UPDATE").Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
@@ -111,7 +119,15 @@ func TestFindOne(t *testing.T) {
 	{
 		db, _ := MockDB(r, nil)
 		r.PanicsWithError("not a valid entity type", func() {
-			db.FindOne[int](nil).Must().Do()
+			db.FindOne[int](nil).Do()
+		})
+	}
+	{
+		db, _ := MockDB(r, nil)
+		r.PanicsWithError("test must", func() {
+			db.FindOne[User](nil).Must().Cond(func(c *Cond) {
+				c.Error(errors.New("test must"))
+			}).Do()
 		})
 	}
 	{
@@ -180,7 +196,14 @@ func TestInsert_doDefault(t *testing.T) {
 	{
 		db, _ := MockDB(r, nil)
 		r.PanicsWithError("not a valid entity type", func() {
-			db.Insert[int](nil).Must().Entities(new(1)).Do()
+			db.Insert[int](nil).Entities(new(1)).Do()
+		})
+	}
+	{
+		db, mock := MockDB(r, nil)
+		mock.ExpectPrepare("INSERT INTO `user`(`name`) VALUES(?)").ExpectExec().WillReturnError(errors.New("test must"))
+		r.PanicsWithError("test must", func() {
+			db.Insert[User](nil).Must().Entities(&User{Name: new("name")}).Do()
 		})
 	}
 	{
@@ -193,7 +216,7 @@ func TestInsert_doDefault(t *testing.T) {
 		ctx := context.WithValue(context.Background(), "test", "test")
 		db, logger, mock := MockDBAndLogger(r, nil)
 		mock.ExpectPrepare("INSERT INTO `user`(`name`, `status`) VALUES(?, NULL)").ExpectExec().WithArgs("abc").WillReturnResult(sqlmock.NewResult(1, 1))
-		affected, err := db.Insert[User](ctx).SqlLogLevel(LogLevel_.Info).Description("test desc").Entities(&User{Name: new("abc")}).Required("status").Do()
+		affected, err := db.Insert[User](ctx).SqlLogLevel(LogLevel_.Info).Description("test desc").Entities(&User{Name: new("abc")}).Required("Status").Do()
 		r.NoError(err)
 		r.NoError(mock.ExpectationsWereMet())
 		r.Equal(int64(1), affected)
@@ -391,7 +414,16 @@ func TestUpdate(t *testing.T) {
 	{
 		db, _ := MockDB(r, nil)
 		r.PanicsWithError("not a valid entity type", func() {
-			db.Update[int](nil).Must().Entity(new(1)).Do()
+			db.Update[int](nil).Entity(new(1)).Do()
+		})
+	}
+	{
+		db, _ := MockDB(r, nil)
+		r.PanicsWithError("test must", func() {
+			db.Update[User](nil).Must().Entity(&User{Id: new(int64(1)), Name: new("name")}).
+				Cond(func(c *Cond) {
+					c.Error(errors.New("test must"))
+				}).Do()
 		})
 	}
 	{
@@ -453,15 +485,15 @@ func TestUpdate(t *testing.T) {
 		mock.ExpectPrepare("UPDATE `user` SET `name` = ?, `phone` = NULL, `email` = ?, `status` = ?, `level` = level + ?, `properties` = NULL, `tags` = NULL WHERE `id` = ? AND `status` = ?").
 			ExpectExec().WithArgs("abc", "bbb@example.com", 2, 3, 1, 4).WillReturnResult(sqlmock.NewResult(0, 1))
 		affected, err := db.Update[User](ctx).Entity(&User{Id: new(int64(1)), Name: new("abc"), Email: new("abc@example.com"), Category: &UserCategory{Organization: "none", Class: 1}}).
-			OnDemand(DemandFor[UserSimple]()).Required("properties").Assignment(func(a *Assignment) {
-			a.SetValue("status", UserStatus(2)).SetValue("tags", "'t1,t2'").
+			OnDemand(DemandFor[UserSimple]()).Required("Properties").Assignment(func(a *Assignment) {
+			a.SetValue("Status", UserStatus(2)).SetValue("Tags", "'t1,t2'").
 				SetValue("email", "bbb@example.com").
 				SetValue("tags", nil).
 				SetExpr("level", func(e *Expr) {
 					e.Text("level + ").Arg(3)
 				})
 		}).Cond(func(c *Cond) {
-			c.Eq("status", 4)
+			c.Eq("Status", 4)
 		}).Do()
 		r.NoError(err)
 		r.Equal(int64(1), affected)
@@ -498,7 +530,16 @@ func TestUpdateBatch(t *testing.T) {
 	{
 		db, _ := MockDB(r, nil)
 		r.PanicsWithError("not a valid entity type", func() {
-			db.UpdateBatch[int](nil).Must().Entities(new(1)).Do()
+			db.UpdateBatch[int](nil).Entities(new(1)).Do()
+		})
+	}
+	{
+		db, _ := MockDB(r, nil)
+		r.PanicsWithError("test must", func() {
+			db.UpdateBatch[User](nil).Must().Entities(&User{Id: new(int64(1)), Name: new("name")}).
+				Cond(func(c *Cond) {
+					c.Error(errors.New("test must"))
+				}).Do()
 		})
 	}
 	{
@@ -554,10 +595,10 @@ func TestUpdateBatch(t *testing.T) {
 			WithArgs(1, "a", 2, "b", 1, 2, "email", 2, 1, 2, 5).WillReturnResult(sqlmock.NewResult(1, 1))
 		affected, err := db.UpdateBatch[User](ctx).SqlLogLevel(LogLevel_.Info).Description("test desc").OnDemand(DemandFor[UserSimple]()).
 			Entities(&User{Id: new(int64(1)), Name: new("a")}, &User{Id: new(int64(2)), Name: new("b"), Email: new("email")}).
-			Required("properties").Assignment(func(a *Assignment) {
-			a.SetValue("status", UserStatus(2)).SetValue("tags", nil)
+			Required("Properties").Assignment(func(a *Assignment) {
+			a.SetValue("Status", UserStatus(2)).SetValue("tags", nil)
 		}).Cond(func(c *Cond) {
-			c.Eq("level", 5)
+			c.Eq("Level", 5)
 		}).Do()
 		r.NoError(err)
 		r.Equal(int64(1), affected)
@@ -655,7 +696,15 @@ func TestDelete(t *testing.T) {
 	{
 		db, _ := MockDB(r, nil)
 		r.PanicsWithError("not a valid entity type", func() {
-			db.Delete[int](nil).Must().Do()
+			db.Delete[int](nil).Do()
+		})
+	}
+	{
+		db, _ := MockDB(r, nil)
+		r.PanicsWithError("test must", func() {
+			db.Delete[User](nil).Must().Cond(func(c *Cond) {
+				c.Error(errors.New("test must"))
+			}).Do()
 		})
 	}
 	{
@@ -681,7 +730,7 @@ func TestDelete(t *testing.T) {
 		db, logger, mock := MockDBAndLogger(r, nil)
 		mock.ExpectPrepare("DELETE FROM `user` WHERE `id` = ?").ExpectExec().WithArgs(1).WillReturnResult(sqlmock.NewResult(0, 1))
 		affected, err := db.Delete[User](ctx).SqlLogLevel(LogLevel_.Info).Description("test desc").Cond(func(c *Cond) {
-			c.Eq("id", 1)
+			c.Eq("Id", 1)
 		}).Do()
 		r.NoError(err)
 		r.Equal(int64(1), affected)
@@ -697,7 +746,15 @@ func TestDeleteSoftly(t *testing.T) {
 	{
 		db, _ := MockDB(r, nil)
 		r.PanicsWithError("not a valid entity type", func() {
-			db.DeleteSoftly[int](nil).Must().Do()
+			db.DeleteSoftly[int](nil).Do()
+		})
+	}
+	{
+		db, _ := MockDB(r, nil)
+		r.PanicsWithError("test must", func() {
+			db.DeleteSoftly[User](nil).Must().Cond(func(c *Cond) {
+				c.Error(errors.New("test must"))
+			}).Do()
 		})
 	}
 	{
@@ -736,15 +793,6 @@ func TestDeleteSoftly(t *testing.T) {
 		r.Equal(int64(2), affected)
 	}
 	{
-		db, _ := MockDB(r, &Config{
-			ColumnPolicyConfigs: ColumnPolicyConfigs{
-				NewColumnPolicyConfig("deleted").OnDeleteSoftly().AssignedPkMode(0),
-			},
-		})
-		_, err := db.DeleteSoftly[int](nil).Do()
-		r.EqualError(err, "not a valid entity type")
-	}
-	{
 		ctx := context.WithValue(context.Background(), "test", "test")
 		log := &MockLogger{}
 		db, mock := MockDB(r, &Config{
@@ -756,11 +804,11 @@ func TestDeleteSoftly(t *testing.T) {
 		mock.ExpectPrepare("UPDATE `user` SET `deleted` = `id`, `status` = ?, `name` = 'anon' WHERE `id` = ? AND `deleted` = ?").ExpectExec().
 			WithArgs(4, 1, 0).WillReturnResult(sqlmock.NewResult(0, 1))
 		affected, err := db.DeleteSoftly[User](ctx).SqlLogLevel(LogLevel_.Info).Description("test desc").Assignment(func(a *Assignment) {
-			a.SetValue("status", 4).SetExpr("name", func(e *Expr) {
+			a.SetValue("status", 4).SetExpr("Name", func(e *Expr) {
 				e.Text("'anon'")
 			})
 		}).Cond(func(c *Cond) {
-			c.Eq("id", 1)
+			c.Eq("Id", 1)
 		}).Do()
 		r.NoError(err)
 		r.Equal(int64(1), affected)
@@ -805,7 +853,15 @@ func TestCount(t *testing.T) {
 	{
 		db, _ := MockDB(r, nil)
 		r.PanicsWithError("not a valid entity type", func() {
-			db.Count[int](nil).Must().Do()
+			db.Count[int](nil).Do()
+		})
+	}
+	{
+		db, _ := MockDB(r, nil)
+		r.PanicsWithError("test must", func() {
+			db.Count[User](nil).Must().Cond(func(c *Cond) {
+				c.Error(errors.New("test must"))
+			}).Do()
 		})
 	}
 	{
@@ -820,7 +876,7 @@ func TestCount(t *testing.T) {
 		db, logger, mock := MockDBAndLogger(r, nil)
 		mock.ExpectPrepare("SELECT COUNT(*) FROM `user` WHERE `level` = ?").ExpectQuery().WithArgs(2).WillReturnRows(mock.NewRows([]string{"count"}).AddRow(10))
 		count, err := db.Count[User](ctx).SqlLogLevel(LogLevel_.Info).Description("test desc").Cond(func(c *Cond) {
-			c.Eq("level", 2)
+			c.Eq("Level", 2)
 		}).Do()
 		r.NoError(err)
 		r.Equal(int64(10), count)

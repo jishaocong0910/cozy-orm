@@ -125,8 +125,8 @@ func (q *query[E]) _mapNewEntities(rows *sql.Rows, columns []string, mp mapper) 
 	return
 }
 
-func newQuery[E any](e *executor) *query[E] {
-	return &query[E]{executor: e}
+func newQuery[E any](executor *executor) *query[E] {
+	return &query[E]{executor: executor}
 }
 
 type mutation struct {
@@ -217,8 +217,8 @@ func (m *mutation) setIdentity(entity any, ei *entityInfo, id int64) {
 	field.Set(ei.identityConverter(id))
 }
 
-func newMutation(e *executor) *mutation {
-	return &mutation{executor: e}
+func newMutation(executor *executor) *mutation {
+	return &mutation{executor: executor}
 }
 
 type executor struct {

@@ -152,6 +152,26 @@ func (e *entityInfo) getValueMap(entity any, columns ...[]string) map[string]any
 	return valueMap
 }
 
+func (e *entityInfo) convertColumnAlias(column string) string {
+	if e != nil {
+		if c, ok := e.aliasToColumnMap[column]; ok {
+			return c
+		}
+	}
+	return column
+}
+
+func (e *entityInfo) convertColumnAliases(columns []string) []string {
+	if e != nil {
+		for i := range columns {
+			if column, ok := e.aliasToColumnMap[columns[i]]; ok {
+				columns[i] = column
+			}
+		}
+	}
+	return columns
+}
+
 func (e *entityInfo) _getDemandColumnSet(demand *Demand) set[string] {
 	if demand == nil || demand.t == nil {
 		return nil

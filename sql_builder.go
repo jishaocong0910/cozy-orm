@@ -25,13 +25,12 @@ type SQLWriter interface {
 }
 
 type SQLBuilder struct {
-	b                strings.Builder
-	args             []any
-	cancel           bool
-	err              error
-	ph               SQLWriter
-	delim            IdentifierDelimiter
-	aliasToColumnMap map[string]string
+	b      strings.Builder
+	args   []any
+	cancel bool
+	err    error
+	ph     SQLWriter
+	delim  IdentifierDelimiter
 }
 
 func (b *SQLBuilder) Text(str string) *SQLBuilder {
@@ -114,13 +113,6 @@ func (b *SQLBuilder) info() (sql string, args []any) {
 func (b *SQLBuilder) accept(w sqlWriter) *SQLBuilder {
 	w.writeSQL(b)
 	return b
-}
-
-func (b *SQLBuilder) column(column string) *SQLBuilder {
-	if c, ok := b.aliasToColumnMap[column]; ok {
-		column = c
-	}
-	return b.Quote(column)
 }
 
 type sqlWriter interface {
