@@ -101,7 +101,7 @@ func (t *tx) _open() error {
 }
 
 func (t *tx) _commit() error {
-	if ts := t.db.getTxState(t.ctx); ts.createdBy(t) {
+	if ts := t.db.getTxState(t.ctx); ts.isCreatedBy(t) {
 		err := ts.rawTx.Commit()
 		if err == nil {
 			t._runAfterCompleteHook(true)
@@ -113,7 +113,7 @@ func (t *tx) _commit() error {
 }
 
 func (t *tx) _rollback() error {
-	if ts := t.db.getTxState(t.ctx); ts.createdBy(t) {
+	if ts := t.db.getTxState(t.ctx); ts.isCreatedBy(t) {
 		err := ts.rawTx.Rollback()
 		if err == nil {
 			t._runAfterCompleteHook(false)
@@ -131,7 +131,7 @@ func (t *tx) _cleanTxInfo() {
 }
 
 func (t *tx) _runBeforeCommitHook() error {
-	if ts := t.db.getTxState(t.ctx); ts.createdBy(t) {
+	if ts := t.db.getTxState(t.ctx); ts.isCreatedBy(t) {
 		ts.hookRunning = true
 		for _, hook := range ts.txHooks {
 			if hook.beforeHandler != nil {
@@ -155,10 +155,10 @@ func (t *tx) _runAfterCompleteHook(commit bool) {
 					ctx = context.WithValue(ctx, key, val)
 				}
 			}
-			go func() {
+			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						printLog(ctx, t.db.logger, LogLevel_.Error, "panic in transaction after-hook %v\n%s", r, deferStack())
+						printLog(ctx, t.db.logger, LogLevel_.Error, "%v\n%s", r, deferStack())
 					}
 				}()
 				hook.afterHandler(ctx, commit)
@@ -218,7 +218,7 @@ func (t *txState) clean() {
 	t.txStateData = nil
 }
 
-func (t *txState) createdBy(tx *tx) bool {
+func (t *txState) isCreatedBy(tx *tx) bool {
 	return t.creator == tx
 }
 

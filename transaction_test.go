@@ -18,9 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	orm "github.com/jishaocong0910/cozy-orm"
@@ -234,12 +232,12 @@ func TestTxHook(t *testing.T) {
 		r.False(ok)
 	}
 	{
-		var wg sync.WaitGroup
 		db, mock := orm.MockDB(r, nil)
 		mock.ExpectBegin()
 		mock.ExpectPrepare("UPDATE `user` SET `email` = ? WHERE `id` = ?").ExpectExec().WithArgs("a1", 1).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectRollback()
+		var i int
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			_, err := db.Update[orm.User](ctx).Assignment(func(a *orm.Assignment) {
 				a.SetValue("email", "a1")
@@ -249,29 +247,36 @@ func TestTxHook(t *testing.T) {
 			if err != nil {
 				return err
 			}
+
+			if h, ok := db.TxHook(ctx); ok {
+				h.BeforeCommit(func(ctx context.Context) error {
+					i = 1
+					return nil
+				})
+			}
+
 			h, ok := db.TxHook(ctx)
 			r.NotNil(h)
 			r.True(ok)
 
-			wg.Add(1)
 			h.BeforeCommit(func(ctx context.Context) error {
 				return errors.New("before hook error")
 			})
 			h.AfterComplete(func(ctx context.Context, commit bool) {
 				r.False(commit)
-				wg.Done()
 			})
 			ts := orm.GetTxStateData(ctx, db)
-			r.Len(ts.TxHook, 1)
-			r.Equal(ts.TxHook[0], h)
+
+			r.Equal(0, i)
+			r.Len(ts.TxHook, 2)
+			r.Equal(ts.TxHook[1], h)
 			return nil
 		})
 		fmt.Println(err)
 		r.EqualError(err, "before hook error")
-		wg.Wait()
+		r.Equal(1, i)
 	}
 	{
-		var wg sync.WaitGroup
 		db, mock := orm.MockDB(r, nil)
 		mock.ExpectBegin()
 		mock.ExpectPrepare("UPDATE `user` SET `email` = ? WHERE `id` = ?").ExpectExec().WithArgs("a1", 1).
@@ -290,8 +295,6 @@ func TestTxHook(t *testing.T) {
 				return err
 			}
 
-			wg.Add(1)
-
 			if h, ok := db.TxHook(ctx); ok {
 				h.BeforeCommit(func(ctx context.Context) error {
 					_, err := db.Update[orm.User](ctx).Assignment(func(a *orm.Assignment) {
@@ -307,13 +310,11 @@ func TestTxHook(t *testing.T) {
 					r.True(commit)
 					r.Nil(ts)
 					r.Equal(val, "value")
-					wg.Done()
 				}, "key")
 			}
 			return nil
 		})
 		r.NoError(err)
-		wg.Wait()
 	}
 	{
 		db, logger, mock := orm.MockDBAndLogger(r, nil)
@@ -322,16 +323,22 @@ func TestTxHook(t *testing.T) {
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			if h, ok := db.TxHook(ctx); ok {
 				h.AfterComplete(func(ctx context.Context, commit bool) {
-					panic("after-hook panic")
+					panic("after-complete-hook panic1")
+				})
+			}
+			if h, ok := db.TxHook(ctx); ok {
+				h.AfterComplete(func(ctx context.Context, commit bool) {
+					panic(errors.New("after-complete-hook panic2"))
 				})
 			}
 			return nil
 		})
 		r.NoError(err)
-		time.Sleep(time.Second * 1)
-		r.Len(logger.Messages, 1)
+		r.Len(logger.Messages, 2)
 		r.Equal(orm.LogLevel_.Error, logger.Messages[0].Level)
-		r.Contains(logger.Messages[0].Msg, "panic in transaction after-hook after-hook panic")
+		r.Contains(logger.Messages[0].Msg, "after-complete-hook panic1")
+		r.Equal(orm.LogLevel_.Error, logger.Messages[1].Level)
+		r.Contains(logger.Messages[1].Msg, "after-complete-hook panic2")
 	}
 	{
 		db, mock := orm.MockDB(r, nil)
