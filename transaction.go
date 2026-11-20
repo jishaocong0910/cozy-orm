@@ -181,13 +181,13 @@ type txHook struct {
 	copyCtxKeys   []any
 }
 
-func (t *txHook) BeforeCommitSync(handler func(ctx context.Context) error) {
+func (t *txHook) BeforeCommit(handler func(ctx context.Context) error) {
 	if t != nil {
 		t.beforeHandler = handler
 	}
 }
 
-func (t *txHook) AfterCompleteAsync(handler func(ctx context.Context, commit bool), copyCtxKeys ...any) {
+func (t *txHook) AfterComplete(handler func(ctx context.Context, commit bool), copyCtxKeys ...any) {
 	if t != nil {
 		t.afterHandler = handler
 		t.copyCtxKeys = copyCtxKeys

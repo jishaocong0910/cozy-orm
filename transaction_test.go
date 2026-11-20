@@ -254,10 +254,10 @@ func TestTxHook(t *testing.T) {
 			r.True(ok)
 
 			wg.Add(1)
-			h.BeforeCommitSync(func(ctx context.Context) error {
+			h.BeforeCommit(func(ctx context.Context) error {
 				return errors.New("before hook error")
 			})
-			h.AfterCompleteAsync(func(ctx context.Context, commit bool) {
+			h.AfterComplete(func(ctx context.Context, commit bool) {
 				r.False(commit)
 				wg.Done()
 			})
@@ -293,7 +293,7 @@ func TestTxHook(t *testing.T) {
 			wg.Add(1)
 
 			if h, ok := db.TxHook(ctx); ok {
-				h.BeforeCommitSync(func(ctx context.Context) error {
+				h.BeforeCommit(func(ctx context.Context) error {
 					_, err := db.Update[orm.User](ctx).Assignment(func(a *orm.Assignment) {
 						a.SetValue("email", "a2")
 					}).Cond(func(c *orm.Cond) {
@@ -301,7 +301,7 @@ func TestTxHook(t *testing.T) {
 					}).Do()
 					return err
 				})
-				h.AfterCompleteAsync(func(ctx context.Context, commit bool) {
+				h.AfterComplete(func(ctx context.Context, commit bool) {
 					ts := orm.GetTxStateData(ctx, db)
 					val := ctx.Value("key").(string)
 					r.True(commit)
@@ -321,7 +321,7 @@ func TestTxHook(t *testing.T) {
 		mock.ExpectCommit()
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			if h, ok := db.TxHook(ctx); ok {
-				h.AfterCompleteAsync(func(ctx context.Context, commit bool) {
+				h.AfterComplete(func(ctx context.Context, commit bool) {
 					panic("after-hook panic")
 				})
 			}
@@ -341,7 +341,7 @@ func TestTxHook(t *testing.T) {
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			db.Tx(ctx).Must().Do(func(ctx context.Context) error {
 				if hook, ok := db.TxHook(ctx); ok {
-					hook.BeforeCommitSync(func(ctx context.Context) error {
+					hook.BeforeCommit(func(ctx context.Context) error {
 						i++
 						return nil
 					})
@@ -360,10 +360,10 @@ func TestTxHook(t *testing.T) {
 		var i int
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			if hook, ok := db.TxHook(ctx); ok {
-				hook.BeforeCommitSync(func(ctx context.Context) error {
+				hook.BeforeCommit(func(ctx context.Context) error {
 					i++
 					if hook, ok := db.TxHook(ctx); ok {
-						hook.BeforeCommitSync(func(ctx context.Context) error {
+						hook.BeforeCommit(func(ctx context.Context) error {
 							i++
 							return nil
 						})
