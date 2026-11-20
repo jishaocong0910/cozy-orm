@@ -35,7 +35,7 @@ https://jishaocong0910.github.io/cozy-orm-doc/
 
 <a id="chinese"></a>
 
-# CozyORM (中文)
+# CozyORM
 
 [English](#english) | [中文](#chinese)
 
