@@ -126,7 +126,7 @@ func (t *tx) _rollback() error {
 
 func (t *tx) _cleanTxInfo() {
 	if ts := t.db.getTxState(t.ctx); ts != nil {
-		ts.close()
+		ts.clean()
 	}
 }
 
@@ -214,7 +214,7 @@ func (t *txState) registerHook(ctx context.Context) (*txHook, bool) {
 	return th, true
 }
 
-func (t *txState) close() {
+func (t *txState) clean() {
 	t.txStateData = nil
 }
 
