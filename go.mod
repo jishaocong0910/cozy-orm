@@ -4,7 +4,7 @@ go 1.27
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/jishaocong0910/enum v1.1.6
+	github.com/jishaocong0910/enum v1.2.0
 	github.com/stretchr/testify v1.10.0
 )
 

@@ -238,6 +238,7 @@ func TestTxHook(t *testing.T) {
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectRollback()
 		var i int
+		var afterCompleteCalled bool
 		err := db.Tx(nil).Do(func(ctx context.Context) error {
 			_, err := db.Update[orm.User](ctx).Assignment(func(a *orm.Assignment) {
 				a.SetValue("email", "a1")
@@ -263,6 +264,7 @@ func TestTxHook(t *testing.T) {
 				return errors.New("before hook error")
 			})
 			h.AfterComplete(func(ctx context.Context, commit bool) {
+				afterCompleteCalled = true
 				r.False(commit)
 			})
 			ts := orm.GetTxStateData(ctx, db)
@@ -275,6 +277,8 @@ func TestTxHook(t *testing.T) {
 		fmt.Println(err)
 		r.EqualError(err, "before hook error")
 		r.Equal(1, i)
+		r.True(afterCompleteCalled)
+		r.NoError(mock.ExpectationsWereMet())
 	}
 	{
 		db, mock := orm.MockDB(r, nil)

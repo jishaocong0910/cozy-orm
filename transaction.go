@@ -115,10 +115,10 @@ func (t *tx) _commit() error {
 func (t *tx) _rollback() error {
 	if ts := t.db.getTxState(t.ctx); ts.isCreatedBy(t) {
 		err := ts.rawTx.Rollback()
-		t._cleanTxInfo()
 		if err == nil {
 			t._runAfterCompleteHook(false)
 		}
+		t._cleanTxInfo()
 		return err
 	}
 	return nil
@@ -126,7 +126,7 @@ func (t *tx) _rollback() error {
 
 func (t *tx) _cleanTxInfo() {
 	if ts := t.db.getTxState(t.ctx); ts != nil {
-		ts.clean()
+		ts.close()
 	}
 }
 
@@ -214,7 +214,7 @@ func (t *txState) registerHook(ctx context.Context) (*txHook, bool) {
 	return th, true
 }
 
-func (t *txState) clean() {
+func (t *txState) close() {
 	t.txStateData = nil
 }
 

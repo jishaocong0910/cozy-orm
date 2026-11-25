@@ -17,15 +17,15 @@ package orm
 import (
 	"strconv"
 
-	e "github.com/jishaocong0910/enum"
+	"github.com/jishaocong0910/enum"
 )
 
 type DBType struct {
-	e.EnumElem
+	enum.Val
 }
 
 type _DBType struct {
-	e.Enum[DBType]
+	enum.Typ[DBType]
 	MySQL,
 	Oracle,
 	PostgreSQL,
@@ -33,14 +33,14 @@ type _DBType struct {
 	SQLite DBType
 }
 
-var DBType_ = e.NewEnum(_DBType{})
+var DBType_ = enum.NewType(_DBType{})
 
 type LogLevel struct {
-	e.EnumElem
+	enum.Val
 }
 
 type _LogLevel struct {
-	e.Enum[LogLevel]
+	enum.Typ[LogLevel]
 	Off,
 	Debug,
 	Info,
@@ -48,21 +48,21 @@ type _LogLevel struct {
 	Error LogLevel
 }
 
-var LogLevel_ = e.NewEnum(_LogLevel{})
+var LogLevel_ = enum.NewType(_LogLevel{})
 
 type IdentifierDelimiter struct {
-	e.EnumElem
+	enum.Val
 	quote func(string) string
 }
 
 type _IdentifierDelimiter struct {
-	e.Enum[IdentifierDelimiter]
+	enum.Typ[IdentifierDelimiter]
 	Backtick,
 	DoubleQuote,
 	Bracket IdentifierDelimiter
 }
 
-var IdentifierDelimiter_ = e.NewEnum(_IdentifierDelimiter{
+var IdentifierDelimiter_ = enum.NewType(_IdentifierDelimiter{
 	Backtick: IdentifierDelimiter{quote: func(s string) string {
 		return "`" + s + "`"
 	}},
@@ -75,11 +75,11 @@ var IdentifierDelimiter_ = e.NewEnum(_IdentifierDelimiter{
 })
 
 type GetGeneratedKeyMode struct {
-	e.EnumElem
+	enum.Val
 }
 
 type _GetGeneratedKeyMode struct {
-	e.Enum[GetGeneratedKeyMode]
+	enum.Typ[GetGeneratedKeyMode]
 	FirstInsertId,
 	LastInsertId,
 	InsertReturning,
@@ -87,20 +87,20 @@ type _GetGeneratedKeyMode struct {
 	Oracle GetGeneratedKeyMode
 }
 
-var GetGeneratedKeyMode_ = e.NewEnum(_GetGeneratedKeyMode{})
+var GetGeneratedKeyMode_ = enum.NewType(_GetGeneratedKeyMode{})
 
 type PageMode struct {
-	e.EnumElem
+	enum.Val
 	writeSQL func(b *SQLBuilder, offset, count int)
 }
 
 type _PageMode struct {
-	e.Enum[PageMode]
+	enum.Typ[PageMode]
 	LimitOffset,
 	OffsetFetch PageMode
 }
 
-var PageMode_ = e.NewEnum(_PageMode{
+var PageMode_ = enum.NewType(_PageMode{
 	LimitOffset: PageMode{
 		writeSQL: func(b *SQLBuilder, offset, count int) {
 			b.Text(" LIMIT ").Text(strconv.FormatInt(int64(count), 10))
@@ -118,12 +118,12 @@ var PageMode_ = e.NewEnum(_PageMode{
 })
 
 type deleteSoftlyMode struct {
-	e.EnumElem
+	enum.Val
 }
 
 type _deleteSoftlyMode struct {
-	e.Enum[deleteSoftlyMode]
+	enum.Typ[deleteSoftlyMode]
 	assignedPk, assignedNull deleteSoftlyMode
 }
 
-var deleteSoftlyMode_ = e.NewEnum(_deleteSoftlyMode{})
+var deleteSoftlyMode_ = enum.NewType(_deleteSoftlyMode{})
